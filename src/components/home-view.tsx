@@ -118,7 +118,7 @@ export default function HomeView() {
               Browse Jobs
             </Link>
             <Link
-              href="/register?role=recruiter"
+              href="/workers"
               className="text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors hidden sm:inline px-2"
             >
               Find Workers

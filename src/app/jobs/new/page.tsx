@@ -24,7 +24,11 @@ export default async function NewJobPage() {
     include: { recruiterProfile: true, workerProfile: true },
   });
 
-  const defaultDistrict = dbUser?.recruiterProfile?.address || dbUser?.workerProfile?.address || "Kathmandu";
+  if (dbUser?.role === "WORKER") {
+    redirect("/dashboard?error=worker_post_restricted");
+  }
+
+  const defaultDistrict = dbUser?.recruiterProfile?.address || "Kathmandu";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">

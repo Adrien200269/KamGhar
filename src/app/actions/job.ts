@@ -36,6 +36,13 @@ export async function createJob(rawInput: unknown): Promise<JobActionResult> {
       include: { recruiterProfile: true },
     });
 
+    if (dbUser && dbUser.role === "WORKER") {
+      return {
+        success: false,
+        error: "Only recruiter accounts can post jobs. Workers can explore and apply to open gigs.",
+      };
+    }
+
     if (!dbUser) {
       const name = user.user_metadata?.name || user.email?.split("@")[0] || "Recruiter";
       dbUser = await prisma.user.create({
@@ -49,8 +56,7 @@ export async function createJob(rawInput: unknown): Promise<JobActionResult> {
         },
         include: { recruiterProfile: true },
       });
-    } else if (dbUser.role !== "RECRUITER" && !dbUser.recruiterProfile) {
-      // Create recruiter profile if they previously only had a worker profile
+    } else if (!dbUser.recruiterProfile) {
       const name = user.user_metadata?.name || user.email?.split("@")[0] || "Recruiter";
       await prisma.recruiterProfile.create({
         data: {

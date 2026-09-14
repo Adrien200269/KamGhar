@@ -18,13 +18,14 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
-  TrendingUp,
   User,
   Sparkles,
   Trash2,
   Check,
   X,
   AlertCircle,
+  Search,
+  Eye,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import { signOutUser } from "@/app/actions/auth";
@@ -116,9 +117,12 @@ function StatusBadge({ status }: { status: string }) {
 export default function DashboardView({ user }: { user: UserWithProfile }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const justPosted = searchParams.get("posted") === "true";
+  const workerPostRestricted = searchParams.get("error") === "worker_post_restricted";
 
   const [showPostedBanner, setShowPostedBanner] = useState(justPosted);
+  const [showRestrictedBanner, setShowRestrictedBanner] = useState(workerPostRestricted);
   const [jobFilter, setJobFilter] = useState<"ALL" | "OPEN" | "COMPLETED">("ALL");
   const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
 
@@ -180,13 +184,23 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           </Link>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/jobs/new"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Post a Job</span>
-            </Link>
+            {isWorker ? (
+              <Link
+                href="/jobs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Find Jobs</span>
+              </Link>
+            ) : (
+              <Link
+                href="/jobs/new"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Post a Job</span>
+              </Link>
+            )}
 
             <ThemeToggle />
 
@@ -202,9 +216,9 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
       </motion.header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Success Banner when newly posted */}
+        {/* Recruiter Success Banner when newly posted */}
         <AnimatePresence>
-          {showPostedBanner && (
+          {showPostedBanner && !isWorker && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -218,12 +232,40 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 <div>
                   <p className="font-bold text-sm">Job Posted Successfully! 🎉</p>
                   <p className="text-xs text-emerald-100">
-                    Your requirement is now live. Skilled workers near your location can view and apply.
+                    Your requirement is live. Skilled workers in your district can now view and apply.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowPostedBanner(false)}
+                className="p-1 rounded-lg hover:bg-white/10 text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+
+          {/* Worker Restricted Banner if attempted to access post */}
+          {showRestrictedBanner && isWorker && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="p-4 rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/20 flex items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">Worker Account Notice</p>
+                  <p className="text-xs text-amber-100">
+                    Posting jobs is reserved for recruiter accounts. As a skilled worker, you can search and apply for open gigs below!
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRestrictedBanner(false)}
                 className="p-1 rounded-lg hover:bg-white/10 text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -246,7 +288,9 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-orange-800 dark:text-orange-300">Complete your profile</p>
                   <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5">
-                    A complete profile with skills and location attracts 3x more responses.
+                    {isWorker
+                      ? "A complete profile with skills, rate, and district allows recruiters to find and contact you."
+                      : "Add your organization details and location to start hiring workers."}
                   </p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-orange-500 group-hover:translate-x-1 transition-transform flex-shrink-0" />
@@ -269,7 +313,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                       {displayName}
                     </h2>
                     <p className="text-xs text-orange-600 dark:text-orange-400 font-semibold mt-0.5">
-                      {isWorker ? "Worker" : "Recruiter"}{" "}
+                      {isWorker ? "Worker / Service Provider" : "Recruiter / Client"}{" "}
                       {isWorker && user.workerProfile?.hourlyRate
                         ? `• Rs. ${user.workerProfile.hourlyRate}/hr`
                         : ""}
@@ -301,7 +345,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
 
                 {isWorker && (user.workerProfile?.skills?.length ?? 0) > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-3">
-                    {user.workerProfile!.skills.slice(0, 5).map((s) => (
+                    {user.workerProfile!.skills.slice(0, 6).map((s) => (
                       <span
                         key={s}
                         className="text-[10px] font-semibold px-2.5 py-0.5 bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 rounded-full border border-orange-200 dark:border-orange-800/50"
@@ -309,9 +353,9 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                         {s}
                       </span>
                     ))}
-                    {(user.workerProfile?.skills.length ?? 0) > 5 && (
+                    {(user.workerProfile?.skills.length ?? 0) > 6 && (
                       <span className="text-[10px] text-slate-400 self-center">
-                        +{user.workerProfile!.skills.length - 5} more
+                        +{user.workerProfile!.skills.length - 6} more
                       </span>
                     )}
                   </div>
@@ -322,243 +366,426 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
             {/* Stats card */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-sm">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Activity Overview
+                {isWorker ? "Worker Stats" : "Recruiter Activity"}
               </p>
-              <div className="space-y-4 mt-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                    <Briefcase className="w-4 h-4 text-orange-500" />
-                    <span>Jobs Posted</span>
+
+              {isWorker ? (
+                <div className="space-y-4 mt-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                      <Briefcase className="w-4 h-4 text-orange-500" />
+                      <span>Applications Sent</span>
+                    </div>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {user.applications.length}
+                    </span>
                   </div>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {user.postedJobs.length}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                    <Clock className="w-4 h-4 text-blue-500" />
-                    <span>Open Gigs</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span>Accepted Gigs</span>
+                    </div>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {user.applications.filter((a) => a.status === "ACCEPTED").length}
+                    </span>
                   </div>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {user.postedJobs.filter((j) => j.status === "OPEN").length}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <span>Completed</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                      <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                      <span>Rating</span>
+                    </div>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {user.workerProfile?.rating ? user.workerProfile.rating.toFixed(1) : "5.0"}
+                    </span>
                   </div>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    {user.postedJobs.filter((j) => j.status === "COMPLETED").length}
-                  </span>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-4 mt-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                      <Briefcase className="w-4 h-4 text-orange-500" />
+                      <span>Jobs Posted</span>
+                    </div>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {user.postedJobs.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                      <Clock className="w-4 h-4 text-blue-500" />
+                      <span>Open Gigs</span>
+                    </div>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {user.postedJobs.filter((j) => j.status === "OPEN").length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span>Completed</span>
+                    </div>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {user.postedJobs.filter((j) => j.status === "COMPLETED").length}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
 
-          {/* ── Quick Actions ─────────────────────────────── */}
+          {/* ── Role-Tailored Quick Shortcuts ──────────────── */}
           <motion.div variants={fadeUp}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Quick Shortcuts
               </h3>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <QuickAction
-                icon={<Plus className="w-5 h-5" />}
-                label="Post a Job"
-                href="/jobs/new"
-                color="orange"
-              />
-              <QuickAction
-                icon={<User className="w-5 h-5" />}
-                label="Update Profile"
-                href="/onboarding"
-                color="blue"
-              />
-              <QuickAction
-                icon={<Briefcase className="w-5 h-5" />}
-                label="Browse Gigs"
-                href="/#categories"
-                color="emerald"
-              />
-              <QuickAction
-                icon={<Zap className="w-5 h-5" />}
-                label="Boost Visibility"
-                href="#boost"
-                color="purple"
-              />
-            </div>
-          </motion.div>
 
-          {/* ── Posted Jobs Hub ───────────────────────────── */}
-          <motion.div variants={fadeUp} className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                  Your Posted Requirements
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Manage applications, adjust status, and review active listings.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
-                  {(["ALL", "OPEN", "COMPLETED"] as const).map((filter) => (
-                    <button
-                      key={filter}
-                      onClick={() => setJobFilter(filter)}
-                      className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                        jobFilter === filter
-                          ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm font-bold"
-                          : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                      }`}
-                    >
-                      {filter === "ALL" ? "All Jobs" : filter === "OPEN" ? "Active" : "Completed"}
-                    </button>
-                  ))}
-                </div>
-
-                <Link
-                  href="/jobs/new"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>New</span>
-                </Link>
-              </div>
-            </div>
-
-            {filteredJobs.length === 0 ? (
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-dashed p-10 text-center">
-                <div className="w-12 h-12 mx-auto rounded-2xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center text-orange-600 dark:text-orange-400 mb-3">
-                  <Briefcase className="w-6 h-6" />
-                </div>
-                <p className="text-base font-bold text-slate-900 dark:text-white">
-                  No {jobFilter === "OPEN" ? "active" : jobFilter === "COMPLETED" ? "completed" : ""} jobs found
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto mb-5">
-                  Need work done? Post your requirement now and skilled local workers in your area will reach out.
-                </p>
-                <Link
-                  href="/jobs/new"
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-orange-500/20 transition-all"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Post a Job Requirement</span>
-                </Link>
+            {isWorker ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <QuickAction
+                  icon={<Search className="w-5 h-5" />}
+                  label="Find a Job"
+                  href="/jobs"
+                  color="orange"
+                />
+                <QuickAction
+                  icon={<User className="w-5 h-5" />}
+                  label="My Skills & Bio"
+                  href="/onboarding"
+                  color="blue"
+                />
+                <QuickAction
+                  icon={<Briefcase className="w-5 h-5" />}
+                  label="My Applications"
+                  href="#applications"
+                  color="emerald"
+                />
+                <QuickAction
+                  icon={<Zap className="w-5 h-5" />}
+                  label="Boost Profile"
+                  href="#boost"
+                  color="purple"
+                />
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredJobs.map((job) => (
-                  <motion.div
-                    key={job.id}
-                    whileHover={{ y: -1 }}
-                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-sm space-y-3 transition-colors"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50">
-                            {job.category}
-                          </span>
-                          <StatusBadge status={job.status} />
-                        </div>
-                        <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                          {job.title}
-                        </h4>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {/* Status update buttons */}
-                        {job.status === "OPEN" ? (
-                          <button
-                            disabled={updatingJobId === job.id}
-                            onClick={() => handleStatusChange(job.id, "COMPLETED")}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
-                          >
-                            <Check className="w-3 h-3" />
-                            <span>Mark Completed</span>
-                          </button>
-                        ) : (
-                          <button
-                            disabled={updatingJobId === job.id}
-                            onClick={() => handleStatusChange(job.id, "OPEN")}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 transition-colors cursor-pointer"
-                          >
-                            <span>Re-open</span>
-                          </button>
-                        )}
-
-                        <button
-                          disabled={updatingJobId === job.id}
-                          onClick={() => handleDeleteJob(job.id)}
-                          title="Delete Job"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-orange-500" />
-                        {job.address}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        Budget:{" "}
-                        <strong className="text-slate-900 dark:text-white">
-                          {job.budget ? `Rs. ${job.budget}` : "Negotiable"}
-                        </strong>
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5 text-blue-500" />
-                        {job.applications?.length ?? 0} applications
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        {new Date(job.createdAt).toLocaleDateString("en-NP", {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <QuickAction
+                  icon={<Plus className="w-5 h-5" />}
+                  label="Post a Job"
+                  href="/jobs/new"
+                  color="orange"
+                />
+                <QuickAction
+                  icon={<Users className="w-5 h-5" />}
+                  label="Find Workers"
+                  href="/workers"
+                  color="blue"
+                />
+                <QuickAction
+                  icon={<Briefcase className="w-5 h-5" />}
+                  label="My Posted Jobs"
+                  href="#jobs"
+                  color="emerald"
+                />
+                <QuickAction
+                  icon={<Zap className="w-5 h-5" />}
+                  label="Boost a Job"
+                  href="#boost"
+                  color="purple"
+                />
               </div>
             )}
           </motion.div>
 
-          {/* ── Applications Section (for workers) ────────── */}
-          {user.applications.length > 0 && (
-            <motion.div variants={fadeUp} className="space-y-4 pt-4 border-t border-slate-200/80 dark:border-slate-800">
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                Your Job Applications
-              </h3>
-              <div className="space-y-3">
-                {user.applications.map((app) => (
-                  <div
-                    key={app.id}
-                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 flex items-center justify-between gap-4 shadow-sm"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                        {app.job.title}
-                      </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" />
-                        {app.job.address}
-                      </p>
-                    </div>
-                    <StatusBadge status={app.status} />
+          {/* ── WORKER VIEW: Discovery & Applications ───────── */}
+          {isWorker ? (
+            <div className="space-y-6">
+              {/* Find Work Banner */}
+              <motion.div variants={fadeUp}>
+                <div className="p-6 rounded-3xl bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-extrabold flex items-center gap-2">
+                      <Briefcase className="w-5 h-5" />
+                      <span>Ready to take on new work?</span>
+                    </h3>
+                    <p className="text-xs text-orange-100 max-w-lg leading-relaxed">
+                      Clients in Kathmandu and across Nepal are posting daily repair, trade, and freelance gigs. Browse and apply now.
+                    </p>
                   </div>
-                ))}
+                  <Link
+                    href="/jobs"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-orange-600 rounded-xl text-xs font-bold shadow-md hover:bg-orange-50 transition-all whitespace-nowrap cursor-pointer"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>Explore Open Gigs</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </motion.div>
+
+              {/* Public Profile Visibility Preview */}
+              <motion.div variants={fadeUp}>
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <Eye className="w-4 h-4 text-orange-500" />
+                      <span>How Recruiters See Your Post in the Worker Directory</span>
+                    </div>
+                    <Link
+                      href="/workers"
+                      className="text-xs font-semibold text-orange-600 dark:text-orange-400 hover:underline"
+                    >
+                      View All Workers →
+                    </Link>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-white text-sm">{displayName}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                          Available for Hire
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-orange-500" />
+                        {location ? `${location}, Nepal` : "Nepal"}
+                        {user.workerProfile?.hourlyRate && (
+                          <>
+                            <span>•</span>
+                            <strong className="text-slate-700 dark:text-slate-300">
+                              Rs. {user.workerProfile.hourlyRate}/hr
+                            </strong>
+                          </>
+                        )}
+                      </p>
+                      {user.workerProfile?.skills && user.workerProfile.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {user.workerProfile.skills.map((s) => (
+                            <span
+                              key={s}
+                              className="text-[10px] font-semibold px-2 py-0.5 bg-orange-100/70 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 rounded-md"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <Link
+                      href="/onboarding"
+                      className="px-3.5 py-1.5 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
+                    >
+                      Edit Listing
+                    </Link>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Worker Applications Section */}
+              <motion.div variants={fadeUp} id="applications" className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Your Job Applications
+                  </h3>
+                  <Link
+                    href="/jobs"
+                    className="text-xs font-semibold text-orange-600 dark:text-orange-400 hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>Browse more jobs</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+
+                {user.applications.length === 0 ? (
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-dashed p-10 text-center">
+                    <div className="w-12 h-12 mx-auto rounded-2xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center text-orange-600 dark:text-orange-400 mb-3">
+                      <Briefcase className="w-6 h-6" />
+                    </div>
+                    <p className="text-base font-bold text-slate-900 dark:text-white">No applications yet</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto mb-5">
+                      Explore open requirements matching your trade skills and send your first application.
+                    </p>
+                    <Link
+                      href="/jobs"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-md transition-all"
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Browse Open Gigs</span>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {user.applications.map((app) => (
+                      <div
+                        key={app.id}
+                        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 flex items-center justify-between gap-4 shadow-sm"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                            {app.job.title}
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3" />
+                            {app.job.address}
+                            {app.job.budget && (
+                              <>
+                                <span>•</span>
+                                <span>Rs. {app.job.budget.toLocaleString()}</span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+                        <StatusBadge status={app.status} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          ) : (
+            /* ── RECRUITER VIEW: Posted Requirements Hub ─────── */
+            <motion.div variants={fadeUp} id="jobs" className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Your Posted Requirements
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Manage applications, adjust status, and review active listings.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
+                    {(["ALL", "OPEN", "COMPLETED"] as const).map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setJobFilter(filter)}
+                        className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                          jobFilter === filter
+                            ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm font-bold"
+                            : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                        }`}
+                      >
+                        {filter === "ALL" ? "All Jobs" : filter === "OPEN" ? "Active" : "Completed"}
+                      </button>
+                    ))}
+                  </div>
+
+                  <Link
+                    href="/jobs/new"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>New Job</span>
+                  </Link>
+                </div>
               </div>
+
+              {filteredJobs.length === 0 ? (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-dashed p-10 text-center">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center text-orange-600 dark:text-orange-400 mb-3">
+                    <Briefcase className="w-6 h-6" />
+                  </div>
+                  <p className="text-base font-bold text-slate-900 dark:text-white">
+                    No {jobFilter === "OPEN" ? "active" : jobFilter === "COMPLETED" ? "completed" : ""} jobs found
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto mb-5">
+                    Need work done? Post your requirement now and skilled local workers in your area will reach out.
+                  </p>
+                  <Link
+                    href="/jobs/new"
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-orange-500/20 transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Post a Job Requirement</span>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredJobs.map((job) => (
+                    <motion.div
+                      key={job.id}
+                      whileHover={{ y: -1 }}
+                      className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-sm space-y-3 transition-colors"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50">
+                              {job.category}
+                            </span>
+                            <StatusBadge status={job.status} />
+                          </div>
+                          <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                            {job.title}
+                          </h4>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {job.status === "OPEN" ? (
+                            <button
+                              disabled={updatingJobId === job.id}
+                              onClick={() => handleStatusChange(job.id, "COMPLETED")}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                            >
+                              <Check className="w-3 h-3" />
+                              <span>Mark Completed</span>
+                            </button>
+                          ) : (
+                            <button
+                              disabled={updatingJobId === job.id}
+                              onClick={() => handleStatusChange(job.id, "OPEN")}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 transition-colors cursor-pointer"
+                            >
+                              <span>Re-open</span>
+                            </button>
+                          )}
+
+                          <button
+                            disabled={updatingJobId === job.id}
+                            onClick={() => handleDeleteJob(job.id)}
+                            title="Delete Job"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-orange-500" />
+                          {job.address}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Budget:{" "}
+                          <strong className="text-slate-900 dark:text-white">
+                            {job.budget ? `Rs. ${job.budget.toLocaleString()}` : "Negotiable"}
+                          </strong>
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5 text-blue-500" />
+                          {job.applications?.length ?? 0} applications
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {new Date(job.createdAt).toLocaleDateString("en-NP", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
         </motion.div>

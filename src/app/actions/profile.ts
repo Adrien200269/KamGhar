@@ -146,3 +146,48 @@ export async function getCurrentUserProfile() {
 
   return dbUser;
 }
+
+/* ── Fetch Public Workers Directory ───────────────────────── */
+export async function getPublicWorkers(filters?: {
+  skill?: string;
+  district?: string;
+  search?: string;
+}) {
+  const where: any = {};
+
+  if (filters?.skill && filters.skill !== "ALL") {
+    where.skills = { has: filters.skill };
+  }
+
+  if (filters?.district && filters.district !== "ALL") {
+    where.address = { contains: filters.district, mode: "insensitive" };
+  }
+
+  if (filters?.search && filters.search.trim()) {
+    const q = filters.search.trim();
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { bio: { contains: q, mode: "insensitive" } },
+      { address: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  try {
+    const workers = await prisma.workerProfile.findMany({
+      where,
+      orderBy: [{ isFeatured: "desc" }, { rating: "desc" }, { createdAt: "desc" }],
+      include: {
+        user: {
+          select: {
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+    return workers;
+  } catch (err) {
+    console.error("Failed to fetch workers:", err);
+    return [];
+  }
+}
