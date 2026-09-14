@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -40,6 +40,9 @@ import {
   Navigation,
   MessageCircle,
   Copy,
+  FileText,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import { signOutUser } from "@/app/actions/auth";
@@ -47,8 +50,11 @@ import { updateJobStatus, deleteJob, updateApplicationStatus } from "@/app/actio
 import {
   updateUserProfileSettings,
   changeAccountPassword,
+  uploadWorkerCV,
+  removeWorkerCV,
+  sendPhoneOtp,
+  verifyPhoneOtp,
 } from "@/app/actions/profile";
-
 type JobApplicant = {
   id: string;
   status: string;
@@ -59,6 +65,7 @@ type JobApplicant = {
     id: string;
     email: string;
     phone: string | null;
+    phoneVerified?: boolean;
     workerProfile: {
       name: string;
       bio: string | null;
@@ -68,6 +75,7 @@ type JobApplicant = {
       reviewCount: number;
       address: string | null;
       profilePhotoUrl: string | null;
+      cvUrl?: string | null;
     } | null;
   };
 };
@@ -119,6 +127,7 @@ type UserWithProfile = {
   id: string;
   email: string;
   phone: string | null;
+  phoneVerified?: boolean;
   role: string;
   workerProfile: {
     name: string;
@@ -129,6 +138,7 @@ type UserWithProfile = {
     reviewCount: number;
     address: string | null;
     profilePhotoUrl: string | null;
+    cvUrl?: string | null;
   } | null;
   recruiterProfile: {
     name: string;
@@ -201,7 +211,23 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
 
   // Profile Settings Modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"profile" | "password">("profile");
+  const [settingsTab, setSettingsTab] = useState<"profile" | "documents" | "password">("profile");
+  // Phone OTP Verification state
+  const [isPhoneVerified, setIsPhoneVerified] = useState(user.phoneVerified ?? false);
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [phoneOtpCode, setPhoneOtpCode] = useState("");
+  const [phoneOtpSending, setPhoneOtpSending] = useState(false);
+  const [phoneOtpVerifying, setPhoneOtpVerifying] = useState(false);
+  const [phoneOtpError, setPhoneOtpError] = useState<string | null>(null);
+  const [phoneOtpSuccess, setPhoneOtpSuccess] = useState<string | null>(null);
+
+  // CV Upload state (for workers)
+  const [currentCvUrl, setCurrentCvUrl] = useState<string | null>(user.workerProfile?.cvUrl ?? null);
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [cvUploading, setCvUploading] = useState(false);
+  const [cvRemoving, setCvRemoving] = useState(false);
+  const [cvError, setCvError] = useState<string | null>(null);
+  const [cvSuccess, setCvSuccess] = useState<string | null>(null);
   const [settingsPhotoUrl, setSettingsPhotoUrl] = useState(profile?.profilePhotoUrl ?? "");
   const [settingsPhone, setSettingsPhone] = useState<string>(user.phone ?? "");
   const [settingsName, setSettingsName] = useState(profile?.name ?? "");
@@ -224,6 +250,113 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
+  // Handlers for Phone OTP Verification
+  const handleSendPhoneOtp = async () => {
+    if (!settingsPhone.trim()) {
+      setPhoneOtpError("Please enter a valid phone number first.");
+      return;
+    }
+    setPhoneOtpSending(true);
+    setPhoneOtpError(null);
+    setPhoneOtpSuccess(null);
+    try {
+      const res = await sendPhoneOtp(settingsPhone.trim());
+      if (res.success) {
+        setPhoneOtpSent(true);
+        setPhoneOtpSuccess("OTP sent via SMS! Please check your phone.");
+      } else {
+        setPhoneOtpError(res.error || "Failed to send OTP. Please try again.");
+      }
+    } catch {
+      setPhoneOtpError("Failed to dispatch OTP. Please check your connection.");
+    } finally {
+      setPhoneOtpSending(false);
+    }
+  };
+
+  const handleVerifyPhoneOtp = async () => {
+    if (!phoneOtpCode.trim() || phoneOtpCode.trim().length < 4) {
+      setPhoneOtpError("Please enter the 6-digit OTP code received.");
+      return;
+    }
+    setPhoneOtpVerifying(true);
+    setPhoneOtpError(null);
+    setPhoneOtpSuccess(null);
+    try {
+      const res = await verifyPhoneOtp(settingsPhone.trim(), phoneOtpCode.trim());
+      if (res.success) {
+        setIsPhoneVerified(true);
+        setPhoneOtpSent(false);
+        setPhoneOtpSuccess("Phone number successfully verified!");
+        router.refresh();
+      } else {
+        setPhoneOtpError(res.error || "Invalid OTP code. Please try again.");
+      }
+    } catch {
+      setPhoneOtpError("Verification error. Please retry.");
+    } finally {
+      setPhoneOtpVerifying(false);
+    }
+  };
+
+  // Handlers for CV Upload & Removal
+  const handleUploadCV = async () => {
+    if (!cvFile) {
+      setCvError("Please select a PDF file first.");
+      return;
+    }
+    if (cvFile.type !== "application/pdf") {
+      setCvError("Only PDF files are allowed.");
+      return;
+    }
+    if (cvFile.size > 5 * 1024 * 1024) {
+      setCvError("File size must be less than 5MB.");
+      return;
+    }
+
+    setCvUploading(true);
+    setCvError(null);
+    setCvSuccess(null);
+    try {
+      const fd = new FormData();
+      fd.append("cv", cvFile);
+      const res = await uploadWorkerCV(fd);
+      if (res.success && res.cvUrl) {
+        setCurrentCvUrl(res.cvUrl);
+        setCvFile(null);
+        setCvSuccess("CV uploaded successfully! Clients can now review your resume.");
+        router.refresh();
+      } else {
+        setCvError(res.error || "Upload failed. Please ensure 'cvs' bucket exists in Supabase Storage.");
+      }
+    } catch {
+      setCvError("An error occurred during upload. Please try again.");
+    } finally {
+      setCvUploading(false);
+    }
+  };
+
+  const handleRemoveCV = async () => {
+    if (!confirm("Are you sure you want to remove your CV?")) return;
+    setCvRemoving(true);
+    setCvError(null);
+    setCvSuccess(null);
+    try {
+      const res = await removeWorkerCV();
+      if (res.success) {
+        setCurrentCvUrl(null);
+        setCvSuccess("CV removed successfully.");
+        router.refresh();
+      } else {
+        setCvError(res.error || "Failed to remove CV.");
+      }
+    } catch {
+      setCvError("An error occurred while removing CV.");
+    } finally {
+      setCvRemoving(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOutUser();
@@ -1298,6 +1431,12 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                               <span className="font-bold text-sm text-slate-900 dark:text-white">
                                                 {workerName}
                                               </span>
+                                              {app.worker.phoneVerified && (
+                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 px-1.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/60" title="Verified Phone Number">
+                                                  <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                                                  <span>Verified</span>
+                                                </span>
+                                              )}
                                               <span className="flex items-center gap-0.5 text-[11px] font-semibold text-amber-500 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-md">
                                                 <Star className="w-3 h-3 fill-amber-400" />
                                                 <span>{workerRating > 0 ? workerRating.toFixed(1) : "5.0"}</span>
@@ -1374,6 +1513,17 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                             >
                                               <Phone className="w-3.5 h-3.5 text-emerald-500" />
                                               <span>Call {app.worker.phone}</span>
+                                            </a>
+                                          )}
+                                          {app.worker.workerProfile?.cvUrl && (
+                                            <a
+                                              href={app.worker.workerProfile.cvUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/50 dark:hover:bg-orange-900/50 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800 transition-colors cursor-pointer shadow-xs"
+                                            >
+                                              <FileText className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                                              <span>View CV (PDF)</span>
                                             </a>
                                           )}
                                           <a
@@ -1669,6 +1819,19 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <User className="w-3.5 h-3.5" />
                   Profile & Contact
                 </button>
+                {isWorker && (
+                  <button
+                    onClick={() => setSettingsTab("documents")}
+                    className={`flex items-center gap-1.5 px-1 py-3 mr-6 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                      settingsTab === "documents"
+                        ? "border-orange-600 text-orange-600 dark:text-orange-400"
+                        : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    CV & Documents
+                  </button>
+                )}
                 <button
                   onClick={() => setSettingsTab("password")}
                   className={`flex items-center gap-1.5 px-1 py-3 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
@@ -1683,7 +1846,125 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               </div>
 
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                {settingsTab === "profile" ? (
+                {settingsTab === "documents" && isWorker ? (
+                  /* ── Documents & CV Tab ── */
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                        <span>Curriculum Vitae (CV / Resume)</span>
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                        Upload your updated resume or CV in PDF format. Recruiters reviewing your job applications will be able to review your full background and qualifications directly.
+                      </p>
+                    </div>
+
+                    {/* Current CV status */}
+                    {currentCvUrl ? (
+                      <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-900 dark:text-white">Active CV on Profile</p>
+                              <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">Available for recruiter inspection</p>
+                            </div>
+                          </div>
+                          <a
+                            href={currentCvUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
+                          >
+                            <span>Preview</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <div className="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40 flex justify-end">
+                          <button
+                            type="button"
+                            disabled={cvRemoving}
+                            onClick={handleRemoveCV}
+                            className="text-xs text-red-500 hover:text-red-700 hover:underline font-semibold cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {cvRemoving && <Loader2 className="w-3 h-3 animate-spin" />}
+                            <span>Remove Current CV</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-center">
+                        <FileText className="w-8 h-8 text-slate-400 mx-auto mb-1.5" />
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No CV Uploaded Yet</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Upload a PDF CV to increase your chances of being hired.</p>
+                      </div>
+                    )}
+
+                    {/* Upload new / replace CV */}
+                    <div className="space-y-2 pt-2">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        {currentCvUrl ? "Replace with New CV (PDF)" : "Select CV Document (PDF)"}
+                      </label>
+                      <div className="flex flex-col sm:flex-row items-center gap-2">
+                        <label className="w-full sm:flex-1 flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer overflow-hidden transition-colors">
+                          <Upload className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                          <span className="truncate">{cvFile ? cvFile.name : "Choose PDF file (max 5MB)..."}</span>
+                          <input
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (file.type !== "application/pdf") {
+                                  setCvError("Only PDF format is supported.");
+                                  return;
+                                }
+                                if (file.size > 5 * 1024 * 1024) {
+                                  setCvError("File size must be less than 5MB.");
+                                  return;
+                                }
+                                setCvFile(file);
+                                setCvError(null);
+                              }
+                            }}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          disabled={!cvFile || cvUploading}
+                          onClick={handleUploadCV}
+                          className="w-full sm:w-auto px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
+                        >
+                          {cvUploading ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Upload CV</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {cvError && (
+                      <p className="text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 px-3 py-2 rounded-xl">
+                        {cvError}
+                      </p>
+                    )}
+                    {cvSuccess && (
+                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-3 py-2 rounded-xl">
+                        {cvSuccess}
+                      </p>
+                    )}
+                  </div>
+                ) : settingsTab === "profile" ? (
                   <>
                     {/* Photo URL */}
                     <div>
@@ -1765,17 +2046,90 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
 
                     {/* Phone */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                        <Phone className="w-3.5 h-3.5 inline-block mr-1 text-orange-500" />
-                        Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        value={settingsPhone}
-                        onChange={(e) => setSettingsPhone(e.target.value)}
-                        placeholder="e.g. 9841234567"
-                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-                      />
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <Phone className="w-3.5 h-3.5 inline-block mr-1 text-orange-500" />
+                          Phone Number
+                        </label>
+                        {isPhoneVerified ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/50">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>Verified</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                            <ShieldAlert className="w-3.5 h-3.5" />
+                            <span>Not Verified</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="tel"
+                          value={settingsPhone}
+                          onChange={(e) => {
+                            setSettingsPhone(e.target.value);
+                            if (e.target.value !== user.phone) {
+                              setIsPhoneVerified(false);
+                            }
+                          }}
+                          placeholder="e.g. 9841234567"
+                          className="flex-1 px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                        />
+                        {!isPhoneVerified && settingsPhone.trim() && (
+                          <button
+                            type="button"
+                            disabled={phoneOtpSending}
+                            onClick={handleSendPhoneOtp}
+                            className="px-3 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                          >
+                            {phoneOtpSending ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                            )}
+                            <span>{phoneOtpSent ? "Resend OTP" : "Verify Phone"}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* OTP verification box */}
+                      {phoneOtpSent && !isPhoneVerified && (
+                        <div className="mt-2.5 p-3 rounded-2xl bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200/80 dark:border-orange-800/60 space-y-2">
+                          <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                            Enter the 6-digit SMS verification code sent to <strong className="text-slate-900 dark:text-white">{settingsPhone}</strong>:
+                          </p>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              maxLength={6}
+                              value={phoneOtpCode}
+                              onChange={(e) => setPhoneOtpCode(e.target.value)}
+                              placeholder="123456"
+                              className="w-36 px-3 py-1.5 text-sm tracking-widest font-bold text-center rounded-xl border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                            />
+                            <button
+                              type="button"
+                              disabled={phoneOtpVerifying || phoneOtpCode.length < 4}
+                              onClick={handleVerifyPhoneOtp}
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              {phoneOtpVerifying ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5" />
+                              )}
+                              <span>Confirm Code</span>
+                            </button>
+                          </div>
+                          {phoneOtpError && (
+                            <p className="text-[11px] font-semibold text-red-600 dark:text-red-400">{phoneOtpError}</p>
+                          )}
+                          {phoneOtpSuccess && (
+                            <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{phoneOtpSuccess}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* District / Address */}

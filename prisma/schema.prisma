@@ -55,12 +55,13 @@ enum PaymentStatus {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  phone     String?   @unique
-  role      UserRole  @default(WORKER)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  email           String    @unique
+  phone           String?   @unique
+  phoneVerified   Boolean   @default(false)
+  role            UserRole  @default(WORKER)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   workerProfile    WorkerProfile?
   recruiterProfile RecruiterProfile?
@@ -81,6 +82,7 @@ model WorkerProfile {
   bio             String?
   skills          String[]  @default([])
   profilePhotoUrl String?
+  cvUrl           String?
   hourlyRate      Float?
   rating          Float     @default(0.0)
   reviewCount     Int       @default(0)

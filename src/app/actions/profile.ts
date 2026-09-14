@@ -199,6 +199,128 @@ export async function changeAccountPassword(newPassword: string): Promise<Profil
   return { success: true };
 }
 
+/* ── Upload Worker CV ──────────────────────────────────────── */
+export async function uploadWorkerCV(
+  formData: FormData
+): Promise<ProfileActionResult & { cvUrl?: string }> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  const file = formData.get("cv") as File | null;
+  if (!file) return { success: false, error: "No file provided" };
+  if (file.type !== "application/pdf")
+    return { success: false, error: "Only PDF files are allowed" };
+  if (file.size > 5 * 1024 * 1024)
+    return { success: false, error: "File must be smaller than 5 MB" };
+
+  const filePath = `${user.id}/cv.pdf`;
+  const arrayBuffer = await file.arrayBuffer();
+
+  const { error: uploadErr } = await supabase.storage
+    .from("cvs")
+    .upload(filePath, arrayBuffer, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+
+  if (uploadErr) {
+    console.error("CV upload error:", uploadErr);
+    return { success: false, error: uploadErr.message };
+  }
+
+  const { data: urlData } = supabase.storage.from("cvs").getPublicUrl(filePath);
+  const cvUrl = urlData?.publicUrl;
+
+  await prisma.workerProfile.update({
+    where: { userId: user.id },
+    data: { cvUrl },
+  });
+
+  revalidatePath("/dashboard");
+  return { success: true, cvUrl };
+}
+
+/* ── Remove Worker CV ──────────────────────────────────────── */
+export async function removeWorkerCV(): Promise<ProfileActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  const filePath = `${user.id}/cv.pdf`;
+  await supabase.storage.from("cvs").remove([filePath]);
+
+  await prisma.workerProfile.update({
+    where: { userId: user.id },
+    data: { cvUrl: null },
+  });
+
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+/* ── Send Phone OTP ────────────────────────────────────────── */
+export async function sendPhoneOtp(
+  phone: string
+): Promise<ProfileActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  // Normalise: ensure +977 country code for Nepal if no + prefix
+  const normalisedPhone = phone.startsWith("+") ? phone : `+977${phone.replace(/^0/, "")}`;
+
+  const { error } = await supabase.auth.signInWithOtp({
+    phone: normalisedPhone,
+  });
+
+  if (error) {
+    console.error("Send OTP error:", error);
+    return { success: false, error: error.message };
+  }
+
+  // Store the normalised phone on the user row so it's ready after verification
+  const existing = await prisma.user.findFirst({
+    where: { phone: normalisedPhone, NOT: { id: user.id } },
+  });
+  if (existing) {
+    return { success: false, error: "This phone number is already in use by another account." };
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { phone: normalisedPhone } });
+
+  return { success: true };
+}
+
+/* ── Verify Phone OTP ──────────────────────────────────────── */
+export async function verifyPhoneOtp(
+  phone: string,
+  token: string
+): Promise<ProfileActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  const normalisedPhone = phone.startsWith("+") ? phone : `+977${phone.replace(/^0/, "")}`;
+
+  const { error } = await supabase.auth.verifyOtp({
+    phone: normalisedPhone,
+    token,
+    type: "sms",
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { phoneVerified: true },
+  });
+
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
 /* ── Get current user + profile for dashboard ───────────────── */
 const userWithProfileInclude = {
   workerProfile: true,
@@ -215,6 +337,7 @@ const userWithProfileInclude = {
               id: true,
               email: true,
               phone: true,
+              phoneVerified: true,
               workerProfile: {
                 select: {
                   name: true,
@@ -225,6 +348,7 @@ const userWithProfileInclude = {
                   reviewCount: true,
                   address: true,
                   profilePhotoUrl: true,
+                  cvUrl: true,
                 },
               },
             },
