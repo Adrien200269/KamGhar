@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import "leaflet/dist/leaflet.css";
-import type { Map, Marker } from "leaflet";
+import "maplibre-gl/dist/maplibre-gl.css";
+import type { Map, Marker, Popup } from "maplibre-gl";
 
 interface MapPickerProps {
   lat: number;
@@ -15,69 +15,67 @@ export default function MapPicker({ lat, lng, onChange }: MapPickerProps) {
   const mapRef = useRef<Map | null>(null);
   const markerRef = useRef<Marker | null>(null);
 
+  // Reverse-geocode via Nominatim (free, no API key)
+  const reverseGeocode = async (latitude: number, longitude: number) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+        { headers: { "Accept-Language": "en" } }
+      );
+      const data = await res.json();
+      return (data?.display_name as string | undefined) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    // Dynamic import to keep SSR safe (this component is always loaded client-side)
-    import("leaflet").then((L) => {
-      // Fix broken default icon paths when bundled
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
+    // Dynamic import keeps MapLibre out of the server bundle
+    import("maplibre-gl").then((ml) => {
+      const maplibregl = ml;
 
-      const map = L.map(containerRef.current!, {
-        center: [lat, lng],
+      const map = new maplibregl.Map({
+        container: containerRef.current!,
+        style: "https://tiles.openfreemap.org/styles/liberty",
+        center: [lng, lat],
         zoom: 15,
-        zoomControl: true,
-        scrollWheelZoom: true,
       });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(map);
+      map.addControl(new maplibregl.NavigationControl(), "top-right");
 
-      const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
-      marker.bindPopup("<b>Drag me to the exact location</b>").openPopup();
+      const popup: Popup = new maplibregl.Popup({ offset: 30, closeButton: false }).setHTML(
+        "<span style='font-size:12px;font-weight:600'>Drag or click to set location</span>"
+      );
 
-      // On drag-end: update coords + reverse-geocode address
-      marker.on("dragend", async () => {
-        const pos = marker.getLatLng();
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${pos.lat}&lon=${pos.lng}&format=json`
-          );
-          const data = await res.json();
-          const addr =
-            data?.display_name ??
-            `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
-          onChange(pos.lat, pos.lng, addr);
-          marker.bindPopup(`<b>${addr}</b>`).openPopup();
-        } catch {
-          onChange(pos.lat, pos.lng);
+      const marker: Marker = new maplibregl.Marker({ color: "#ea580c", draggable: true })
+        .setLngLat([lng, lat])
+        .setPopup(popup)
+        .addTo(map);
+
+      popup.addTo(map);
+
+      const updateLocation = async (lngLat: { lat: number; lng: number }) => {
+        marker.setLngLat([lngLat.lng, lngLat.lat]);
+        const addr = await reverseGeocode(lngLat.lat, lngLat.lng);
+        onChange(lngLat.lat, lngLat.lng, addr);
+        if (addr) {
+          popup
+            .setHTML(
+              `<span style='font-size:11px;font-weight:600;max-width:220px;display:block'>${addr.split(",").slice(0, 3).join(", ")}</span>`
+            )
+            .addTo(map);
         }
+      };
+
+      marker.on("dragend", () => {
+        const lngLat = marker.getLngLat();
+        updateLocation({ lat: lngLat.lat, lng: lngLat.lng });
       });
 
-      // Also allow clicking on map to move marker
-      map.on("click", async (e) => {
-        marker.setLatLng(e.latlng);
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${e.latlng.lat}&lon=${e.latlng.lng}&format=json`
-          );
-          const data = await res.json();
-          const addr =
-            data?.display_name ??
-            `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-          onChange(e.latlng.lat, e.latlng.lng, addr);
-          marker.bindPopup(`<b>${addr}</b>`).openPopup();
-        } catch {
-          onChange(e.latlng.lat, e.latlng.lng);
-        }
+      map.on("click", (e: { lngLat: { lat: number; lng: number } }) => {
+        updateLocation(e.lngLat);
       });
 
       mapRef.current = map;
@@ -91,21 +89,20 @@ export default function MapPicker({ lat, lng, onChange }: MapPickerProps) {
         markerRef.current = null;
       }
     };
-    // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When parent coords change (e.g., GPS detect, district change), fly map there
+  // Fly to new coords when parent updates them (GPS / district change)
   useEffect(() => {
     if (!mapRef.current || !markerRef.current) return;
-    mapRef.current.flyTo([lat, lng], 15, { duration: 1 });
-    markerRef.current.setLatLng([lat, lng]);
+    mapRef.current.flyTo({ center: [lng, lat], zoom: 15, duration: 1000 });
+    markerRef.current.setLngLat([lng, lat]);
   }, [lat, lng]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-64 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner z-0"
+      className="w-full h-72 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner"
       style={{ position: "relative" }}
     />
   );
