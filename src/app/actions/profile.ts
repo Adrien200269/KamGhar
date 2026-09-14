@@ -268,27 +268,52 @@ export async function sendPhoneOtp(
   if (authErr || !user) return { success: false, error: "Not authenticated" };
 
   // Normalise: ensure +977 country code for Nepal if no + prefix
-  const normalisedPhone = phone.startsWith("+") ? phone : `+977${phone.replace(/^0/, "")}`;
+  const cleaned = phone.replace(/[\s-]/g, "");
+  const normalisedPhone = cleaned.startsWith("+") ? cleaned : `+977${cleaned.replace(/^0/, "")}`;
 
-  const { error } = await supabase.auth.signInWithOtp({
-    phone: normalisedPhone,
-  });
+  try {
+    const timeoutPromise = new Promise<{ error: { message: string } }>((resolve) =>
+      setTimeout(
+        () =>
+          resolve({
+            error: {
+              message:
+                "SMS gateway timed out (15s). Check your Textlocal Sender ID or provider credentials in Supabase.",
+            },
+          }),
+        15000
+      )
+    );
 
-  if (error) {
-    console.error("Send OTP error:", error);
-    return { success: false, error: error.message };
+    const otpPromise = supabase.auth.signInWithOtp({
+      phone: normalisedPhone,
+    });
+
+    const { error } = await Promise.race([otpPromise, timeoutPromise]);
+
+    if (error) {
+      console.error("Send OTP error:", error);
+      let userMsg = error.message;
+      if (error.message.includes("upstream request timeout") || error.message.includes("504")) {
+        userMsg = "The SMS provider timed out. Please ensure your Textlocal Sender Name is set, or switch to Twilio.";
+      }
+      return { success: false, error: userMsg };
+    }
+
+    // Store the normalised phone on the user row so it's ready after verification
+    const existing = await prisma.user.findFirst({
+      where: { phone: normalisedPhone, NOT: { id: user.id } },
+    });
+    if (existing) {
+      return { success: false, error: "This phone number is already in use by another account." };
+    }
+    await prisma.user.update({ where: { id: user.id }, data: { phone: normalisedPhone } });
+
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to dispatch SMS OTP.";
+    return { success: false, error: msg };
   }
-
-  // Store the normalised phone on the user row so it's ready after verification
-  const existing = await prisma.user.findFirst({
-    where: { phone: normalisedPhone, NOT: { id: user.id } },
-  });
-  if (existing) {
-    return { success: false, error: "This phone number is already in use by another account." };
-  }
-  await prisma.user.update({ where: { id: user.id }, data: { phone: normalisedPhone } });
-
-  return { success: true };
 }
 
 /* ── Verify Phone OTP ──────────────────────────────────────── */
@@ -302,20 +327,42 @@ export async function verifyPhoneOtp(
 
   const normalisedPhone = phone.startsWith("+") ? phone : `+977${phone.replace(/^0/, "")}`;
 
-  const { error } = await supabase.auth.verifyOtp({
-    phone: normalisedPhone,
-    token,
-    type: "sms",
-  });
+  try {
+    const timeoutPromise = new Promise<{ error: { message: string } }>((resolve) =>
+      setTimeout(
+        () =>
+          resolve({
+            error: {
+              message: "Verification timed out. Please try again.",
+            },
+          }),
+        15000
+      )
+    );
 
-  if (error) {
-    return { success: false, error: error.message };
+    const verifyPromise = supabase.auth.verifyOtp({
+      phone: normalisedPhone,
+      token,
+      type: "sms",
+    });
+
+    const { error } = await Promise.race([verifyPromise, timeoutPromise]);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { phoneVerified: true },
+    });
+
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Verification failed.";
+    return { success: false, error: msg };
   }
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { phoneVerified: true },
-  });
 
   revalidatePath("/dashboard");
   return { success: true };
