@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -19,9 +20,16 @@ import {
   Laptop,
   Truck,
   CheckCircle2,
+  Map,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { createJob } from "@/app/actions/job";
 import { NEPAL_DISTRICTS, getDistrictCoordinates } from "@/lib/constants";
+
+// Load Leaflet map only client-side (no SSR â€” Leaflet touches window/document)
+const MapPicker = dynamic(() => import("@/components/map-picker"), { ssr: false });
+
 
 const CATEGORIES = [
   { name: "Electrician", icon: Zap },
@@ -54,6 +62,7 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
   );
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [locationSuccess, setLocationSuccess] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +71,20 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
     setDistrict(d);
     setCoords(getDistrictCoordinates(d));
   };
+
+  // Called when user drags/clicks pin on the map
+  const handleMapChange = (lat: number, lng: number, address?: string) => {
+    setCoords({ lat, lng });
+    if (address) {
+      // Pull out a short landmark from the reverse-geocoded result
+      const parts = address.split(",");
+      const short = parts.slice(0, 3).join(",").trim();
+      setSpecificAddress(short);
+    }
+    setLocationSuccess(true);
+    setTimeout(() => setLocationSuccess(false), 3000);
+  };
+
 
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
@@ -265,6 +288,40 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
                 />
               </div>
             </div>
+            {/* Map Picker Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-dashed border-orange-300 dark:border-orange-700 bg-orange-50/50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-400 text-xs font-semibold hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Map className="w-4 h-4" />
+                {showMap ? "Hide map" : "📍 Pin exact location on map (recommended for accuracy)"}
+              </span>
+              {showMap ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            <AnimatePresence>
+              {showMap && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className="overflow-hidden space-y-2"
+                >
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-orange-500 flex-shrink-0" />
+                    Drag the pin or click anywhere on the map to set the exact job location.
+                    The address field above will update automatically.
+                  </p>
+                  <MapPicker lat={coords.lat} lng={coords.lng} onChange={handleMapChange} />
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                    Coordinates: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* 4. Budget */}
