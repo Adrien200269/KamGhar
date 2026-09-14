@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
@@ -76,6 +77,126 @@ export async function completeRecruiterOnboarding(data: {
     const msg = err instanceof Error ? err.message : "Database error";
     return { success: false, error: msg };
   }
+}
+
+/* ── Update Profile Settings (Photo, Phone, Details) ────────── */
+export async function updateUserProfileSettings(data: {
+  name?: string;
+  phone?: string;
+  profilePhotoUrl?: string;
+  address?: string;
+  bio?: string;
+  hourlyRate?: number | null;
+  skills?: string[];
+  businessName?: string;
+}): Promise<ProfileActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  try {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { workerProfile: true, recruiterProfile: true },
+    });
+
+    if (!dbUser) return { success: false, error: "User not found" };
+
+    // Update phone on User model if provided
+    if (data.phone !== undefined) {
+      const trimmedPhone = data.phone.trim();
+      if (trimmedPhone) {
+        const existing = await prisma.user.findFirst({
+          where: {
+            phone: trimmedPhone,
+            NOT: { id: user.id },
+          },
+        });
+        if (existing) {
+          return {
+            success: false,
+            error: "This phone number is already in use by another account.",
+          };
+        }
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { phone: trimmedPhone },
+        });
+      } else {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { phone: null },
+        });
+      }
+    }
+
+    const fallbackName = data.name?.trim() || user.user_metadata?.name || user.email?.split("@")[0] || "User";
+
+    if (dbUser.role === "WORKER") {
+      await prisma.workerProfile.upsert({
+        where: { userId: user.id },
+        update: {
+          ...(data.name ? { name: data.name.trim() } : {}),
+          ...(data.profilePhotoUrl !== undefined ? { profilePhotoUrl: data.profilePhotoUrl || null } : {}),
+          ...(data.address !== undefined ? { address: data.address || null } : {}),
+          ...(data.bio !== undefined ? { bio: data.bio || null } : {}),
+          ...(data.hourlyRate !== undefined ? { hourlyRate: data.hourlyRate } : {}),
+          ...(data.skills !== undefined ? { skills: data.skills } : {}),
+        },
+        create: {
+          userId: user.id,
+          name: fallbackName,
+          profilePhotoUrl: data.profilePhotoUrl || null,
+          address: data.address || null,
+          bio: data.bio || null,
+          hourlyRate: data.hourlyRate || null,
+          skills: data.skills || [],
+        },
+      });
+    } else {
+      await prisma.recruiterProfile.upsert({
+        where: { userId: user.id },
+        update: {
+          ...(data.name ? { name: data.name.trim() } : {}),
+          ...(data.profilePhotoUrl !== undefined ? { profilePhotoUrl: data.profilePhotoUrl || null } : {}),
+          ...(data.address !== undefined ? { address: data.address || null } : {}),
+          ...(data.businessName !== undefined ? { businessName: data.businessName || null } : {}),
+        },
+        create: {
+          userId: user.id,
+          name: fallbackName,
+          profilePhotoUrl: data.profilePhotoUrl || null,
+          address: data.address || null,
+          businessName: data.businessName || null,
+        },
+      });
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/workers");
+    return { success: true };
+  } catch (err) {
+    console.error("Update profile error:", err);
+    return { success: false, error: err instanceof Error ? err.message : "Failed to update profile." };
+  }
+}
+
+/* ── Change Account Password ───────────────────────────────── */
+export async function changeAccountPassword(newPassword: string): Promise<ProfileActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  if (!newPassword || newPassword.length < 6) {
+    return { success: false, error: "Password must be at least 6 characters long." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
 }
 
 /* ── Get current user + profile for dashboard ───────────────── */

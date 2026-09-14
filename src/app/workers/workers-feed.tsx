@@ -95,7 +95,7 @@ export default function WorkersFeed({
       {/* ── Search & Filter Panel ───────────────────────────── */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-5">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 text-xs font-semibold mb-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 text-orange-600 dark:text-orange-400 text-xs font-semibold mb-2">
             <Users className="w-3.5 h-3.5" />
             <span>Verified Local Talent</span>
           </div>
@@ -157,7 +157,7 @@ export default function WorkersFeed({
                 }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   active
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                    ? "bg-orange-600 text-white shadow-md shadow-orange-500/20"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
@@ -186,7 +186,7 @@ export default function WorkersFeed({
           Showing <strong className="text-slate-900 dark:text-white">{workers.length}</strong> available worker{workers.length === 1 ? "" : "s"}
         </span>
         {isPending && (
-          <span className="flex items-center gap-1.5 text-blue-600 font-medium">
+          <span className="flex items-center gap-1.5 text-orange-600 font-medium">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Updating workers...
           </span>
         )}
@@ -195,7 +195,7 @@ export default function WorkersFeed({
       {/* ── Workers Cards Grid ─────────────────────────────── */}
       {workers.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 border-dashed p-12 text-center">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-3">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center text-orange-600 dark:text-orange-400 mb-3">
             <Users className="w-7 h-7" />
           </div>
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -206,7 +206,7 @@ export default function WorkersFeed({
           </p>
           <button
             onClick={handleResetFilters}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 transition-all cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Reset All Filters</span>
@@ -222,14 +222,22 @@ export default function WorkersFeed({
                 layout
                 whileHover={{ y: -3 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800/80 transition-all"
+                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-sm hover:shadow-md hover:border-orange-300 dark:hover:border-orange-800/80 transition-all"
               >
                 <div className="space-y-4">
                   {/* Top Profile Summary */}
                   <div className="flex items-start gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-extrabold text-lg flex items-center justify-center flex-shrink-0 shadow-md shadow-blue-500/20">
-                      {initial}
-                    </div>
+                    {worker.profilePhotoUrl ? (
+                      <img
+                        src={worker.profilePhotoUrl}
+                        alt={worker.name}
+                        className="w-12 h-12 rounded-2xl object-cover flex-shrink-0 shadow-md border border-orange-200 dark:border-orange-800/50"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white font-extrabold text-lg flex items-center justify-center flex-shrink-0 shadow-md shadow-orange-500/20">
+                        {initial}
+                      </div>
+                    )}
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
@@ -261,7 +269,7 @@ export default function WorkersFeed({
                       {worker.skills.slice(0, 4).map((s) => (
                         <span
                           key={s}
-                          className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60"
+                          className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/60"
                         >
                           {s}
                         </span>
@@ -315,9 +323,17 @@ export default function WorkersFeed({
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-extrabold text-lg flex items-center justify-center shadow-md">
-                    {selectedWorkerForContact.name[0].toUpperCase()}
-                  </div>
+                  {selectedWorkerForContact.profilePhotoUrl ? (
+                    <img
+                      src={selectedWorkerForContact.profilePhotoUrl}
+                      alt={selectedWorkerForContact.name}
+                      className="w-12 h-12 rounded-2xl object-cover shadow-md border border-orange-200 dark:border-orange-800/50"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white font-extrabold text-lg flex items-center justify-center shadow-md shadow-orange-500/20">
+                      {selectedWorkerForContact.name[0].toUpperCase()}
+                    </div>
+                  )}
                   <div>
                     <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
                       {selectedWorkerForContact.name}

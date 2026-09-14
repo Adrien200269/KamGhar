@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { CreateJobSchema, JobStatusSchema } from "@/lib/validations";
+import { sendHiredEmail } from "@/lib/email";
 
 export type JobActionResult = {
   success: boolean;
@@ -159,7 +160,22 @@ export async function updateApplicationStatus(
   try {
     const application = await prisma.application.findUnique({
       where: { id: applicationId },
-      include: { job: true },
+      include: {
+        job: {
+          include: {
+            recruiter: {
+              include: {
+                recruiterProfile: true,
+              },
+            },
+          },
+        },
+        worker: {
+          include: {
+            workerProfile: true,
+          },
+        },
+      },
     });
 
     if (!application) {
@@ -175,11 +191,36 @@ export async function updateApplicationStatus(
       data: { status },
     });
 
-    if (status === "ACCEPTED" && application.job.status === "OPEN") {
-      await prisma.job.update({
-        where: { id: application.jobId },
-        data: { status: "MATCHED" },
-      });
+    if (status === "ACCEPTED") {
+      if (application.job.status === "OPEN") {
+        await prisma.job.update({
+          where: { id: application.jobId },
+          data: { status: "MATCHED" },
+        });
+      }
+
+      // Auto-dispatch hire notification email to worker's Gmail
+      try {
+        await sendHiredEmail({
+          workerEmail: application.worker.email,
+          workerName:
+            application.worker.workerProfile?.name ||
+            application.worker.email.split("@")[0],
+          jobTitle: application.job.title,
+          category: application.job.category,
+          location: application.job.address,
+          budgetOrRate: application.proposedRate ?? application.job.budget,
+          recruiterName:
+            application.job.recruiter.recruiterProfile?.name ||
+            application.job.recruiter.email.split("@")[0],
+          recruiterBusiness:
+            application.job.recruiter.recruiterProfile?.businessName,
+          recruiterEmail: application.job.recruiter.email,
+          recruiterPhone: application.job.recruiter.phone,
+        });
+      } catch (mailError) {
+        console.error("Non-blocking error dispatching hire email:", mailError);
+      }
     }
 
     revalidatePath("/dashboard");

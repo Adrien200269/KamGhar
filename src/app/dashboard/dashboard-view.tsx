@@ -32,10 +32,18 @@ import {
   Mail,
   MessageSquare,
   Loader2,
+  Camera,
+  KeyRound,
+  EyeOff,
+  Upload,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import { signOutUser } from "@/app/actions/auth";
 import { updateJobStatus, deleteJob, updateApplicationStatus } from "@/app/actions/job";
+import {
+  updateUserProfileSettings,
+  changeAccountPassword,
+} from "@/app/actions/profile";
 
 type JobApplicant = {
   id: string;
@@ -90,6 +98,7 @@ type Application = {
 type UserWithProfile = {
   id: string;
   email: string;
+  phone: string | null;
   role: string;
   workerProfile: {
     name: string;
@@ -152,15 +161,43 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
 
   const [showPostedBanner, setShowPostedBanner] = useState(justPosted);
   const [showRestrictedBanner, setShowRestrictedBanner] = useState(workerPostRestricted);
+  const [profileBannerDismissed, setProfileBannerDismissed] = useState(false);
   const [jobFilter, setJobFilter] = useState<"ALL" | "OPEN" | "COMPLETED">("ALL");
   const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [updatingAppId, setUpdatingAppId] = useState<string | null>(null);
 
+  // Derived role helpers — used in initial state below
   const isWorker = user.role === "WORKER";
   const profile = isWorker ? user.workerProfile : user.recruiterProfile;
   const displayName = profile?.name ?? user.email.split("@")[0];
   const location = profile?.address;
+
+  // Profile Settings Modal state
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"profile" | "password">("profile");
+  const [settingsPhotoUrl, setSettingsPhotoUrl] = useState(profile?.profilePhotoUrl ?? "");
+  const [settingsPhone, setSettingsPhone] = useState<string>(user.phone ?? "");
+  const [settingsName, setSettingsName] = useState(profile?.name ?? "");
+  const [settingsBio, setSettingsBio] = useState(isWorker ? (user.workerProfile?.bio ?? "") : "");
+  const [settingsAddress, setSettingsAddress] = useState(profile?.address ?? "");
+  const [settingsHourlyRate, setSettingsHourlyRate] = useState(
+    isWorker ? (user.workerProfile?.hourlyRate?.toString() ?? "") : ""
+  );
+  const [settingsBusinessName, setSettingsBusinessName] = useState(
+    !isWorker ? (user.recruiterProfile?.businessName ?? "") : ""
+  );
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
+
+  // Password change state
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
   const handleSignOut = async () => {
     await signOutUser();
@@ -208,9 +245,71 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
     }
   };
 
+  const handleSaveProfileSettings = async () => {
+    setSettingsSaving(true);
+    setSettingsError(null);
+    setSettingsSuccess(null);
+    try {
+      const payload: Parameters<typeof updateUserProfileSettings>[0] = {
+        name: settingsName.trim() || undefined,
+        phone: settingsPhone,
+        profilePhotoUrl: settingsPhotoUrl,
+        address: settingsAddress,
+        ...(isWorker
+          ? {
+              bio: settingsBio,
+              hourlyRate: settingsHourlyRate ? parseFloat(settingsHourlyRate) : null,
+            }
+          : {
+              businessName: settingsBusinessName,
+            }),
+      };
+      const res = await updateUserProfileSettings(payload);
+      if (res.success) {
+        setSettingsSuccess("Profile updated successfully!");
+        router.refresh();
+      } else {
+        setSettingsError(res.error || "Failed to save changes.");
+      }
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError("Password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match.");
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      const res = await changeAccountPassword(newPassword);
+      if (res.success) {
+        setPasswordSuccess("Password changed successfully!");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        setPasswordError(res.error || "Failed to change password.");
+      }
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
   const profileComplete = isWorker
-    ? !!(user.workerProfile?.bio && user.workerProfile?.skills?.length && user.workerProfile?.address)
-    : !!user.recruiterProfile?.address;
+    ? !!(
+        user.workerProfile &&
+        ((user.workerProfile.skills && user.workerProfile.skills.length > 0) ||
+          user.workerProfile.bio) &&
+        user.workerProfile.address
+      )
+    : !!(user.recruiterProfile && (user.recruiterProfile.address || user.recruiterProfile.businessName));
 
   const filteredJobs = user.postedJobs.filter((job) => {
     if (jobFilter === "OPEN") return job.status === "OPEN";
@@ -326,12 +425,9 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
 
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
           {/* ── Profile incomplete banner ─────────────────── */}
-          {!profileComplete && (
+          {!profileComplete && !profileBannerDismissed && (
             <motion.div variants={fadeUp}>
-              <Link
-                href="/onboarding"
-                className="group flex items-center gap-4 p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/50 hover:bg-orange-100 dark:hover:bg-orange-950/50 transition-colors"
-              >
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/50">
                 <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
@@ -339,12 +435,27 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <p className="text-sm font-bold text-orange-800 dark:text-orange-300">Complete your profile</p>
                   <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5">
                     {isWorker
-                      ? "A complete profile with skills, rate, and district allows recruiters to find and contact you."
+                      ? "Add your skills, hourly rate, and district so recruiters can discover and hire you."
                       : "Add your organization details and location to start hiring workers."}
                   </p>
                 </div>
-                <ChevronRight className="w-4 h-4 text-orange-500 group-hover:translate-x-1 transition-transform flex-shrink-0" />
-              </Link>
+                <button
+                  onClick={() => {
+                    setSettingsTab("profile");
+                    setShowSettingsModal(true);
+                  }}
+                  className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  Edit Details
+                </button>
+                <button
+                  onClick={() => setProfileBannerDismissed(true)}
+                  className="p-1 rounded-lg text-orange-400 hover:text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors cursor-pointer"
+                  title="Dismiss notice"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </motion.div>
           )}
 
@@ -352,9 +463,29 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           <motion.div variants={fadeUp} className="grid sm:grid-cols-3 gap-4">
             {/* Profile summary */}
             <div className="sm:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 flex items-start gap-4 shadow-sm">
-              {/* Avatar */}
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white text-2xl font-extrabold flex-shrink-0 shadow-lg shadow-orange-500/20">
-                {displayName[0]?.toUpperCase()}
+              {/* Avatar with photo and camera badge */}
+              <div className="relative group flex-shrink-0">
+                {profile?.profilePhotoUrl ? (
+                  <img
+                    src={profile.profilePhotoUrl}
+                    alt={displayName}
+                    className="w-14 h-14 rounded-2xl object-cover shadow-md border border-orange-200 dark:border-orange-800/50"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white text-2xl font-extrabold shadow-lg shadow-orange-500/20">
+                    {displayName[0]?.toUpperCase()}
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    setSettingsTab("profile");
+                    setShowSettingsModal(true);
+                  }}
+                  className="absolute -bottom-1 -right-1 p-1 bg-white dark:bg-slate-800 rounded-full shadow-md border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-all cursor-pointer"
+                  title="Update photo"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
@@ -372,20 +503,29 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                         : ""}
                     </p>
                   </div>
-                  <Link
-                    href="/onboarding"
-                    className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                  <button
+                    onClick={() => { setSettingsTab("profile"); setShowSettingsModal(true); }}
+                    title="Account Settings"
+                    className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
                   >
                     <Settings className="w-4 h-4" />
-                  </Link>
+                  </button>
                 </div>
 
-                {location && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-2">
-                    <MapPin className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
-                    {location}, Nepal
-                  </p>
-                )}
+                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  {location && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
+                      {location}, Nepal
+                    </span>
+                  )}
+                  {user.phone && (
+                    <span className="flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                      {user.phone}
+                    </span>
+                  )}
+                </div>
 
                 {isWorker && user.workerProfile?.bio && (
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 line-clamp-2 leading-relaxed">
@@ -501,8 +641,11 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 />
                 <QuickAction
                   icon={<User className="w-5 h-5" />}
-                  label="My Skills & Bio"
-                  href="/onboarding"
+                  label="Profile & Photo"
+                  onClick={() => {
+                    setSettingsTab("profile");
+                    setShowSettingsModal(true);
+                  }}
                   color="blue"
                 />
                 <QuickAction
@@ -512,9 +655,12 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   color="emerald"
                 />
                 <QuickAction
-                  icon={<Zap className="w-5 h-5" />}
-                  label="Boost Profile"
-                  href="#boost"
+                  icon={<KeyRound className="w-5 h-5" />}
+                  label="Change Password"
+                  onClick={() => {
+                    setSettingsTab("password");
+                    setShowSettingsModal(true);
+                  }}
                   color="purple"
                 />
               </div>
@@ -533,15 +679,21 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   color="blue"
                 />
                 <QuickAction
-                  icon={<Briefcase className="w-5 h-5" />}
-                  label="My Posted Jobs"
-                  href="#jobs"
+                  icon={<User className="w-5 h-5" />}
+                  label="Profile & Details"
+                  onClick={() => {
+                    setSettingsTab("profile");
+                    setShowSettingsModal(true);
+                  }}
                   color="emerald"
                 />
                 <QuickAction
-                  icon={<Zap className="w-5 h-5" />}
-                  label="Boost a Job"
-                  href="#boost"
+                  icon={<KeyRound className="w-5 h-5" />}
+                  label="Change Password"
+                  onClick={() => {
+                    setSettingsTab("password");
+                    setShowSettingsModal(true);
+                  }}
                   color="purple"
                 />
               </div>
@@ -1072,6 +1224,311 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           )}
         </motion.div>
       </main>
+
+      {/* ── Profile Settings Modal ────────────────────────────── */}
+      <AnimatePresence>
+        {showSettingsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 14 }}
+              transition={{ duration: 0.22 }}
+              className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-2xl overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/80 dark:border-slate-800">
+                <h2 className="text-base font-extrabold text-slate-900 dark:text-white">Account Settings</h2>
+                <button
+                  onClick={() => {
+                    setShowSettingsModal(false);
+                    setSettingsError(null);
+                    setSettingsSuccess(null);
+                    setPasswordError(null);
+                    setPasswordSuccess(null);
+                  }}
+                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-slate-200/80 dark:border-slate-800 px-6">
+                <button
+                  onClick={() => setSettingsTab("profile")}
+                  className={`flex items-center gap-1.5 px-1 py-3 mr-6 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                    settingsTab === "profile"
+                      ? "border-orange-600 text-orange-600 dark:text-orange-400"
+                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  Profile & Contact
+                </button>
+                <button
+                  onClick={() => setSettingsTab("password")}
+                  className={`flex items-center gap-1.5 px-1 py-3 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                    settingsTab === "password"
+                      ? "border-orange-600 text-orange-600 dark:text-orange-400"
+                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  Change Password
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                {settingsTab === "profile" ? (
+                  <>
+                    {/* Photo URL */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        <Camera className="w-3.5 h-3.5 inline-block mr-1 text-orange-500" />
+                        Profile Photo URL
+                      </label>
+                      <input
+                        type="url"
+                        value={settingsPhotoUrl}
+                        onChange={(e) => setSettingsPhotoUrl(e.target.value)}
+                        placeholder="https://example.com/your-photo.jpg"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      />
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-xs">
+                          <Upload className="w-3.5 h-3.5 text-orange-500" />
+                          <span>Upload File from Device</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 2 * 1024 * 1024) {
+                                setSettingsError("Photo size must be less than 2MB.");
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setSettingsPhotoUrl(reader.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        {settingsPhotoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setSettingsPhotoUrl("")}
+                            className="text-xs text-red-500 hover:underline cursor-pointer"
+                          >
+                            Remove photo
+                          </button>
+                        )}
+                      </div>
+
+                      {settingsPhotoUrl && (
+                        <div className="mt-3 flex items-center gap-3">
+                          <img
+                            src={settingsPhotoUrl}
+                            alt="Preview"
+                            className="w-14 h-14 rounded-2xl object-cover border border-orange-200 dark:border-orange-800/50 shadow-md"
+                            onError={(e) => (e.currentTarget.style.display = "none")}
+                          />
+                          <div className="text-[11px] text-slate-400 leading-tight">
+                            <span className="font-semibold text-slate-600 dark:text-slate-300">Photo preview</span>
+                            <p>Will be shown across your dashboard and profile card</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Display Name */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Display Name
+                      </label>
+                      <input
+                        type="text"
+                        value={settingsName}
+                        onChange={(e) => setSettingsName(e.target.value)}
+                        placeholder="Your full name"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      />
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        <Phone className="w-3.5 h-3.5 inline-block mr-1 text-orange-500" />
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={settingsPhone}
+                        onChange={(e) => setSettingsPhone(e.target.value)}
+                        placeholder="e.g. 9841234567"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      />
+                    </div>
+
+                    {/* District / Address */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        <MapPin className="w-3.5 h-3.5 inline-block mr-1 text-orange-500" />
+                        District / Location
+                      </label>
+                      <input
+                        type="text"
+                        value={settingsAddress}
+                        onChange={(e) => setSettingsAddress(e.target.value)}
+                        placeholder="e.g. Kathmandu"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      />
+                    </div>
+
+                    {isWorker ? (
+                      <>
+                        {/* Bio */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Short Bio / Introduction
+                          </label>
+                          <textarea
+                            value={settingsBio}
+                            onChange={(e) => setSettingsBio(e.target.value)}
+                            rows={3}
+                            placeholder="Briefly describe your experience and expertise..."
+                            className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all resize-none"
+                          />
+                        </div>
+                        {/* Hourly Rate */}
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Hourly Rate (Rs.)
+                          </label>
+                          <input
+                            type="number"
+                            value={settingsHourlyRate}
+                            onChange={(e) => setSettingsHourlyRate(e.target.value)}
+                            placeholder="e.g. 500"
+                            min={0}
+                            className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      /* Business Name for Recruiters */
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Business / Organization Name
+                        </label>
+                        <input
+                          type="text"
+                          value={settingsBusinessName}
+                          onChange={(e) => setSettingsBusinessName(e.target.value)}
+                          placeholder="e.g. Sharma Construction Pvt. Ltd."
+                          className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                        />
+                      </div>
+                    )}
+
+                    {/* Feedback Messages */}
+                    {settingsError && (
+                      <p className="text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 px-3 py-2 rounded-xl">
+                        {settingsError}
+                      </p>
+                    )}
+                    {settingsSuccess && (
+                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-3 py-2 rounded-xl">
+                        {settingsSuccess}
+                      </p>
+                    )}
+
+                    <button
+                      onClick={handleSaveProfileSettings}
+                      disabled={settingsSaving}
+                      className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      {settingsSaving ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
+                      Save Changes
+                    </button>
+                  </>
+                ) : (
+                  /* ── Password Tab ── */
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        New Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Minimum 6 characters"
+                          className="w-full px-3.5 py-2.5 pr-10 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((v) => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Confirm New Password
+                      </label>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter your new password"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      />
+                    </div>
+
+                    {passwordError && (
+                      <p className="text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 px-3 py-2 rounded-xl">
+                        {passwordError}
+                      </p>
+                    )}
+                    {passwordSuccess && (
+                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-3 py-2 rounded-xl">
+                        {passwordSuccess}
+                      </p>
+                    )}
+
+                    <button
+                      onClick={handleChangePassword}
+                      disabled={passwordSaving}
+                      className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      {passwordSaving ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <KeyRound className="w-4 h-4" />
+                      )}
+                      Update Password
+                    </button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1081,28 +1538,39 @@ function QuickAction({
   icon,
   label,
   href,
+  onClick,
   color,
 }: {
   icon: React.ReactNode;
   label: string;
-  href: string;
+  href?: string;
+  onClick?: () => void;
   color: "orange" | "blue" | "emerald" | "purple";
 }) {
   const colors = {
     orange:
       "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800/50 hover:bg-orange-100 dark:hover:bg-orange-950/50",
     blue:
-      "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/50 hover:bg-blue-100 dark:hover:bg-blue-950/50",
+      "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800/50 hover:bg-orange-100 dark:hover:bg-orange-950/50",
     emerald:
       "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-950/50",
     purple:
-      "bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800/50 hover:bg-purple-100 dark:hover:bg-purple-950/50",
+      "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/50 hover:bg-amber-100 dark:hover:bg-amber-950/50",
   };
+
+  const className = `flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border text-center font-semibold text-xs transition-all cursor-pointer ${colors[color]}`;
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {icon}
+        <span>{label}</span>
+      </button>
+    );
+  }
+
   return (
-    <Link
-      href={href}
-      className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border text-center font-semibold text-xs transition-all ${colors[color]}`}
-    >
+    <Link href={href || "#"} className={className}>
       {icon}
       <span>{label}</span>
     </Link>
