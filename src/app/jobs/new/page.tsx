@@ -34,7 +34,7 @@ export default async function NewJobPage() {
 
       {/* Top Header */}
       <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link
             href="/dashboard"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
@@ -47,7 +47,7 @@ export default async function NewJobPage() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 relative z-10">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 relative z-10">
         <JobPostForm defaultDistrict={defaultDistrict} />
       </main>
     </div>

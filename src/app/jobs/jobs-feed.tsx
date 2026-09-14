@@ -291,28 +291,8 @@ export default function JobsFeed({
         </div>
 
         {/* Secondary Filters Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400 font-medium">Urgency:</span>
-            {URGENCY_OPTIONS.map((u) => (
-              <button
-                key={u.value}
-                onClick={() => {
-                  setSelectedUrgency(u.value);
-                  handleFilterChange(search, selectedCategory, selectedDistrict, u.value);
-                }}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
-                  selectedUrgency === u.value
-                    ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold"
-                    : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                }`}
-              >
-                {u.label}
-              </button>
-            ))}
-          </div>
-
-          {hasActiveFilters && (
+        {hasActiveFilters && (
+          <div className="flex items-center justify-end pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
             <button
               onClick={handleResetFilters}
               className="inline-flex items-center gap-1 text-orange-600 dark:text-orange-400 hover:underline font-semibold cursor-pointer"
@@ -320,8 +300,8 @@ export default function JobsFeed({
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset Filters</span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* ── Feed Header ────────────────────────────────────── */}
@@ -375,22 +355,14 @@ export default function JobsFeed({
                 className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-sm hover:shadow-md hover:border-orange-300 dark:hover:border-orange-800/80 transition-all"
               >
                 <div className="space-y-3.5">
-                  {/* Category + Urgency Badges */}
+                  {/* Category + Date */}
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50">
                       {job.category}
                     </span>
-                    <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
-                        isUrgent
-                          ? "bg-red-100 text-red-700 dark:bg-red-950/70 dark:text-red-300 animate-pulse"
-                          : job.urgency === "HIGH"
-                          ? "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300"
-                          : "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
-                      }`}
-                    >
-                      {isUrgent && <Flame className="w-3 h-3 text-red-600 dark:text-red-400" />}
-                      <span>{job.urgency}</span>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>{new Date(job.createdAt).toLocaleDateString("en-NP", { month: "short", day: "numeric" })}</span>
                     </span>
                   </div>
 
