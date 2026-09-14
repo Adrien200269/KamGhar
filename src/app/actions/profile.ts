@@ -241,11 +241,29 @@ const userWithProfileInclude = {
         select: {
           id: true,
           title: true,
+          description: true,
           address: true,
+          latitude: true,
+          longitude: true,
           status: true,
           budget: true,
           category: true,
           urgency: true,
+          recruiter: {
+            select: {
+              id: true,
+              email: true,
+              phone: true,
+              recruiterProfile: {
+                select: {
+                  name: true,
+                  businessName: true,
+                  address: true,
+                  profilePhotoUrl: true,
+                },
+              },
+            },
+          },
         },
       },
     },
