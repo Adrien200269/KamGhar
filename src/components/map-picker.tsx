@@ -38,7 +38,31 @@ export default function MapPicker({ lat, lng, onChange }: MapPickerProps) {
 
       const map = new maplibregl.Map({
         container: containerRef.current!,
-        style: "https://tiles.openfreemap.org/styles/liberty",
+        style: {
+          version: 8,
+          sources: {
+            osm: {
+              type: "raster",
+              tiles: [
+                "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              ],
+              tileSize: 256,
+              attribution: "© <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors",
+              maxzoom: 19,
+            },
+          },
+          layers: [
+            {
+              id: "osm-tiles",
+              type: "raster",
+              source: "osm",
+              minzoom: 0,
+              maxzoom: 19,
+            },
+          ],
+        },
         center: [lng, lat],
         zoom: 15,
       });
