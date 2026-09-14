@@ -79,6 +79,37 @@ export async function completeRecruiterOnboarding(data: {
 }
 
 /* ── Get current user + profile for dashboard ───────────────── */
+const userWithProfileInclude = {
+  workerProfile: true,
+  recruiterProfile: true,
+  postedJobs: {
+    orderBy: { createdAt: "desc" as const },
+    take: 20,
+    include: {
+      applications: {
+        select: { id: true, status: true },
+      },
+    },
+  },
+  applications: {
+    orderBy: { createdAt: "desc" as const },
+    take: 20,
+    include: {
+      job: {
+        select: {
+          id: true,
+          title: true,
+          address: true,
+          status: true,
+          budget: true,
+          category: true,
+          urgency: true,
+        },
+      },
+    },
+  },
+};
+
 export async function getCurrentUserProfile() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -86,19 +117,7 @@ export async function getCurrentUserProfile() {
 
   let dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    include: {
-      workerProfile: true,
-      recruiterProfile: true,
-      postedJobs: {
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      },
-      applications: {
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        include: { job: { select: { title: true, address: true, status: true } } },
-      },
-    },
+    include: userWithProfileInclude,
   });
 
   if (!dbUser && user.email) {
@@ -114,15 +133,14 @@ export async function getCurrentUserProfile() {
             ? { workerProfile: { create: { name, skills: [] } } }
             : { recruiterProfile: { create: { name } } }),
         },
-        include: {
-          workerProfile: true,
-          recruiterProfile: true,
-          postedJobs: true,
-          applications: { include: { job: { select: { title: true, address: true, status: true } } } },
-        },
+        include: userWithProfileInclude,
       });
     } catch {
-      // Ignore conflict
+      // Fallback in case of race condition
+      dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: userWithProfileInclude,
+      });
     }
   }
 
