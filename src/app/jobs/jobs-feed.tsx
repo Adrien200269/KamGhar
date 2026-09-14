@@ -63,6 +63,7 @@ type JobItem = {
     recruiterProfile: {
       name: string;
       businessName: string | null;
+      profilePhotoUrl?: string | null;
     } | null;
   };
   applications: { id: string; workerId: string }[];
@@ -390,9 +391,17 @@ export default function JobsFeed({
                   </div>
 
                   <div className="flex items-center justify-between gap-3 pt-1">
-                    <div className="text-[11px] text-slate-400 truncate">
-                      <span>By </span>
-                      <strong className="text-slate-600 dark:text-slate-300 font-semibold">{recruiterName}</strong>
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 truncate max-w-[65%]">
+                      {job.recruiter?.recruiterProfile?.profilePhotoUrl ? (
+                        <img
+                          src={job.recruiter.recruiterProfile.profilePhotoUrl}
+                          alt={recruiterName}
+                          className="w-4 h-4 rounded-full object-cover border border-orange-200 dark:border-orange-800/50 flex-shrink-0"
+                        />
+                      ) : null}
+                      <span className="truncate">
+                        By <strong className="text-slate-600 dark:text-slate-300 font-semibold">{recruiterName}</strong>
+                      </span>
                     </div>
 
                     {isApplied ? (

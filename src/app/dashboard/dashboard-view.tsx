@@ -1054,9 +1054,17 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                       {/* Top Row: Worker info & Status */}
                                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <div className="flex items-center gap-3">
-                                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-xs">
-                                            {workerName[0]?.toUpperCase()}
-                                          </div>
+                                          {app.worker.workerProfile?.profilePhotoUrl ? (
+                                            <img
+                                              src={app.worker.workerProfile.profilePhotoUrl}
+                                              alt={workerName}
+                                              className="w-10 h-10 rounded-xl object-cover flex-shrink-0 shadow-xs border border-orange-200 dark:border-orange-800/50"
+                                            />
+                                          ) : (
+                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-xs">
+                                              {workerName[0]?.toUpperCase()}
+                                            </div>
+                                          )}
                                           <div>
                                             <div className="flex items-center gap-2">
                                               <span className="font-bold text-sm text-slate-900 dark:text-white">

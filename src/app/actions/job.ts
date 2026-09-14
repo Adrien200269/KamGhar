@@ -288,6 +288,7 @@ export async function getJobs(filters?: {
               select: {
                 name: true,
                 businessName: true,
+                profilePhotoUrl: true,
               },
             },
           },
