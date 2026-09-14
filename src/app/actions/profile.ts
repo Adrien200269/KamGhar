@@ -87,7 +87,28 @@ const userWithProfileInclude = {
     take: 20,
     include: {
       applications: {
-        select: { id: true, status: true },
+        orderBy: { createdAt: "desc" as const },
+        include: {
+          worker: {
+            select: {
+              id: true,
+              email: true,
+              phone: true,
+              workerProfile: {
+                select: {
+                  name: true,
+                  bio: true,
+                  skills: true,
+                  hourlyRate: true,
+                  rating: true,
+                  reviewCount: true,
+                  address: true,
+                  profilePhotoUrl: true,
+                },
+              },
+            },
+          },
+        },
       },
     },
   },

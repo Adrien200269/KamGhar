@@ -18,6 +18,8 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   User,
   Sparkles,
   Trash2,
@@ -26,10 +28,37 @@ import {
   AlertCircle,
   Search,
   Eye,
+  Phone,
+  Mail,
+  MessageSquare,
+  Loader2,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import { signOutUser } from "@/app/actions/auth";
-import { updateJobStatus, deleteJob } from "@/app/actions/job";
+import { updateJobStatus, deleteJob, updateApplicationStatus } from "@/app/actions/job";
+
+type JobApplicant = {
+  id: string;
+  status: string;
+  coverNote?: string | null;
+  proposedRate?: number | null;
+  createdAt: Date;
+  worker: {
+    id: string;
+    email: string;
+    phone: string | null;
+    workerProfile: {
+      name: string;
+      bio: string | null;
+      skills: string[];
+      hourlyRate: number | null;
+      rating: number;
+      reviewCount: number;
+      address: string | null;
+      profilePhotoUrl: string | null;
+    } | null;
+  };
+};
 
 type Job = {
   id: string;
@@ -40,7 +69,7 @@ type Job = {
   urgency?: string;
   budget?: number | null;
   createdAt: Date;
-  applications?: { id: string; status: string }[];
+  applications?: JobApplicant[];
 };
 
 type Application = {
@@ -125,6 +154,8 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const [showRestrictedBanner, setShowRestrictedBanner] = useState(workerPostRestricted);
   const [jobFilter, setJobFilter] = useState<"ALL" | "OPEN" | "COMPLETED">("ALL");
   const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [updatingAppId, setUpdatingAppId] = useState<string | null>(null);
 
   const isWorker = user.role === "WORKER";
   const profile = isWorker ? user.workerProfile : user.recruiterProfile;
@@ -155,6 +186,25 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
       router.refresh();
     } finally {
       setUpdatingJobId(null);
+    }
+  };
+
+  const handleApplicationStatusChange = async (
+    applicationId: string,
+    status: "ACCEPTED" | "DECLINED"
+  ) => {
+    setUpdatingAppId(applicationId);
+    try {
+      const res = await updateApplicationStatus(applicationId, status);
+      if (res.success) {
+        router.refresh();
+      } else {
+        alert(res.error || "Failed to update application status");
+      }
+    } catch {
+      alert("An unexpected error occurred while updating the application.");
+    } finally {
+      setUpdatingAppId(null);
     }
   };
 
@@ -756,32 +806,264 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-orange-500" />
-                          {job.address}
-                        </span>
-                        <span>•</span>
-                        <span>
-                          Budget:{" "}
-                          <strong className="text-slate-900 dark:text-white">
-                            {job.budget ? `Rs. ${job.budget.toLocaleString()}` : "Negotiable"}
-                          </strong>
-                        </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-blue-500" />
-                          {job.applications?.length ?? 0} applications
-                        </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {new Date(job.createdAt).toLocaleDateString("en-NP", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </span>
+                      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-orange-500" />
+                            {job.address}
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Budget:{" "}
+                            <strong className="text-slate-900 dark:text-white">
+                              {job.budget ? `Rs. ${job.budget.toLocaleString()}` : "Negotiable"}
+                            </strong>
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            {new Date(job.createdAt).toLocaleDateString("en-NP", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+
+                        {/* Applicants Action Button / Direct Worker Search */}
+                        <div>
+                          {job.applications && job.applications.length > 0 ? (
+                            <button
+                              onClick={() => setExpandedJobId(expandedJobId === job.id ? null : job.id)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                expandedJobId === job.id
+                                  ? "bg-orange-600 text-white shadow-sm shadow-orange-600/20"
+                                  : "bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/50 border border-orange-200 dark:border-orange-800"
+                              }`}
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                              <span>
+                                {expandedJobId === job.id
+                                  ? "Hide Applicants"
+                                  : `View Applicants (${job.applications.length})`}
+                              </span>
+                              {expandedJobId === job.id ? (
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          ) : (
+                            <Link
+                              href={`/workers?search=${encodeURIComponent(job.category)}`}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                              <span>0 Applicants • Find Workers →</span>
+                            </Link>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Expandable Applicants Drawer */}
+                      <AnimatePresence>
+                        {expandedJobId === job.id && job.applications && job.applications.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.25 }}
+                            className="overflow-hidden pt-3 border-t border-slate-200/80 dark:border-slate-800"
+                          >
+                            <div className="bg-slate-50/80 dark:bg-slate-950/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-800 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                  <Users className="w-4 h-4 text-orange-500" />
+                                  <span>Candidates Who Applied ({job.applications.length})</span>
+                                </h5>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:inline">
+                                  Review skills, proposed rates & contact directly
+                                </span>
+                              </div>
+
+                              <div className="space-y-3">
+                                {job.applications.map((app) => {
+                                  const workerName =
+                                    app.worker.workerProfile?.name || app.worker.email.split("@")[0];
+                                  const workerAddress = app.worker.workerProfile?.address;
+                                  const workerSkills = app.worker.workerProfile?.skills || [];
+                                  const workerRating = app.worker.workerProfile?.rating ?? 5.0;
+                                  const isUpdating = updatingAppId === app.id;
+
+                                  return (
+                                    <div
+                                      key={app.id}
+                                      className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 space-y-3 shadow-xs"
+                                    >
+                                      {/* Top Row: Worker info & Status */}
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                        <div className="flex items-center gap-3">
+                                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-xs">
+                                            {workerName[0]?.toUpperCase()}
+                                          </div>
+                                          <div>
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-bold text-sm text-slate-900 dark:text-white">
+                                                {workerName}
+                                              </span>
+                                              <span className="flex items-center gap-0.5 text-[11px] font-semibold text-amber-500 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-md">
+                                                <Star className="w-3 h-3 fill-amber-400" />
+                                                <span>{workerRating > 0 ? workerRating.toFixed(1) : "5.0"}</span>
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                              {workerAddress && (
+                                                <span className="flex items-center gap-1">
+                                                  <MapPin className="w-3 h-3 text-orange-500" />
+                                                  {workerAddress}
+                                                </span>
+                                              )}
+                                              <span>•</span>
+                                              <span>
+                                                Applied{" "}
+                                                {new Date(app.createdAt).toLocaleDateString("en-NP", {
+                                                  month: "short",
+                                                  day: "numeric",
+                                                })}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <StatusBadge status={app.status} />
+                                        </div>
+                                      </div>
+
+                                      {/* Middle Row: Rates & Skills */}
+                                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                                        {app.proposedRate ? (
+                                          <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold">
+                                            Proposed Rate: Rs. {app.proposedRate.toLocaleString()}
+                                          </span>
+                                        ) : app.worker.workerProfile?.hourlyRate ? (
+                                          <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold">
+                                            Standard Rate: Rs. {app.worker.workerProfile.hourlyRate}/hr
+                                          </span>
+                                        ) : null}
+
+                                        {workerSkills.length > 0 && (
+                                          <div className="flex flex-wrap gap-1 items-center">
+                                            {workerSkills.map((skill) => (
+                                              <span
+                                                key={skill}
+                                                className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                                              >
+                                                {skill}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Cover note / pitch message if provided */}
+                                      {app.coverNote && (
+                                        <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-700 dark:text-slate-300">
+                                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                                            <MessageSquare className="w-3.5 h-3.5 text-orange-500" />
+                                            <span>Applicant&apos;s Message / Pitch:</span>
+                                          </div>
+                                          <p className="leading-relaxed italic">&ldquo;{app.coverNote}&rdquo;</p>
+                                        </div>
+                                      )}
+
+                                      {/* Bottom Row: Direct Contact & Decision Actions */}
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          {app.worker.phone && (
+                                            <a
+                                              href={`tel:${app.worker.phone}`}
+                                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
+                                            >
+                                              <Phone className="w-3.5 h-3.5 text-emerald-500" />
+                                              <span>Call {app.worker.phone}</span>
+                                            </a>
+                                          )}
+                                          <a
+                                            href={`mailto:${app.worker.email}`}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
+                                          >
+                                            <Mail className="w-3.5 h-3.5 text-blue-500" />
+                                            <span>Email</span>
+                                          </a>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                                          {app.status === "APPLIED" && (
+                                            <>
+                                              <button
+                                                disabled={isUpdating}
+                                                onClick={() => handleApplicationStatusChange(app.id, "ACCEPTED")}
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all cursor-pointer disabled:opacity-60"
+                                              >
+                                                {isUpdating ? (
+                                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                  <Check className="w-3.5 h-3.5" />
+                                                )}
+                                                <span>Accept & Hire</span>
+                                              </button>
+
+                                              <button
+                                                disabled={isUpdating}
+                                                onClick={() => handleApplicationStatusChange(app.id, "DECLINED")}
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 text-slate-600 dark:text-slate-300 transition-all cursor-pointer disabled:opacity-60"
+                                              >
+                                                <X className="w-3.5 h-3.5" />
+                                                <span>Decline</span>
+                                              </button>
+                                            </>
+                                          )}
+
+                                          {app.status === "ACCEPTED" && (
+                                            <div className="flex items-center gap-2">
+                                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                <span>Hired Candidate</span>
+                                              </span>
+                                              <button
+                                                disabled={isUpdating}
+                                                onClick={() => handleApplicationStatusChange(app.id, "DECLINED")}
+                                                className="text-[11px] text-slate-400 hover:text-red-500 underline ml-1 cursor-pointer"
+                                              >
+                                                Change to Decline
+                                              </button>
+                                            </div>
+                                          )}
+
+                                          {app.status === "DECLINED" && (
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs font-semibold text-slate-400">
+                                                Application Declined
+                                              </span>
+                                              <button
+                                                disabled={isUpdating}
+                                                onClick={() => handleApplicationStatusChange(app.id, "ACCEPTED")}
+                                                className="text-[11px] text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
+                                              >
+                                                Re-accept
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                   ))}
                 </div>

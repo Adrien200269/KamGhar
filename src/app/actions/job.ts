@@ -147,6 +147,50 @@ export async function deleteJob(jobId: string): Promise<JobActionResult> {
   }
 }
 
+/* ── Recruiter Updates Application Status (ACCEPT / DECLINE) ── */
+export async function updateApplicationStatus(
+  applicationId: string,
+  status: "ACCEPTED" | "DECLINED"
+): Promise<JobActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Unauthorized" };
+
+  try {
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      include: { job: true },
+    });
+
+    if (!application) {
+      return { success: false, error: "Application not found" };
+    }
+
+    if (application.job.recruiterId !== user.id) {
+      return { success: false, error: "You can only manage applicants for your own jobs." };
+    }
+
+    await prisma.application.update({
+      where: { id: applicationId },
+      data: { status },
+    });
+
+    if (status === "ACCEPTED" && application.job.status === "OPEN") {
+      await prisma.job.update({
+        where: { id: application.jobId },
+        data: { status: "MATCHED" },
+      });
+    }
+
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (err) {
+    console.error("Update application status error:", err);
+    return { success: false, error: "Failed to update application status" };
+  }
+}
+
+
 /* ── Fetch Public Jobs with Filters ────────────────────────── */
 export async function getJobs(filters?: {
   search?: string;
