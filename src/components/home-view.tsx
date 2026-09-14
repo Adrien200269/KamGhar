@@ -112,7 +112,7 @@ export default function HomeView() {
 
           <nav className="flex items-center gap-2 sm:gap-3 text-sm font-medium">
             <Link
-              href="/register?role=worker"
+              href="/jobs"
               className="text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors hidden sm:inline px-2"
             >
               Browse Jobs
@@ -299,7 +299,7 @@ export default function HomeView() {
                     transition={{ type: "spring", stiffness: 350 }}
                   >
                     <Link
-                      href={`/register?role=worker&category=${encodeURIComponent(cat.name)}`}
+                      href={`/jobs?category=${encodeURIComponent(cat.name)}`}
                       className="block p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50/40 dark:hover:bg-orange-950/20 border border-slate-200/80 dark:border-slate-700/80 hover:border-orange-300 dark:hover:border-orange-600/50 transition-all group"
                     >
                       <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/80 flex items-center justify-center text-orange-600 dark:text-orange-400 mb-3 group-hover:bg-orange-600 group-hover:text-white transition-colors">

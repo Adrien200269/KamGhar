@@ -140,3 +140,185 @@ export async function deleteJob(jobId: string): Promise<JobActionResult> {
     return { success: false, error: "Failed to delete job" };
   }
 }
+
+/* ── Fetch Public Jobs with Filters ────────────────────────── */
+export async function getJobs(filters?: {
+  search?: string;
+  category?: string;
+  district?: string;
+  urgency?: string;
+  sort?: string;
+}) {
+  const where: any = {
+    status: "OPEN",
+  };
+
+  if (filters?.category && filters.category !== "ALL") {
+    where.category = filters.category;
+  }
+
+  if (filters?.urgency && filters.urgency !== "ALL") {
+    where.urgency = filters.urgency;
+  }
+
+  if (filters?.district && filters.district !== "ALL") {
+    where.address = {
+      contains: filters.district,
+      mode: "insensitive",
+    };
+  }
+
+  if (filters?.search && filters.search.trim()) {
+    const q = filters.search.trim();
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+      { address: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  let orderBy: any = { createdAt: "desc" };
+  if (filters?.sort === "budget_high") {
+    orderBy = { budget: "desc" };
+  } else if (filters?.sort === "budget_low") {
+    orderBy = { budget: "asc" };
+  }
+
+  try {
+    const jobs = await prisma.job.findMany({
+      where,
+      orderBy,
+      include: {
+        recruiter: {
+          select: {
+            id: true,
+            email: true,
+            recruiterProfile: {
+              select: {
+                name: true,
+                businessName: true,
+              },
+            },
+          },
+        },
+        applications: {
+          select: {
+            id: true,
+            workerId: true,
+          },
+        },
+      },
+    });
+
+    return jobs;
+  } catch (err) {
+    console.error("Failed to fetch jobs:", err);
+    return [];
+  }
+}
+
+/* ── Apply to a Job ────────────────────────────────────────── */
+export async function applyToJob(input: {
+  jobId: string;
+  coverNote?: string;
+  proposedRate?: number | null;
+}): Promise<JobActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: "Please log in to apply for this job." };
+  }
+
+  const { jobId, coverNote, proposedRate } = input;
+
+  try {
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      select: { id: true, recruiterId: true, status: true },
+    });
+
+    if (!job) {
+      return { success: false, error: "Job not found." };
+    }
+
+    if (job.status !== "OPEN") {
+      return { success: false, error: "This job is no longer accepting applications." };
+    }
+
+    if (job.recruiterId === user.id) {
+      return { success: false, error: "You cannot apply to your own posted job." };
+    }
+
+    // Ensure user exists in database
+    let dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { workerProfile: true },
+    });
+
+    if (!dbUser) {
+      const name = user.user_metadata?.name || user.email?.split("@")[0] || "Worker";
+      dbUser = await prisma.user.create({
+        data: {
+          id: user.id,
+          email: user.email!,
+          role: "WORKER",
+          workerProfile: {
+            create: { name, skills: [] },
+          },
+        },
+        include: { workerProfile: true },
+      });
+    }
+
+    // Check if already applied
+    const existing = await prisma.application.findUnique({
+      where: {
+        jobId_workerId: {
+          jobId,
+          workerId: user.id,
+        },
+      },
+    });
+
+    if (existing) {
+      return { success: false, error: "You have already applied for this job." };
+    }
+
+    await prisma.application.create({
+      data: {
+        jobId,
+        workerId: user.id,
+        coverNote: coverNote?.trim() || null,
+        proposedRate: proposedRate ?? null,
+        status: "APPLIED",
+      },
+    });
+
+    revalidatePath("/jobs");
+    revalidatePath("/dashboard");
+
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Application error";
+    console.error("Apply to job error:", msg);
+    return { success: false, error: "Failed to submit application. Please try again." };
+  }
+}
+
+/* ── Get Applied Job IDs for Current User ──────────────────── */
+export async function getAppliedJobIds(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  try {
+    const applications = await prisma.application.findMany({
+      where: { workerId: user.id },
+      select: { jobId: true },
+    });
+    return applications.map((a) => a.jobId);
+  } catch {
+    return [];
+  }
+}
