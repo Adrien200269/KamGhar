@@ -1147,6 +1147,24 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                               <Check className="w-3 h-3" />
                               <span>Mark Completed</span>
                             </button>
+                          ) : job.status === "MATCHED" ? (
+                            <>
+                              <button
+                                disabled={updatingJobId === job.id}
+                                onClick={() => handleStatusChange(job.id, "COMPLETED")}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                              >
+                                <Check className="w-3 h-3" />
+                                <span>Complete Task</span>
+                              </button>
+                              <button
+                                disabled={updatingJobId === job.id}
+                                onClick={() => handleStatusChange(job.id, "OPEN")}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 transition-colors cursor-pointer"
+                              >
+                                <span>Re-open</span>
+                              </button>
+                            </>
                           ) : (
                             <button
                               disabled={updatingJobId === job.id}
