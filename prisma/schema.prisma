@@ -1,0 +1,201 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  WORKER
+  RECRUITER
+  ADMIN
+}
+
+enum JobStatus {
+  OPEN
+  MATCHED
+  COMPLETED
+  CLOSED
+}
+
+enum ApplicationStatus {
+  APPLIED
+  ACCEPTED
+  DECLINED
+  COMPLETED
+}
+
+enum UrgencyLevel {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TransactionType {
+  BOOST_JOB
+  FEATURE_PROFILE
+}
+
+enum PaymentGateway {
+  KHALTI
+  ESEWA
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  phone           String?   @unique
+  phoneVerified   Boolean   @default(false)
+  role            UserRole  @default(WORKER)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  workerProfile    WorkerProfile?
+  recruiterProfile RecruiterProfile?
+  postedJobs       Job[]            @relation("RecruiterJobs")
+  applications     Application[]    @relation("WorkerApplications")
+  reviewsGiven     Review[]         @relation("ReviewsGiven")
+  reviewsReceived  Review[]         @relation("ReviewsReceived")
+  transactions     Transaction[]
+
+  @@map("users")
+}
+
+model WorkerProfile {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  bio             String?
+  skills          String[]  @default([])
+  profilePhotoUrl String?
+  cvUrl           String?
+  hourlyRate      Float?
+  rating          Float     @default(0.0)
+  reviewCount     Int       @default(0)
+  latitude        Float?
+  longitude       Float?
+  address         String?
+  isFeatured      Boolean   @default(false)
+  featuredUntil   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([latitude, longitude])
+  @@index([isFeatured])
+  @@map("worker_profiles")
+}
+
+model RecruiterProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  businessName    String?
+  profilePhotoUrl String?
+  latitude        Float?
+  longitude       Float?
+  address         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("recruiter_profiles")
+}
+
+model Job {
+  id           String       @id @default(uuid())
+  recruiterId  String
+  recruiter    User         @relation("RecruiterJobs", fields: [recruiterId], references: [id], onDelete: Cascade)
+  title        String
+  description  String
+  category     String
+  urgency      UrgencyLevel @default(MEDIUM)
+  budget       Float?
+  latitude     Float
+  longitude    Float
+  address      String
+  status       JobStatus    @default(OPEN)
+  isBoosted    Boolean      @default(false)
+  boostedUntil DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  applications Application[]
+  reviews      Review[]
+  transactions Transaction[]
+
+  @@index([category])
+  @@index([status])
+  @@index([latitude, longitude])
+  @@index([isBoosted])
+  @@map("jobs")
+}
+
+model Application {
+  id           String            @id @default(uuid())
+  jobId        String
+  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workerId     String
+  worker       User              @relation("WorkerApplications", fields: [workerId], references: [id], onDelete: Cascade)
+  coverNote    String?
+  proposedRate Float?
+  status       ApplicationStatus @default(APPLIED)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([jobId, workerId])
+  @@index([jobId])
+  @@index([workerId])
+  @@index([status])
+  @@map("applications")
+}
+
+model Review {
+  id           String   @id @default(uuid())
+  jobId        String
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User     @relation("ReviewsGiven", fields: [authorId], references: [id], onDelete: Cascade)
+  targetUserId String
+  targetUser   User     @relation("ReviewsReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
+  rating       Int      // 1 to 5
+  comment      String?
+  createdAt    DateTime @default(now())
+
+  @@index([jobId])
+  @@index([targetUserId])
+  @@map("reviews")
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId       String?
+  job         Job?            @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  type        TransactionType
+  amount      Float
+  gateway     PaymentGateway
+  gatewayRef  String?
+  status      PaymentStatus   @default(PENDING)
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("transactions")
+}
