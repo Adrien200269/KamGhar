@@ -16,6 +16,9 @@ export async function completeWorkerOnboarding(data: {
   skills: string[];
   hourlyRate: number | null;
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  profilePhotoUrl?: string | null;
 }): Promise<ProfileActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -30,6 +33,9 @@ export async function completeWorkerOnboarding(data: {
         skills: data.skills,
         hourlyRate: data.hourlyRate,
         address: data.address || null,
+        ...(data.latitude !== undefined ? { latitude: data.latitude } : {}),
+        ...(data.longitude !== undefined ? { longitude: data.longitude } : {}),
+        ...(data.profilePhotoUrl !== undefined ? { profilePhotoUrl: data.profilePhotoUrl || null } : {}),
       },
       create: {
         userId: user.id,
@@ -38,6 +44,9 @@ export async function completeWorkerOnboarding(data: {
         skills: data.skills,
         hourlyRate: data.hourlyRate,
         address: data.address || null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
+        profilePhotoUrl: data.profilePhotoUrl || null,
       },
     });
     return { success: true };
@@ -52,6 +61,9 @@ export async function completeRecruiterOnboarding(data: {
   bio?: string;
   businessName: string;
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  profilePhotoUrl?: string | null;
 }): Promise<ProfileActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -64,12 +76,18 @@ export async function completeRecruiterOnboarding(data: {
       update: {
         businessName: data.businessName || null,
         address: data.address || null,
+        ...(data.latitude !== undefined ? { latitude: data.latitude } : {}),
+        ...(data.longitude !== undefined ? { longitude: data.longitude } : {}),
+        ...(data.profilePhotoUrl !== undefined ? { profilePhotoUrl: data.profilePhotoUrl || null } : {}),
       },
       create: {
         userId: user.id,
         name: fallbackName,
         businessName: data.businessName || null,
         address: data.address || null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
+        profilePhotoUrl: data.profilePhotoUrl || null,
       },
     });
     return { success: true };
