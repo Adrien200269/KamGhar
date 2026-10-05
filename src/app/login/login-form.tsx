@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,7 +13,6 @@ import {
   Loader2,
   Lock,
   Mail,
-  Sparkles,
 } from "lucide-react";
 import { loginUser } from "@/app/actions/auth";
 
@@ -60,35 +58,13 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-2xl shadow-slate-200/50 dark:shadow-black/50 p-6 sm:p-10 transition-colors"
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="w-full"
       >
-        {/* Top Header inside card */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-block mb-4 transition-transform hover:scale-105">
-            <div className="dark:bg-white dark:rounded-xl dark:px-3 dark:py-1.5 dark:inline-flex transition-all duration-200">
-              <Image
-                src="/logo.png"
-                alt="KamGhar Logo"
-                width={160}
-                height={52}
-                priority
-                className="h-10 w-auto object-contain mx-auto"
-              />
-            </div>
-          </Link>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Welcome back
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5">
-            Log in to manage your gigs, jobs, and messages
-          </p>
-        </div>
-
         {/* Feedback Alerts */}
         <AnimatePresence mode="wait">
           {errorMessage && (
@@ -194,22 +170,16 @@ export default function LoginForm() {
         </form>
 
         {/* Register Link */}
-        <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-          Don&apos;t have an account yet?{" "}
+        <div className="mt-6 text-sm text-slate-500 dark:text-slate-400">
+          No account yet?{" "}
           <Link
             href="/register"
-            className="font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 hover:underline"
+            className="font-semibold text-orange-600 dark:text-orange-400 hover:underline underline-offset-4"
           >
-            Sign up now
+            Sign up — it&apos;s free
           </Link>
         </div>
       </motion.div>
-
-      {/* Trust Notice */}
-      <div className="text-center mt-6 text-xs text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1.5">
-        <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-        <span>Your data is encrypted and never shared.</span>
-      </div>
     </div>
   );
 }

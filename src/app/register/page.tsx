@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import RegisterForm from "./register-form";
 import ThemeToggle from "@/components/theme-toggle";
@@ -11,34 +12,73 @@ export const metadata = {
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen relative flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 bg-slate-50 dark:bg-slate-950 overflow-hidden transition-colors duration-200">
-      {/* Background Decorative Gradients */}
-      <div className="pointer-events-none absolute -top-40 -left-40 w-96 h-96 bg-orange-200/40 dark:bg-orange-500/10 rounded-full blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -right-40 w-96 h-96 bg-blue-200/40 dark:bg-blue-500/10 rounded-full blur-3xl" />
+    <div className="h-screen max-h-screen flex bg-white dark:bg-slate-950 transition-colors duration-200 overflow-hidden">
+      {/* ── Left panel: Form ── */}
+      <div className="flex-1 flex flex-col justify-between px-6 py-5 sm:px-10 lg:px-12 xl:px-16 max-w-2xl h-full overflow-y-auto">
+        {/* Top nav */}
+        <div className="flex items-center justify-between mb-3">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to Home
+          </Link>
+          <ThemeToggle />
+        </div>
 
-      {/* Top navigation */}
-      <div className="w-full max-w-xl mx-auto mb-6 flex items-center justify-between z-10">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Home
-        </Link>
-        <ThemeToggle />
+        {/* Content Area */}
+        <div className="my-auto">
+          {/* Logo + heading */}
+          <div className="mb-4">
+            <Link href="/" className="inline-block mb-2">
+              <div className="dark:bg-white dark:rounded-xl dark:px-2.5 dark:py-1 dark:inline-flex transition-all duration-200">
+                <Image
+                  src="/logo.png"
+                  alt="KamGhar"
+                  width={130}
+                  height={42}
+                  priority
+                  className="h-8 w-auto object-contain"
+                />
+              </div>
+            </Link>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              Create your account.
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
+              Connect with nearby work, or find dependable local hands in minutes.
+            </p>
+          </div>
+
+          {/* Form */}
+          <Suspense
+            fallback={
+              <div className="h-48 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-orange-600" />
+              </div>
+            }
+          >
+            <RegisterForm />
+          </Suspense>
+        </div>
+
+        {/* Footer */}
+        <p className="pt-3 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-400 dark:text-slate-600">
+          © {new Date().getFullYear()} KamGhar · Built in Kathmandu
+        </p>
       </div>
 
-      {/* Main Registration Card */}
-      <div className="relative z-10 w-full">
-        <Suspense
-          fallback={
-            <div className="w-full max-w-xl mx-auto h-96 bg-white/80 dark:bg-slate-900/80 rounded-3xl flex items-center justify-center border border-slate-200 dark:border-slate-800">
-              <Loader2 className="w-6 h-6 animate-spin text-orange-600" />
-            </div>
-          }
-        >
-          <RegisterForm />
-        </Suspense>
+      {/* ── Right panel: Photo only ── */}
+      <div className="hidden lg:flex flex-1 relative bg-slate-900 overflow-hidden h-full">
+        <Image
+          src="/worker-mechanic.webp"
+          alt="Skilled automotive mechanic at work"
+          fill
+          className="object-cover object-center"
+          sizes="50vw"
+          priority
+        />
       </div>
     </div>
   );
