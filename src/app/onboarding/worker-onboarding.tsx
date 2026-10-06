@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { completeWorkerOnboarding } from "@/app/actions/profile";
 import { NEPAL_DISTRICTS, SKILL_CATEGORIES } from "@/lib/constants";
+import UploadcareImageUploader from "@/components/uploadcare-image-uploader";
 
 // Dynamically import MapPicker with SSR disabled
 const MapPicker = dynamic(() => import("@/components/map-picker"), {
@@ -528,13 +529,21 @@ export default function WorkerOnboarding({
                       </div>
 
                       <div className="mt-2.5 flex items-center justify-between text-xs">
+                        <UploadcareImageUploader
+                          onUpload={(cdnUrl) => {
+                            setProfilePhotoUrl(cdnUrl);
+                            setCustomPhotoMode(true);
+                          }}
+                          label="Upload Photo"
+                          icon="upload"
+                        />
                         <button
                           type="button"
                           onClick={() => setCustomPhotoMode(!customPhotoMode)}
                           className="text-orange-600 dark:text-orange-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
                         >
                           <Camera className="w-3.5 h-3.5" />
-                          {customPhotoMode ? "Hide custom photo input" : "Or use custom image URL"}
+                          {customPhotoMode ? "Hide photo URL" : "Or use image URL"}
                         </button>
                       </div>
 

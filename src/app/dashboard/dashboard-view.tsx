@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -45,6 +45,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
+import UploadcareImageUploader from "@/components/uploadcare-image-uploader";
 import { signOutUser } from "@/app/actions/auth";
 import { updateJobStatus, deleteJob, updateApplicationStatus } from "@/app/actions/job";
 import {
@@ -1981,28 +1982,13 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                       />
 
                       <div className="flex items-center gap-3 pt-2">
-                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-xs">
-                          <Upload className="w-3.5 h-3.5 text-orange-500" />
-                          <span>Upload File from Device</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              if (file.size > 2 * 1024 * 1024) {
-                                setSettingsError("Photo size must be less than 2MB.");
-                                return;
-                              }
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                setSettingsPhotoUrl(reader.result as string);
-                              };
-                              reader.readAsDataURL(file);
-                            }}
-                          />
-                        </label>
+                        <UploadcareImageUploader
+                          onUpload={(cdnUrl) => {
+                            setSettingsPhotoUrl(cdnUrl);
+                            setSettingsError(null);
+                          }}
+                          label="Upload with Uploadcare"
+                        />
                         {settingsPhotoUrl && (
                           <button
                             type="button"
