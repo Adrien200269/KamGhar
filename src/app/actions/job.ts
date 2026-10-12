@@ -10,6 +10,7 @@ export type JobActionResult = {
   success: boolean;
   error?: string;
   jobId?: string;
+  broadcastCount?: number;
 };
 
 /* ── Create a new Job ─────────────────────────────────────── */
@@ -28,7 +29,7 @@ export async function createJob(rawInput: unknown): Promise<JobActionResult> {
     return { success: false, error: "Please log in to post a job." };
   }
 
-  const { title, description, category, urgency, budget, latitude, longitude, address } = parseResult.data;
+  const { title, description, category, urgency, budget, latitude, longitude, address, audioUrl } = parseResult.data;
 
   try {
     // Ensure user exists in database and has a profile
@@ -79,9 +80,56 @@ export async function createJob(rawInput: unknown): Promise<JobActionResult> {
         latitude,
         longitude,
         address,
+        audioUrl: audioUrl || null,
         status: "OPEN",
       },
     });
+
+    // If urgent broadcast, count nearby available/verified workers within 5km radius
+    let broadcastCount = 0;
+    if (urgency === "URGENT") {
+      const nearbyWorkers = await prisma.workerProfile.findMany({
+        where: {
+          latitude: { not: null },
+          longitude: { not: null },
+          OR: [{ isAvailableNow: true }, { kycStatus: "VERIFIED" }],
+        },
+        select: {
+          id: true,
+          userId: true,
+          latitude: true,
+          longitude: true,
+        },
+      });
+
+      // Filter by 5km radius
+      const { calculateHaversineDistanceKm } = await import("@/lib/geo");
+      const matchedWorkers = nearbyWorkers.filter((w) => {
+        if (!w.latitude || !w.longitude) return false;
+        const dist = calculateHaversineDistanceKm(latitude, longitude, w.latitude, w.longitude);
+        return dist <= 5;
+      });
+
+      broadcastCount = matchedWorkers.length;
+
+      // Dispatch urgent in-app broadcast alerts to nearby workers
+      for (const w of matchedWorkers.slice(0, 10)) {
+        prisma.notification
+          .create({
+            data: {
+              userId: w.userId,
+              type: "URGENT_BROADCAST",
+              title: `🚨 Urgent Gig Alert: ${title}`,
+              titleNe: `🚨 आपतकालीन काम: ${title}`,
+              message: `Urgent requirement in ${address} • Budget Rs. ${budget || "Negotiable"}`,
+              messageNe: `${address} मा तत्काल आवश्यक • बजेट रु. ${budget || "सहमति अनुसार"}`,
+              link: "/jobs",
+              isRead: false,
+            },
+          })
+          .catch(() => {});
+      }
+    }
 
     revalidatePath("/dashboard");
     revalidatePath("/jobs");
@@ -89,6 +137,7 @@ export async function createJob(rawInput: unknown): Promise<JobActionResult> {
     return {
       success: true,
       jobId: job.id,
+      broadcastCount,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create job";
@@ -221,6 +270,37 @@ export async function updateApplicationStatus(
       } catch (mailError) {
         console.error("Non-blocking error dispatching hire email:", mailError);
       }
+
+      // In-app Notification for worker
+      prisma.notification
+        .create({
+          data: {
+            userId: application.workerId,
+            type: "APPLICATION_STATUS",
+            title: "Application Accepted! 🎉",
+            titleNe: "आवेदन स्वीकृत भयो! 🎉",
+            message: `Your application for "${application.job.title}" has been accepted! You can now coordinate directly.`,
+            messageNe: `"${application.job.title}" को लागि तपाईंको आवेदन स्वीकृत भयो! अब प्रत्यक्ष कुरा गर्न सक्नुहुन्छ।`,
+            link: "/dashboard",
+            isRead: false,
+          },
+        })
+        .catch(() => {});
+    } else if (status === "DECLINED") {
+      prisma.notification
+        .create({
+          data: {
+            userId: application.workerId,
+            type: "APPLICATION_STATUS",
+            title: "Application Update",
+            titleNe: "आवेदन जानकारी",
+            message: `Your application status for "${application.job.title}" was updated to declined.`,
+            messageNe: `"${application.job.title}" को लागि तपाईंको आवेदन अस्वीकृत भयो।`,
+            link: "/dashboard",
+            isRead: false,
+          },
+        })
+        .catch(() => {});
     }
 
     revalidatePath("/dashboard");
@@ -314,6 +394,7 @@ export async function applyToJob(input: {
   jobId: string;
   coverNote?: string;
   proposedRate?: number | null;
+  audioUrl?: string | null;
 }): Promise<JobActionResult> {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -322,7 +403,7 @@ export async function applyToJob(input: {
     return { success: false, error: "Please log in to apply for this job." };
   }
 
-  const { jobId, coverNote, proposedRate } = input;
+  const { jobId, coverNote, proposedRate, audioUrl } = input;
 
   try {
     const job = await prisma.job.findUnique({
@@ -382,10 +463,27 @@ export async function applyToJob(input: {
         jobId,
         workerId: user.id,
         coverNote: coverNote?.trim() || null,
+        audioUrl: audioUrl?.trim() || null,
         proposedRate: proposedRate ?? null,
         status: "APPLIED",
       },
     });
+
+    // Notify recruiter of new applicant (non-blocking)
+    prisma.notification
+      .create({
+        data: {
+          userId: job.recruiterId,
+          type: "JOB_APPLICATION",
+          title: "New Job Applicant! 💼",
+          titleNe: "नयाँ कामदारको आवेदन! 💼",
+          message: `${dbUser.workerProfile?.name || "A worker"} applied for your job with proposed rate Rs. ${proposedRate || "Negotiable"}.`,
+          messageNe: `${dbUser.workerProfile?.name || "कामदार"} ले तपाईंको कामको लागि रु. ${proposedRate || "सहमति अनुसार"} मा आवेदन दिनुभयो।`,
+          link: "/dashboard",
+          isRead: false,
+        },
+      })
+      .catch(() => {});
 
     revalidatePath("/jobs");
     revalidatePath("/dashboard");

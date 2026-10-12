@@ -54,6 +54,19 @@ enum PaymentStatus {
   FAILED
 }
 
+enum KycStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum KycDocumentType {
+  CITIZENSHIP
+  NATIONAL_ID
+  PAN_OR_LICENSE
+}
+
 model User {
   id              String    @id @default(uuid())
   email           String    @unique
@@ -70,48 +83,67 @@ model User {
   reviewsGiven     Review[]         @relation("ReviewsGiven")
   reviewsReceived  Review[]         @relation("ReviewsReceived")
   transactions     Transaction[]
+  sentMessages     Message[]        @relation("SentMessages")
+  receivedMessages Message[]        @relation("ReceivedMessages")
+  conversationsAsUser1 Conversation[] @relation("ConversationUser1")
+  conversationsAsUser2 Conversation[] @relation("ConversationUser2")
+  notifications    Notification[]
 
   @@map("users")
 }
 
 model WorkerProfile {
-  id              String    @id @default(uuid())
-  userId          String    @unique
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String          @id @default(uuid())
+  userId          String          @unique
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   name            String
   bio             String?
-  skills          String[]  @default([])
+  skills          String[]        @default([])
   profilePhotoUrl String?
   cvUrl           String?
   hourlyRate      Float?
-  rating          Float     @default(0.0)
-  reviewCount     Int       @default(0)
+  rating          Float           @default(0.0)
+  reviewCount     Int             @default(0)
   latitude        Float?
   longitude       Float?
   address         String?
-  isFeatured      Boolean   @default(false)
+  isFeatured      Boolean         @default(false)
   featuredUntil   DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  isAvailableNow  Boolean         @default(false)
+  kycStatus       KycStatus       @default(UNVERIFIED)
+  kycDocumentType KycDocumentType?
+  kycDocumentUrl  String?
+  kycDocumentNumber String?
+  kycVerifiedAt   DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@index([latitude, longitude])
   @@index([isFeatured])
+  @@index([isAvailableNow])
+  @@index([kycStatus])
   @@map("worker_profiles")
 }
 
 model RecruiterProfile {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String          @id @default(uuid())
+  userId          String          @unique
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   name            String
   businessName    String?
   profilePhotoUrl String?
   latitude        Float?
   longitude       Float?
   address         String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  kycStatus       KycStatus       @default(UNVERIFIED)
+  kycDocumentType KycDocumentType?
+  kycDocumentUrl  String?
+  kycDocumentNumber String?
+  kycVerifiedAt   DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
+  @@index([kycStatus])
   @@map("recruiter_profiles")
 }
 
@@ -130,12 +162,14 @@ model Job {
   status       JobStatus    @default(OPEN)
   isBoosted    Boolean      @default(false)
   boostedUntil DateTime?
+  audioUrl     String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  applications Application[]
-  reviews      Review[]
-  transactions Transaction[]
+  applications  Application[]
+  reviews       Review[]
+  transactions  Transaction[]
+  conversations Conversation[]
 
   @@index([category])
   @@index([status])
@@ -151,6 +185,7 @@ model Application {
   workerId     String
   worker       User              @relation("WorkerApplications", fields: [workerId], references: [id], onDelete: Cascade)
   coverNote    String?
+  audioUrl     String?
   proposedRate Float?
   status       ApplicationStatus @default(APPLIED)
   createdAt    DateTime          @default(now())
@@ -198,4 +233,69 @@ model Transaction {
   @@index([userId])
   @@index([status])
   @@map("transactions")
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  user1Id   String
+  user1     User      @relation("ConversationUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id   String
+  user2     User      @relation("ConversationUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  jobId     String?
+  job       Job?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  messages  Message[]
+
+  @@unique([user1Id, user2Id, jobId])
+  @@index([user1Id])
+  @@index([user2Id])
+  @@index([jobId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId     String
+  receiver       User         @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  content        String
+  audioUrl       String?
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@map("messages")
+}
+
+enum NotificationType {
+  MESSAGE
+  JOB_APPLICATION
+  APPLICATION_STATUS
+  URGENT_BROADCAST
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(SYSTEM)
+  title     String
+  titleNe   String?
+  message   String
+  messageNe String?
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
 }

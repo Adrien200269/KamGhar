@@ -43,8 +43,16 @@ import {
   FileText,
   ShieldCheck,
   ShieldAlert,
+  Award,
+  Radio,
+  Mic,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
+import LanguageToggle from "@/components/language-toggle";
+import NotificationDropdown from "@/components/notification-dropdown";
+import { useLanguage } from "@/components/language-provider";
+import LiveRouteTrackerModal from "@/components/live-route-tracker-modal";
+import { VoiceNotePlayer } from "@/components/voice-note";
 import UploadcareImageUploader from "@/components/uploadcare-image-uploader";
 import { signOutUser } from "@/app/actions/auth";
 import { updateJobStatus, deleteJob, updateApplicationStatus } from "@/app/actions/job";
@@ -55,12 +63,18 @@ import {
   removeWorkerCV,
   sendPhoneOtp,
   verifyPhoneOtp,
+  toggleWorkerAvailability,
+  submitKycVerification,
 } from "@/app/actions/profile";
+import ChatModal from "@/components/chat-modal";
+import { getOrCreateConversation } from "@/app/actions/chat";
+import { getWorkerTier } from "@/lib/constants";
 type JobApplicant = {
   id: string;
   status: string;
   coverNote?: string | null;
   proposedRate?: number | null;
+  audioUrl?: string | null;
   createdAt: Date;
   worker: {
     id: string;
@@ -77,6 +91,8 @@ type JobApplicant = {
       address: string | null;
       profilePhotoUrl: string | null;
       cvUrl?: string | null;
+      kycStatus?: string | null;
+      completedJobs?: number;
     } | null;
   };
 };
@@ -89,6 +105,7 @@ type Job = {
   category: string;
   urgency?: string;
   budget?: number | null;
+  audioUrl?: string | null;
   createdAt: Date;
   applications?: JobApplicant[];
 };
@@ -99,6 +116,7 @@ type Application = {
   createdAt: Date;
   proposedRate?: number | null;
   coverNote?: string | null;
+  audioUrl?: string | null;
   job: {
     id: string;
     title: string;
@@ -106,6 +124,7 @@ type Application = {
     address: string;
     latitude?: number | null;
     longitude?: number | null;
+    audioUrl?: string | null;
     status: string;
     budget?: number | null;
     category?: string;
@@ -140,12 +159,25 @@ type UserWithProfile = {
     address: string | null;
     profilePhotoUrl: string | null;
     cvUrl?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    isAvailableNow?: boolean;
+    kycStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
+    kycDocumentType?: "CITIZENSHIP" | "NATIONAL_ID" | "PAN_OR_LICENSE" | null;
+    kycDocumentNumber?: string | null;
+    kycDocumentUrl?: string | null;
+    kycVerifiedAt?: Date | null;
   } | null;
   recruiterProfile: {
     name: string;
     businessName: string | null;
     address: string | null;
     profilePhotoUrl: string | null;
+    kycStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
+    kycDocumentType?: "CITIZENSHIP" | "NATIONAL_ID" | "PAN_OR_LICENSE" | null;
+    kycDocumentNumber?: string | null;
+    kycDocumentUrl?: string | null;
+    kycVerifiedAt?: Date | null;
   } | null;
   postedJobs: Job[];
   applications: Application[];
@@ -184,10 +216,12 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function DashboardView({ user }: { user: UserWithProfile }) {
+  const { lang, t, tx } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const justPosted = searchParams.get("posted") === "true";
+  const broadcastCount = searchParams.get("broadcast");
   const workerPostRestricted = searchParams.get("error") === "worker_post_restricted";
 
   const [showPostedBanner, setShowPostedBanner] = useState(justPosted);
@@ -198,11 +232,63 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [updatingAppId, setUpdatingAppId] = useState<string | null>(null);
 
+  // Live Route Tracking state
+  const [activeLiveRoute, setActiveLiveRoute] = useState<{
+    jobTitle: string;
+    jobAddress: string;
+    jobCoords: { lat: number; lng: number };
+    worker: {
+      id: string;
+      name: string;
+      phone?: string | null;
+      photoUrl?: string | null;
+      coords?: { lat: number; lng: number } | null;
+      isVerified?: boolean;
+      rating?: number;
+      completedJobs?: number;
+    };
+    onOpenChat?: () => void;
+  } | null>(null);
+
   // Worker Accepted Job Actions (Map & Direct Communication)
   const [expandedAppMapId, setExpandedAppMapId] = useState<string | null>(null);
   const [chatModalApp, setChatModalApp] = useState<Application | null>(null);
   const [chatMessage, setChatMessage] = useState("");
   const [copiedPhone, setCopiedPhone] = useState(false);
+
+  // In-App Chat Modal state
+  const [activeChat, setActiveChat] = useState<{
+    conversationId: string;
+    recipientName: string;
+    recipientRole?: string;
+    recipientPhoto?: string | null;
+    recipientPhone?: string | null;
+    recipientVerified?: boolean;
+  } | null>(null);
+
+  const handleOpenChat = async (
+    targetUserId: string,
+    targetName: string,
+    role?: string,
+    photo?: string | null,
+    phone?: string | null,
+    verified?: boolean,
+    jobId?: string | null
+  ) => {
+    try {
+      const convoId = await getOrCreateConversation(targetUserId, jobId);
+      setActiveChat({
+        conversationId: convoId,
+        recipientName: targetName,
+        recipientRole: role,
+        recipientPhoto: photo,
+        recipientPhone: phone,
+        recipientVerified: verified,
+      });
+    } catch (err) {
+      console.error("Failed to start chat:", err);
+    }
+  };
 
   // Derived role helpers — used in initial state below
   const isWorker = user.role === "WORKER";
@@ -212,7 +298,28 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
 
   // Profile Settings Modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"profile" | "documents" | "password">("profile");
+  const [settingsTab, setSettingsTab] = useState<"profile" | "documents" | "kyc" | "password">("profile");
+
+  // Worker live "Available Now" state
+  const [isAvailableNow, setIsAvailableNow] = useState(user.workerProfile?.isAvailableNow ?? false);
+  const [togglingAvailability, setTogglingAvailability] = useState(false);
+
+  // KYC state
+  const userKycStatus = (isWorker ? user.workerProfile?.kycStatus : user.recruiterProfile?.kycStatus) ?? "UNVERIFIED";
+  const [kycStatus, setKycStatus] = useState<"UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED">(userKycStatus as any);
+  const [kycDocType, setKycDocType] = useState<"CITIZENSHIP" | "NATIONAL_ID" | "PAN_OR_LICENSE">(
+    (isWorker ? user.workerProfile?.kycDocumentType : user.recruiterProfile?.kycDocumentType) ?? "CITIZENSHIP"
+  );
+  const [kycDocNumber, setKycDocNumber] = useState(
+    (isWorker ? user.workerProfile?.kycDocumentNumber : user.recruiterProfile?.kycDocumentNumber) ?? ""
+  );
+  const [kycDocUrl, setKycDocUrl] = useState(
+    (isWorker ? user.workerProfile?.kycDocumentUrl : user.recruiterProfile?.kycDocumentUrl) ?? ""
+  );
+  const [kycSubmitting, setKycSubmitting] = useState(false);
+  const [kycError, setKycError] = useState<string | null>(null);
+  const [kycSuccess, setKycSuccess] = useState<string | null>(null);
+
   // Phone OTP Verification state
   const [isPhoneVerified, setIsPhoneVerified] = useState(user.phoneVerified ?? false);
   const [phoneOtpSent, setPhoneOtpSent] = useState(false);
@@ -462,6 +569,50 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
     }
   };
 
+  const handleToggleAvailability = async () => {
+    setTogglingAvailability(true);
+    try {
+      const res = await toggleWorkerAvailability();
+      if (res.success && res.isAvailableNow !== undefined) {
+        setIsAvailableNow(res.isAvailableNow);
+        router.refresh();
+      }
+    } catch (err) {
+      console.error("Failed to toggle availability:", err);
+    } finally {
+      setTogglingAvailability(false);
+    }
+  };
+
+  const handleSubmitKyc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setKycError(null);
+    setKycSuccess(null);
+    if (!kycDocNumber.trim()) {
+      setKycError("Please provide your ID / document number.");
+      return;
+    }
+    setKycSubmitting(true);
+    try {
+      const res = await submitKycVerification({
+        documentType: kycDocType,
+        documentNumber: kycDocNumber.trim(),
+        documentUrl: kycDocUrl.trim() || null,
+      });
+      if (res.success) {
+        setKycStatus("VERIFIED");
+        setKycSuccess("KYC Verified! You now hold the official KamGhar Verified badge.");
+        router.refresh();
+      } else {
+        setKycError(res.error || "Failed to submit KYC verification.");
+      }
+    } catch {
+      setKycError("Something went wrong during submission.");
+    } finally {
+      setKycSubmitting(false);
+    }
+  };
+
   const profileComplete = isWorker
     ? !!(
         user.workerProfile &&
@@ -499,7 +650,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
               >
                 <Search className="w-3.5 h-3.5" />
-                <span>Find Jobs</span>
+                <span>{tx("Find Jobs", "काम खोज्नुहोस्")}</span>
               </Link>
             ) : (
               <Link
@@ -507,18 +658,20 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Post a Job</span>
+                <span>{tx("Post a Job", "काम पोस्ट गर्नुहोस्")}</span>
               </Link>
             )}
 
+            <NotificationDropdown onOpenChat={(chat) => setActiveChat(chat)} />
             <ThemeToggle />
+            <LanguageToggle />
 
             <button
               onClick={handleSignOut}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sign out</span>
+              <span className="hidden sm:inline">{tx("Sign out", "लग आउट")}</span>
             </button>
           </div>
         </div>
@@ -539,9 +692,13 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <CheckCircle2 className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-bold text-sm">Job Posted Successfully! 🎉</p>
+                  <p className="font-bold text-sm">
+                    {broadcastCount ? "Urgent Job Broadcasted Live! ⚡" : "Job Posted Successfully! 🎉"}
+                  </p>
                   <p className="text-xs text-emerald-100">
-                    Your requirement is live. Skilled workers in your district can now view and apply.
+                    {broadcastCount
+                      ? `Successfully broadcasted to ${broadcastCount} verified & nearby technicians within a 5 km radius!`
+                      : "Your requirement is live. Skilled workers in your district can now view and apply."}
                   </p>
                 </div>
               </div>
@@ -650,18 +807,96 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight">
-                      {displayName}
-                    </h2>
-                    <p className="text-xs text-orange-600 dark:text-orange-400 font-semibold mt-0.5">
-                      {isWorker ? "Worker / Service Provider" : "Recruiter / Client"}{" "}
-                      {isWorker && user.workerProfile?.hourlyRate
-                        ? `• Rs. ${user.workerProfile.hourlyRate}/hr`
-                        : ""}
-                      {!isWorker && user.recruiterProfile?.businessName
-                        ? `• ${user.recruiterProfile.businessName}`
-                        : ""}
-                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-xl font-extrabold text-slate-900 dark:text-white leading-tight">
+                        {displayName}
+                      </h2>
+                      {isWorker && (() => {
+                        const acceptedJobsCount = user.applications.filter((a) => a.status === "ACCEPTED").length;
+                        const workerTier = getWorkerTier(acceptedJobsCount, user.workerProfile?.rating || 5.0);
+                        return (
+                          <>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${workerTier.badgeClass}`}>
+                              <Award className={`w-3.5 h-3.5 ${workerTier.iconColor}`} />
+                              <span>{lang === "ne" ? workerTier.labelNe : workerTier.label}</span>
+                            </span>
+                            {workerTier.nextTier && (
+                              <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                                Next: {workerTier.nextTier.name} ({workerTier.nextTier.jobsRemaining} {workerTier.nextTier.jobsRemaining === 1 ? "job" : "jobs"} to unlock)
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
+                      {kycStatus === "VERIFIED" ? (
+                        <span
+                          title="KamGhar Verified - Citizenship / KYC Confirmed"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 shadow-xs"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                          <span>Verified</span>
+                        </span>
+                      ) : kycStatus === "PENDING" ? (
+                        <span
+                          title="KYC Document Submitted - Verification in progress by operator"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 shadow-xs"
+                        >
+                          <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <span>KYC Under Review</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettingsTab("kyc");
+                            setShowSettingsModal(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                        >
+                          <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Get Verified</span>
+                        </button>
+                      )}
+                      {user.role === "ADMIN" && (
+                        <Link
+                          href="/admin"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-orange-600 hover:bg-orange-700 text-white shadow-xs transition-colors"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Admin Console</span>
+                        </Link>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <p className="text-xs text-orange-600 dark:text-orange-400 font-semibold">
+                        {isWorker ? "Worker / Service Provider" : "Recruiter / Client"}{" "}
+                        {isWorker && user.workerProfile?.hourlyRate
+                          ? `• Rs. ${user.workerProfile.hourlyRate}/hr`
+                          : ""}
+                        {!isWorker && user.recruiterProfile?.businessName
+                          ? `• ${user.recruiterProfile.businessName}`
+                          : ""}
+                      </p>
+                      {isWorker && (
+                        <button
+                          type="button"
+                          disabled={togglingAvailability}
+                          onClick={handleToggleAvailability}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                            isAvailableNow
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                              : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200"
+                          }`}
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              isAvailableNow ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                            }`}
+                          />
+                          <span>{isAvailableNow ? "Available Now (Active)" : "Off-Duty"}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => { setSettingsTab("profile"); setShowSettingsModal(true); }}
@@ -716,7 +951,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
             {/* Stats card */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-sm">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                {isWorker ? "Worker Stats" : "Recruiter Activity"}
+                {isWorker ? tx("Worker Stats", "कामदार विवरण") : tx("Recruiter Activity", "नियोक्ता गतिविधि")}
               </p>
 
               {isWorker ? (
@@ -724,7 +959,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                       <Briefcase className="w-4 h-4 text-orange-500" />
-                      <span>Applications Sent</span>
+                      <span>{tx("Applications Sent", "पठाइएका आवेदनहरू")}</span>
                     </div>
                     <span className="font-bold text-slate-900 dark:text-white">
                       {user.applications.length}
@@ -733,7 +968,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span>Accepted Gigs</span>
+                      <span>{tx("Accepted Gigs", "स्वीकृत कामहरू")}</span>
                     </div>
                     <span className="font-bold text-slate-900 dark:text-white">
                       {user.applications.filter((a) => a.status === "ACCEPTED").length}
@@ -742,7 +977,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                       <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-                      <span>Rating</span>
+                      <span>{tx("Rating", "मूल्याङ्कन")}</span>
                     </div>
                     <span className="font-bold text-slate-900 dark:text-white">
                       {user.workerProfile?.rating ? user.workerProfile.rating.toFixed(1) : "5.0"}
@@ -754,7 +989,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                       <Briefcase className="w-4 h-4 text-orange-500" />
-                      <span>Jobs Posted</span>
+                      <span>{tx("Jobs Posted", "पोस्ट गरिएका कामहरू")}</span>
                     </div>
                     <span className="font-bold text-slate-900 dark:text-white">
                       {user.postedJobs.length}
@@ -763,7 +998,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                       <Clock className="w-4 h-4 text-blue-500" />
-                      <span>Open Gigs</span>
+                      <span>{tx("Open Gigs", "खुला कामहरू")}</span>
                     </div>
                     <span className="font-bold text-slate-900 dark:text-white">
                       {user.postedJobs.filter((j) => j.status === "OPEN").length}
@@ -787,7 +1022,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           <motion.div variants={fadeUp}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Quick Shortcuts
+                {tx("Quick Shortcuts", "द्रुत सर्टकटहरू")}
               </h3>
             </div>
 
@@ -795,13 +1030,13 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <QuickAction
                   icon={<Search className="w-5 h-5" />}
-                  label="Find a Job"
+                  label={tx("Find a Job", "काम खोज्नुहोस्")}
                   href="/jobs"
                   color="orange"
                 />
                 <QuickAction
                   icon={<User className="w-5 h-5" />}
-                  label="Profile & Photo"
+                  label={tx("Profile & Photo", "प्रोफाइल र फोटो")}
                   onClick={() => {
                     setSettingsTab("profile");
                     setShowSettingsModal(true);
@@ -810,13 +1045,13 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 />
                 <QuickAction
                   icon={<Briefcase className="w-5 h-5" />}
-                  label="My Applications"
+                  label={tx("My Applications", "मेरा आवेदनहरू")}
                   href="#applications"
                   color="emerald"
                 />
                 <QuickAction
                   icon={<KeyRound className="w-5 h-5" />}
-                  label="Change Password"
+                  label={tx("Change Password", "पासवर्ड परिवर्तन")}
                   onClick={() => {
                     setSettingsTab("password");
                     setShowSettingsModal(true);
@@ -828,19 +1063,19 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <QuickAction
                   icon={<Plus className="w-5 h-5" />}
-                  label="Post a Job"
+                  label={tx("Post a Job", "काम पोस्ट गर्नुहोस्")}
                   href="/jobs/new"
                   color="orange"
                 />
                 <QuickAction
                   icon={<Users className="w-5 h-5" />}
-                  label="Find Workers"
+                  label={tx("Find Workers", "कामदार खोज्नुहोस्")}
                   href="/workers"
                   color="blue"
                 />
                 <QuickAction
                   icon={<User className="w-5 h-5" />}
-                  label="Profile & Details"
+                  label={tx("Profile & Details", "प्रोफाइल विवरण")}
                   onClick={() => {
                     setSettingsTab("profile");
                     setShowSettingsModal(true);
@@ -849,7 +1084,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 />
                 <QuickAction
                   icon={<KeyRound className="w-5 h-5" />}
-                  label="Change Password"
+                  label={tx("Change Password", "पासवर्ड परिवर्तन")}
                   onClick={() => {
                     setSettingsTab("password");
                     setShowSettingsModal(true);
@@ -1107,27 +1342,98 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                             {/* Communication Action Buttons */}
                             <div className="flex flex-wrap items-center gap-2">
                               {recruiterPhone ? (
-                                <a
-                                  href={`tel:${recruiterPhone}`}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all"
-                                >
-                                  <Phone className="w-3.5 h-3.5" />
-                                  <span>Call Client</span>
-                                </a>
+                                <>
+                                  <a
+                                    href={`tel:${recruiterPhone}`}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all"
+                                  >
+                                    <Phone className="w-3.5 h-3.5" />
+                                    <span>Call Client</span>
+                                  </a>
+
+                                  {(() => {
+                                    const raw = recruiterPhone.replace(/[^0-9]/g, "");
+                                    const waNum = raw.startsWith("977") ? raw : raw.length === 10 ? `977${raw}` : null;
+                                    if (!waNum) return null;
+                                    return (
+                                      <a
+                                        href={`https://wa.me/${waNum}?text=${encodeURIComponent(
+                                          `Namaste ${recruiterName}, this is ${displayName} from KamGhar regarding '${app.job.title}'. I am preparing to start work.`
+                                        )}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba5a] text-white rounded-xl text-xs font-bold shadow-xs transition-all"
+                                      >
+                                        <span>WhatsApp</span>
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    );
+                                  })()}
+                                </>
                               ) : null}
 
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setChatModalApp(app);
-                                  setChatMessage(
-                                    `Namaste ${recruiterName}, I am ${displayName} from KamGhar regarding your job "${app.job.title}". I am ready to coordinate!`
-                                  );
+                                  setActiveLiveRoute({
+                                    jobTitle: app.job.title,
+                                    jobAddress: app.job.address,
+                                    jobCoords: {
+                                      lat: app.job.latitude || 27.7172,
+                                      lng: app.job.longitude || 85.324,
+                                    },
+                                    worker: {
+                                      id: user.id,
+                                      name: displayName,
+                                      phone: user.phone,
+                                      photoUrl: user.workerProfile?.profilePhotoUrl,
+                                      coords: user.workerProfile?.latitude && user.workerProfile?.longitude ? { lat: user.workerProfile.latitude, lng: user.workerProfile.longitude } : null,
+                                      isVerified: kycStatus === "VERIFIED",
+                                      rating: user.workerProfile?.rating,
+                                      completedJobs: user.applications.filter((a) => a.status === "ACCEPTED").length,
+                                    },
+                                    onOpenChat: () => {
+                                      if (app.job.recruiter?.id) {
+                                        handleOpenChat(
+                                          app.job.recruiter.id,
+                                          recruiterName,
+                                          "RECRUITER",
+                                          app.job.recruiter.recruiterProfile?.profilePhotoUrl,
+                                          recruiterPhone,
+                                          false,
+                                          app.job.id
+                                        );
+                                      }
+                                    },
+                                  });
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+                              >
+                                <Radio className="w-3.5 h-3.5 animate-pulse" />
+                                <span>Live Route &amp; GPS</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (app.job.recruiter?.id) {
+                                    handleOpenChat(
+                                      app.job.recruiter.id,
+                                      recruiterName,
+                                      "RECRUITER",
+                                      app.job.recruiter.recruiterProfile?.profilePhotoUrl,
+                                      recruiterPhone,
+                                      false,
+                                      app.job.id
+                                    );
+                                  } else {
+                                    setChatModalApp(app);
+                                  }
                                 }}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
                               >
                                 <MessageCircle className="w-3.5 h-3.5" />
-                                <span>Chat / Message</span>
+                                <span>In-App Chat</span>
                               </button>
 
                               <button
@@ -1428,10 +1734,22 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                             </div>
                                           )}
                                           <div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
                                               <span className="font-bold text-sm text-slate-900 dark:text-white">
                                                 {workerName}
                                               </span>
+                                              {(() => {
+                                                const cTier = getWorkerTier(
+                                                  (app.worker.workerProfile as any)?.completedJobs || 0,
+                                                  workerRating || 5.0
+                                                );
+                                                return (
+                                                  <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${cTier.badgeClass}`}>
+                                                    <Award className={`w-3 h-3 ${cTier.iconColor}`} />
+                                                    <span>{lang === "ne" ? cTier.labelNe : cTier.label}</span>
+                                                  </span>
+                                                );
+                                              })()}
                                               {app.worker.phoneVerified && (
                                                 <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 px-1.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/60" title="Verified Phone Number">
                                                   <ShieldCheck className="w-3 h-3 text-emerald-500" />
@@ -1504,17 +1822,67 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                         </div>
                                       )}
 
+                                      {/* Candidate Audio Pitch / Voice Proposal */}
+                                      {app.audioUrl && (
+                                        <div className="p-3 rounded-xl bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200/60 dark:border-orange-800/50 space-y-1.5">
+                                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-orange-600 dark:text-orange-400">
+                                            <Mic className="w-3.5 h-3.5" />
+                                            <span>Voice Proposal / Audio Pitch:</span>
+                                          </div>
+                                          <VoiceNotePlayer audioUrl={app.audioUrl} />
+                                        </div>
+                                      )}
+
                                       {/* Bottom Row: Direct Contact & Decision Actions */}
                                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
                                         <div className="flex flex-wrap items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleOpenChat(
+                                                app.worker.id,
+                                                workerName,
+                                                "WORKER",
+                                                app.worker.workerProfile?.profilePhotoUrl,
+                                                app.worker.phone,
+                                                app.worker.phoneVerified,
+                                                job.id
+                                              )
+                                            }
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-all cursor-pointer shadow-xs"
+                                          >
+                                            <MessageCircle className="w-3.5 h-3.5" />
+                                            <span>Chat</span>
+                                          </button>
                                           {app.worker.phone && (
-                                            <a
-                                              href={`tel:${app.worker.phone}`}
-                                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
-                                            >
-                                              <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                                              <span>Call {app.worker.phone}</span>
-                                            </a>
+                                            <>
+                                              <a
+                                                href={`tel:${app.worker.phone}`}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
+                                              >
+                                                <Phone className="w-3.5 h-3.5 text-emerald-500" />
+                                                <span>Call {app.worker.phone}</span>
+                                              </a>
+
+                                              {(() => {
+                                                const raw = app.worker.phone.replace(/[^0-9]/g, "");
+                                                const waNum = raw.startsWith("977") ? raw : raw.length === 10 ? `977${raw}` : null;
+                                                if (!waNum) return null;
+                                                return (
+                                                  <a
+                                                    href={`https://wa.me/${waNum}?text=${encodeURIComponent(
+                                                      `Namaste ${workerName}, I am contacting you regarding your application for '${job.title}' on KamGhar.`
+                                                    )}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] transition-colors cursor-pointer"
+                                                  >
+                                                    <span>WhatsApp</span>
+                                                    <ExternalLink className="w-3 h-3" />
+                                                  </a>
+                                                );
+                                              })()}
+                                            </>
                                           )}
                                           {app.worker.workerProfile?.cvUrl && (
                                             <a
@@ -1564,7 +1932,45 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                           )}
 
                                           {app.status === "ACCEPTED" && (
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setActiveLiveRoute({
+                                                    jobTitle: job.title,
+                                                    jobAddress: job.address,
+                                                    jobCoords: {
+                                                      lat: (job as any).latitude || 27.7172,
+                                                      lng: (job as any).longitude || 85.324,
+                                                    },
+                                                    worker: {
+                                                      id: app.worker.id,
+                                                      name: workerName,
+                                                      phone: app.worker.phone,
+                                                      photoUrl: app.worker.workerProfile?.profilePhotoUrl,
+                                                      isVerified: app.worker.workerProfile?.kycStatus === "VERIFIED" || app.worker.phoneVerified,
+                                                      rating: app.worker.workerProfile?.rating,
+                                                      completedJobs: (app.worker.workerProfile as any)?.completedJobs || 1,
+                                                    },
+                                                    onOpenChat: () => {
+                                                      handleOpenChat(
+                                                        app.worker.id,
+                                                        workerName,
+                                                        "WORKER",
+                                                        app.worker.workerProfile?.profilePhotoUrl,
+                                                        app.worker.phone,
+                                                        app.worker.phoneVerified,
+                                                        job.id
+                                                      );
+                                                    },
+                                                  });
+                                                }}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-all cursor-pointer shadow-xs"
+                                              >
+                                                <Radio className="w-3.5 h-3.5 animate-pulse" />
+                                                <span>Track Live Arrival</span>
+                                              </button>
+
                                               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                                                 <CheckCircle2 className="w-4 h-4" />
                                                 <span>Hired Candidate</span>
@@ -1680,22 +2086,35 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 {/* Quick message presets */}
                 <div>
                   <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-                    Quick Preset Messages:
+                    Quick Preset Messages (नेपाली / English):
                   </label>
                   <div className="flex flex-wrap gap-1.5">
                     {[
-                      "I am on my way to the site.",
-                      "What time should I arrive tomorrow?",
-                      "Please share any landmark or gate number.",
-                      "I have reached the location!",
-                    ].map((preset) => (
+                      {
+                        label: "म आउँदै छु / On my way",
+                        text: "म कार्यस्थलमा आउँदै छु, १०-१५ मिनेटमा आइपुग्छु। (I am on my way to the site, will arrive in 10-15 minutes.)",
+                      },
+                      {
+                        label: "भोलिको समय / Tomorrow time",
+                        text: "भोलि कति बजे सम्म आइपुग्नु पर्ने हो? (What time should I arrive tomorrow?)",
+                      },
+                      {
+                        label: "ल्यान्डमार्क / Landmark",
+                        text: "कृपया कुनै मुख्य ल्यान्डमार्क वा घर/गेट नम्बर भनिदिनुहोस्। (Please share any landmark or gate number.)",
+                      },
+                      {
+                        label: "आइपुगें / Arrived",
+                        text: "म तपाईंको लोकेसनमा आइपुगें, कृपया बाहिर आउनुहोला! (I have reached the location, please come outside!)",
+                      },
+                    ].map((preset, idx) => (
                       <button
-                        key={preset}
+                        key={idx}
                         type="button"
-                        onClick={() => setChatMessage(preset)}
+                        onClick={() => setChatMessage(preset.text)}
+                        title={preset.text}
                         className="text-[11px] px-2.5 py-1 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200/70 dark:border-orange-800/50 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors cursor-pointer text-left"
                       >
-                        {preset}
+                        {preset.label}
                       </button>
                     ))}
                   </div>
@@ -1833,6 +2252,17 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                     CV & Documents
                   </button>
                 )}
+                <button
+                  onClick={() => setSettingsTab("kyc")}
+                  className={`flex items-center gap-1.5 px-1 py-3 mr-6 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                    settingsTab === "kyc"
+                      ? "border-orange-600 text-orange-600 dark:text-orange-400"
+                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Citizenship & KYC
+                </button>
                 <button
                   onClick={() => setSettingsTab("password")}
                   className={`flex items-center gap-1.5 px-1 py-3 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
@@ -2204,6 +2634,147 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                       Save Changes
                     </button>
                   </>
+                ) : settingsTab === "kyc" ? (
+                  /* ── Citizenship & KYC Verification Tab ── */
+                  <form onSubmit={handleSubmitKyc} className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <span>KamGhar Verified Credentials</span>
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                        Verify your identity with official Nepalese government identification (Citizenship, National ID, or PAN) to receive the official <span className="font-semibold text-blue-600 dark:text-blue-400">KamGhar Verified</span> badge.
+                      </p>
+                    </div>
+
+                    {/* Verification Status Banner */}
+                    {kycStatus === "VERIFIED" ? (
+                      <div className="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                          <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-blue-900 dark:text-blue-200">
+                            Identity Verified (KamGhar Verified)
+                          </p>
+                          <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                            Your credentials are valid. Recruiters and workers see your verified blue badge.
+                          </p>
+                        </div>
+                      </div>
+                    ) : kycStatus === "PENDING" ? (
+                      <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                          <Clock className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                            Document Under Review
+                          </p>
+                          <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                            Your identity document has been submitted and is currently being verified by KamGhar platform operators.
+                          </p>
+                        </div>
+                      </div>
+                    ) : kycStatus === "REJECTED" ? (
+                      <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/50 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                          <AlertCircle className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-rose-900 dark:text-rose-200">
+                            Document Rejected
+                          </p>
+                          <p className="text-[11px] text-rose-700 dark:text-rose-300">
+                            Your previous document submission could not be verified. Please ensure the document is clear and matches your legal name, then submit again below.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 flex items-center gap-2.5">
+                        <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                        <p className="text-xs text-amber-800 dark:text-amber-300">
+                          Your profile is currently <span className="font-bold">Unverified</span>. Submit your details below to earn your trust badge.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Document Type */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Document Type
+                      </label>
+                      <select
+                        value={kycDocType}
+                        onChange={(e) => setKycDocType(e.target.value as any)}
+                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all cursor-pointer"
+                      >
+                        <option value="CITIZENSHIP">Nepali Citizenship (नागरिकता प्रमाणपत्र)</option>
+                        <option value="NATIONAL_ID">National Identity Card (राष्ट्रिय परिचयपत्र)</option>
+                        <option value="PAN_OR_LICENSE">PAN Card / Driver's License</option>
+                      </select>
+                    </div>
+
+                    {/* Document Number */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Document / Registration Number *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={kycDocNumber}
+                        onChange={(e) => setKycDocNumber(e.target.value)}
+                        placeholder="e.g. 27-01-78-12345 or NID number"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      />
+                    </div>
+
+                    {/* Document Photo / Scan URL */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Document Photo / Scan (Optional image URL or Uploadcare link)
+                      </label>
+                      <input
+                        type="url"
+                        value={kycDocUrl}
+                        onChange={(e) => setKycDocUrl(e.target.value)}
+                        placeholder="https://example.com/document-scan.jpg"
+                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      />
+                      <div className="mt-2">
+                        <UploadcareImageUploader
+                          onUpload={(cdnUrl) => setKycDocUrl(cdnUrl)}
+                          label="Upload Document Scan"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Error / Success Feedback */}
+                    {kycError && (
+                      <p className="text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 px-3 py-2 rounded-xl">
+                        {kycError}
+                      </p>
+                    )}
+                    {kycSuccess && (
+                      <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 px-3 py-2 rounded-xl">
+                        {kycSuccess}
+                      </p>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={kycSubmitting}
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                    >
+                      {kycSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="w-4 h-4" />
+                      )}
+                      <span>{kycStatus === "VERIFIED" ? "Update KYC Details" : "Submit for Verification"}</span>
+                    </button>
+                  </form>
                 ) : (
                   /* ── Password Tab ── */
                   <>
@@ -2272,6 +2843,35 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Real-Time In-App Chat Modal ─────────────────────── */}
+      {activeChat && (
+        <ChatModal
+          isOpen={!!activeChat}
+          onClose={() => setActiveChat(null)}
+          conversationId={activeChat.conversationId}
+          recipientName={activeChat.recipientName}
+          recipientRole={activeChat.recipientRole}
+          recipientPhoto={activeChat.recipientPhoto}
+          recipientPhone={activeChat.recipientPhone}
+          recipientVerified={activeChat.recipientVerified}
+          currentUserId={user.id}
+          currentUserRole={isWorker ? "WORKER" : "RECRUITER"}
+        />
+      )}
+
+      {/* ── Live Route & Arrival Tracker Modal ─────────────── */}
+      {activeLiveRoute && (
+        <LiveRouteTrackerModal
+          isOpen={!!activeLiveRoute}
+          onClose={() => setActiveLiveRoute(null)}
+          jobTitle={activeLiveRoute.jobTitle}
+          jobAddress={activeLiveRoute.jobAddress}
+          jobCoords={activeLiveRoute.jobCoords}
+          worker={activeLiveRoute.worker}
+          onOpenChat={activeLiveRoute.onOpenChat}
+        />
+      )}
     </div>
   );
 }

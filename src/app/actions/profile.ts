@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { ApplicationStatus } from "@prisma/client";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
@@ -200,18 +201,46 @@ export async function updateUserProfileSettings(data: {
 }
 
 /* ── Change Account Password ───────────────────────────────── */
-export async function changeAccountPassword(newPassword: string): Promise<ProfileActionResult> {
+export async function changeAccountPassword(
+  newPasswordOrOld: string,
+  maybeNewPassword?: string
+): Promise<ProfileActionResult> {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) return { success: false, error: "Not authenticated" };
+  if (authErr || !user || !user.email) return { success: false, error: "Not authenticated" };
 
-  if (!newPassword || newPassword.length < 6) {
-    return { success: false, error: "Password must be at least 6 characters long." };
+  const isTwoArg = typeof maybeNewPassword === "string";
+  const oldPassword = isTwoArg ? newPasswordOrOld : "";
+  const newPassword = isTwoArg ? maybeNewPassword : newPasswordOrOld;
+
+  if (isTwoArg && !oldPassword) {
+    return { success: false, error: "Current password is required." };
   }
 
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) {
-    return { success: false, error: error.message };
+  if (!newPassword || newPassword.length < 6) {
+    return { success: false, error: "New password must be at least 6 characters long." };
+  }
+
+  if (isTwoArg && oldPassword === newPassword) {
+    return { success: false, error: "New password cannot be the same as your current password." };
+  }
+
+  // If old password provided, verify it first
+  if (oldPassword) {
+    const { error: signInErr } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: oldPassword,
+    });
+
+    if (signInErr) {
+      return { success: false, error: "Current password is incorrect." };
+    }
+  }
+
+  // Update password on current user session
+  const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+  if (updateErr) {
+    return { success: false, error: updateErr.message };
   }
 
   return { success: true };
@@ -381,12 +410,10 @@ export async function verifyPhoneOtp(
     const msg = err instanceof Error ? err.message : "Verification failed.";
     return { success: false, error: msg };
   }
-
-  revalidatePath("/dashboard");
-  return { success: true };
 }
 
 /* ── Get current user + profile for dashboard ───────────────── */
+
 const userWithProfileInclude = {
   workerProfile: true,
   recruiterProfile: true,
@@ -394,6 +421,15 @@ const userWithProfileInclude = {
     orderBy: { createdAt: "desc" as const },
     take: 20,
     include: {
+      reviews: {
+        select: {
+          id: true,
+          targetUserId: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
+        },
+      },
       applications: {
         orderBy: { createdAt: "desc" as const },
         include: {
@@ -414,6 +450,12 @@ const userWithProfileInclude = {
                   address: true,
                   profilePhotoUrl: true,
                   cvUrl: true,
+                },
+              },
+              _count: {
+                select: {
+                  reviewsReceived: true,
+                  applications: true,
                 },
               },
             },
@@ -453,8 +495,48 @@ const userWithProfileInclude = {
               },
             },
           },
+          reviews: {
+            select: {
+              id: true,
+              targetUserId: true,
+              rating: true,
+              comment: true,
+              createdAt: true,
+            },
+          },
         },
       },
+    },
+  },
+  reviewsReceived: {
+    orderBy: { createdAt: "desc" as const },
+    take: 10,
+    include: {
+      author: {
+        select: {
+          email: true,
+          recruiterProfile: {
+            select: {
+              name: true,
+              businessName: true,
+              profilePhotoUrl: true,
+            },
+          },
+        },
+      },
+      job: {
+        select: {
+          id: true,
+          title: true,
+          category: true,
+        },
+      },
+    },
+  },
+  _count: {
+    select: {
+      applications: true,
+      reviewsReceived: true,
     },
   },
 };
@@ -501,7 +583,15 @@ export async function getPublicWorkers(filters?: {
   skill?: string;
   district?: string;
   search?: string;
+  availableOnly?: boolean;
+  verifiedOnly?: boolean;
 }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return [];
+  }
+
   const where: any = {};
 
   if (filters?.skill && filters.skill !== "ALL") {
@@ -521,15 +611,82 @@ export async function getPublicWorkers(filters?: {
     ];
   }
 
+  if (filters?.availableOnly) {
+    where.isAvailableNow = true;
+  }
+
+  if (filters?.verifiedOnly) {
+    where.kycStatus = "VERIFIED";
+  }
+
   try {
     const workers = await prisma.workerProfile.findMany({
       where,
-      orderBy: [{ isFeatured: "desc" }, { rating: "desc" }, { createdAt: "desc" }],
+      orderBy: [
+        { isFeatured: "desc" },
+        { isAvailableNow: "desc" },
+        { rating: "desc" },
+        { createdAt: "desc" },
+      ],
       include: {
         user: {
           select: {
+            id: true,
             email: true,
             phone: true,
+            phoneVerified: true,
+            applications: {
+              where: {
+                OR: [
+                  { status: ApplicationStatus.COMPLETED },
+                  { status: ApplicationStatus.ACCEPTED, job: { status: "COMPLETED" } },
+                ],
+              },
+              select: {
+                id: true,
+                updatedAt: true,
+                job: {
+                  select: {
+                    id: true,
+                    title: true,
+                    category: true,
+                    address: true,
+                    budget: true,
+                  },
+                },
+              },
+              orderBy: { updatedAt: "desc" },
+              take: 3,
+            },
+            reviewsReceived: {
+              select: {
+                id: true,
+                rating: true,
+                comment: true,
+                createdAt: true,
+                author: {
+                  select: {
+                    email: true,
+                    recruiterProfile: {
+                      select: { name: true, businessName: true },
+                    },
+                  },
+                },
+                job: {
+                  select: {
+                    title: true,
+                  },
+                },
+              },
+              orderBy: { createdAt: "desc" },
+              take: 3,
+            },
+            _count: {
+              select: {
+                applications: true,
+                reviewsReceived: true,
+              },
+            },
           },
         },
       },
@@ -538,5 +695,90 @@ export async function getPublicWorkers(filters?: {
   } catch (err) {
     console.error("Failed to fetch workers:", err);
     return [];
+  }
+}
+
+/* ── Toggle Worker Live Availability ("Available Now") ────────── */
+export async function toggleWorkerAvailability(): Promise<ProfileActionResult & { isAvailableNow?: boolean }> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  try {
+    const profile = await prisma.workerProfile.findUnique({
+      where: { userId: user.id },
+      select: { isAvailableNow: true },
+    });
+
+    if (!profile) return { success: false, error: "Worker profile not found." };
+
+    const updated = await prisma.workerProfile.update({
+      where: { userId: user.id },
+      data: { isAvailableNow: !profile.isAvailableNow },
+      select: { isAvailableNow: true },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/workers");
+    return { success: true, isAvailableNow: updated.isAvailableNow };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to toggle status.";
+    return { success: false, error: msg };
+  }
+}
+
+/* ── Submit KYC Verification (Citizenship / National ID / PAN) ── */
+export async function submitKycVerification(data: {
+  documentType: "CITIZENSHIP" | "NATIONAL_ID" | "PAN_OR_LICENSE";
+  documentNumber: string;
+  documentUrl?: string | null;
+}): Promise<ProfileActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  if (!data.documentNumber || !data.documentNumber.trim()) {
+    return { success: false, error: "Document number is required." };
+  }
+
+  try {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { role: true },
+    });
+
+    if (!dbUser) return { success: false, error: "User not found." };
+
+    // Submit for Admin Verification review (sets status: PENDING for operator review)
+    if (dbUser.role === "WORKER") {
+      await prisma.workerProfile.update({
+        where: { userId: user.id },
+        data: {
+          kycStatus: "PENDING",
+          kycDocumentType: data.documentType,
+          kycDocumentNumber: data.documentNumber.trim(),
+          kycDocumentUrl: data.documentUrl || null,
+          kycVerifiedAt: null,
+        },
+      });
+    } else {
+      await prisma.recruiterProfile.update({
+        where: { userId: user.id },
+        data: {
+          kycStatus: "PENDING",
+          kycDocumentType: data.documentType,
+          kycDocumentNumber: data.documentNumber.trim(),
+          kycDocumentUrl: data.documentUrl || null,
+          kycVerifiedAt: null,
+        },
+      });
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/workers");
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to submit KYC.";
+    return { success: false, error: msg };
   }
 }

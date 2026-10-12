@@ -57,6 +57,7 @@ export const CreateJobSchema = z.object({
   latitude: z.number().min(-90).max(90, "Invalid latitude coordinate"),
   longitude: z.number().min(-180).max(180, "Invalid longitude coordinate"),
   address: z.string().min(3, "Please provide a location or address"),
+  audioUrl: z.string().optional().nullable(),
 });
 
 export const UpdateJobSchema = CreateJobSchema.partial().extend({

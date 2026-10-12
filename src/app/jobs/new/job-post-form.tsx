@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -23,9 +23,12 @@ import {
   Map,
   ChevronDown,
   ChevronUp,
+  Radio,
+  Mic,
 } from "lucide-react";
 import { createJob } from "@/app/actions/job";
 import { NEPAL_DISTRICTS, getDistrictCoordinates } from "@/lib/constants";
+import { VoiceNoteRecorder } from "@/components/voice-note";
 
 // Load Leaflet map only client-side (no SSR â€” Leaflet touches window/document)
 const MapPicker = dynamic(() => import("@/components/map-picker"), { ssr: false });
@@ -56,6 +59,9 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
   const [budget, setBudget] = useState("");
   const [isNegotiable, setIsNegotiable] = useState(false);
   const [description, setDescription] = useState("");
+  const [isUrgentBroadcast, setIsUrgentBroadcast] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [broadcastCountResult, setBroadcastCountResult] = useState<number | null>(null);
 
   const [coords, setCoords] = useState<{ lat: number; lng: number }>(
     getDistrictCoordinates(defaultDistrict || "Kathmandu")
@@ -135,17 +141,20 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
         title: title.trim(),
         description: description.trim(),
         category,
+        urgency: isUrgentBroadcast ? "URGENT" : "MEDIUM",
         budget: isNegotiable || !budget ? null : parseFloat(budget),
         latitude: coords.lat,
         longitude: coords.lng,
         address: fullAddress,
+        audioUrl: audioUrl || null,
       });
 
       if (!response.success) {
         setError(response.error ?? "Failed to post job. Please check all fields.");
         setIsSubmitting(false);
       } else {
-        router.push("/dashboard?posted=true");
+        const broadcastParam = response.broadcastCount ? `&broadcast=${response.broadcastCount}` : "";
+        router.push(`/dashboard?posted=true${broadcastParam}`);
         router.refresh();
       }
     } catch {
@@ -379,8 +388,8 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
           </div>
 
           {/* 5. Description */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
+          <div className="space-y-3">
+            <div className="flex justify-between items-center mb-1">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 5. Job Description & Requirements <span className="text-red-500">*</span>
               </label>
@@ -395,6 +404,44 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
               placeholder="Explain the work required, tools needed, materials available, and any preferences..."
               className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400 resize-none leading-relaxed"
             />
+
+            {/* Voice Description Note */}
+            <div className="pt-1">
+              <VoiceNoteRecorder
+                onAudioRecorded={setAudioUrl}
+                label="Voice Note Description (अडियो सन्देश)"
+              />
+            </div>
+          </div>
+
+          {/* 6. Quick Job Broadcast (One-Tap Urgent Hiring) */}
+          <div className={`p-4 rounded-2xl border transition-all ${
+            isUrgentBroadcast
+              ? "bg-red-50/80 dark:bg-red-950/30 border-red-300 dark:border-red-800/60 shadow-sm"
+              : "bg-slate-50 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/60"
+          }`}>
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isUrgentBroadcast}
+                onChange={(e) => setIsUrgentBroadcast(e.target.checked)}
+                className="mt-1 w-4 h-4 text-red-600 rounded focus:ring-red-500 cursor-pointer"
+              />
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Radio className={`w-4 h-4 ${isUrgentBroadcast ? "text-red-600 animate-pulse" : "text-slate-500"}`} />
+                    <span>Quick Job Broadcast (One-Tap Urgent Hiring)</span>
+                  </span>
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">
+                    Urgent 30-60m
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Pipe burst, electrical spark, or emergency repair? Instantly broadcast to verified &amp; available technicians within a 5 km radius in {district}. First to accept gets dispatched!
+                </p>
+              </div>
+            </label>
           </div>
 
           {/* Actions */}

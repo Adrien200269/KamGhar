@@ -19,9 +19,12 @@ import {
   Flame,
   ArrowRight,
   RotateCcw,
+  Radio,
 } from "lucide-react";
 import { applyToJob, getJobs } from "@/app/actions/job";
 import { NEPAL_DISTRICTS } from "@/lib/constants";
+import { VoiceNoteRecorder, VoiceNotePlayer } from "@/components/voice-note";
+import { useLanguage } from "@/components/language-provider";
 
 const CATEGORIES = [
   "ALL",
@@ -55,6 +58,7 @@ type JobItem = {
   latitude: number;
   longitude: number;
   address: string;
+  audioUrl?: string | null;
   status: string;
   createdAt: Date;
   recruiter: {
@@ -76,6 +80,7 @@ export default function JobsFeed({
   initialJobs: JobItem[];
   appliedJobIds: string[];
 }) {
+  const { lang, t, tx } = useLanguage();
   const searchParams = useSearchParams();
   const paramCategory = searchParams.get("category") || "ALL";
   const paramDistrict = searchParams.get("district") || "ALL";
@@ -100,6 +105,7 @@ export default function JobsFeed({
   const [selectedJobForApply, setSelectedJobForApply] = useState<JobItem | null>(null);
   const [proposedRate, setProposedRate] = useState("");
   const [coverNote, setCoverNote] = useState("");
+  const [audioProposalUrl, setAudioProposalUrl] = useState<string | null>(null);
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applySuccessMessage, setApplySuccessMessage] = useState<string | null>(null);
@@ -138,6 +144,7 @@ export default function JobsFeed({
     setSelectedJobForApply(job);
     setProposedRate(job.budget ? String(job.budget) : "");
     setCoverNote("");
+    setAudioProposalUrl(null);
     setApplyError(null);
   };
 
@@ -152,6 +159,7 @@ export default function JobsFeed({
         jobId: selectedJobForApply.id,
         proposedRate: proposedRate ? parseFloat(proposedRate) : null,
         coverNote: coverNote.trim(),
+        audioUrl: audioProposalUrl,
       });
 
       if (!res.success) {
@@ -207,10 +215,13 @@ export default function JobsFeed({
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-5">
         <div className="max-w-2xl">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Find Work Near You
+            {tx("Find Work Near You", "नजिकका कामहरू खोज्नुहोस्")}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Browse verified job postings and direct requirements across Kathmandu and all districts of Nepal.
+            {tx(
+              "Browse verified job postings and direct requirements across Kathmandu and all districts of Nepal.",
+              "काठमाडौं तथा नेपालभरिका प्रमाणित कामहरू र आवश्यकताहरू हेर्नुहोस् र तत्काल आवेदन दिनुहोस्।"
+            )}
           </p>
         </div>
 
@@ -227,7 +238,7 @@ export default function JobsFeed({
                 setSearch(e.target.value);
                 handleFilterChange(e.target.value);
               }}
-              placeholder="Search by role, keyword (e.g. rewiring, painting, plumbing)..."
+              placeholder={tx("Search by role, keyword (e.g. rewiring, painting, plumbing)...", "काम वा सीप खोज्नुहोस् (उदा. वायरिङ, पेन्टिङ, प्लम्बिङ)...")}
               className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400"
             />
           </div>
@@ -242,7 +253,7 @@ export default function JobsFeed({
                 }}
                 className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white appearance-none"
               >
-                <option value="ALL">All Districts (Nepal)</option>
+                <option value="ALL">{tx("All Districts (Nepal)", "सबै जिल्लाहरू (नेपाल)")}</option>
                 {NEPAL_DISTRICTS.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -261,9 +272,9 @@ export default function JobsFeed({
               }}
               className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white"
             >
-              <option value="newest">Newest First</option>
-              <option value="budget_high">Highest Budget</option>
-              <option value="budget_low">Lowest Budget</option>
+              <option value="newest">{tx("Newest First", "नयाँ पहिले")}</option>
+              <option value="budget_high">{tx("Highest Budget", "बढी बजेट पहिले")}</option>
+              <option value="budget_low">{tx("Lowest Budget", "कम बजेट पहिले")}</option>
             </select>
           </div>
         </div>
@@ -285,7 +296,7 @@ export default function JobsFeed({
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                 }`}
               >
-                {cat === "ALL" ? "All Categories" : cat}
+                {cat === "ALL" ? tx("All Categories", "सबै विधाहरू") : cat}
               </button>
             );
           })}
@@ -299,7 +310,7 @@ export default function JobsFeed({
               className="inline-flex items-center gap-1 text-orange-600 dark:text-orange-400 hover:underline font-semibold cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Filters</span>
+              <span>{tx("Reset Filters", "फिल्टर रिसेट")}</span>
             </button>
           </div>
         )}
@@ -356,11 +367,19 @@ export default function JobsFeed({
                 className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-sm hover:shadow-md hover:border-orange-300 dark:hover:border-orange-800/80 transition-all"
               >
                 <div className="space-y-3.5">
-                  {/* Category + Date */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50">
-                      {job.category}
-                    </span>
+                  {/* Category + Date + Urgent indicator */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50">
+                        {job.category}
+                      </span>
+                      {isUrgent && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-800/60">
+                          <Radio className="w-2.5 h-2.5 text-red-600 animate-pulse" />
+                          <span>{lang === "ne" ? "आपतकालीन प्रसारण" : "Urgent Broadcast"}</span>
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       <span>{new Date(job.createdAt).toLocaleDateString("en-NP", { month: "short", day: "numeric" })}</span>
@@ -376,6 +395,13 @@ export default function JobsFeed({
                   <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">
                     {job.description}
                   </p>
+
+                  {/* Voice Note Player if client provided audio */}
+                  {job.audioUrl && (
+                    <div className="pt-0.5">
+                      <VoiceNotePlayer audioUrl={job.audioUrl} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer Info & Action */}
@@ -407,14 +433,14 @@ export default function JobsFeed({
                     {isApplied ? (
                       <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Applied</span>
+                        <span>{tx("Applied", "आवेदन गरियो")}</span>
                       </span>
                     ) : (
                       <button
                         onClick={() => openApplyModal(job)}
                         className="inline-flex items-center gap-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
                       >
-                        <span>Apply Now</span>
+                        <span>{tx("Apply Now", "आवेदन दिनुहोस्")}</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
                     )}
@@ -468,7 +494,8 @@ export default function JobsFeed({
                 {/* Proposed Rate */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Your Proposed Rate (NPR) <span className="text-slate-400 font-normal">— optional</span>
+                    {tx("Your Proposed Rate (NPR)", "तपाईंको प्रस्तावित दर (रु.)")}{" "}
+                    <span className="text-slate-400 font-normal">— {tx("optional", "ऐच्छिक")}</span>
                   </label>
                   <div className="relative">
                     <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-sm text-slate-400 pointer-events-none">
@@ -486,25 +513,41 @@ export default function JobsFeed({
                   </div>
                   {selectedJobForApply.budget && (
                     <p className="text-[11px] text-slate-400 mt-1">
-                      Client&apos;s estimated budget is Rs. {selectedJobForApply.budget.toLocaleString()}.
+                      {tx("Client's estimated budget is Rs.", "ग्राहकको अनुमानित बजेट रु.")}{" "}
+                      {selectedJobForApply.budget.toLocaleString()}.
                     </p>
                   )}
                 </div>
 
                 {/* Pitch / Message */}
-                <div>
+                <div className="space-y-2">
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Message to Client <span className="text-slate-400 font-normal">— optional</span>
+                    {tx("Message to Client", "ग्राहकलाई सन्देश")}{" "}
+                    <span className="text-slate-400 font-normal">— {tx("optional", "ऐच्छिक")}</span>
                   </label>
                   <textarea
                     rows={3}
                     maxLength={500}
                     value={coverNote}
                     onChange={(e) => setCoverNote(e.target.value)}
-                    placeholder="Briefly state your relevant experience, tools you bring, or when you can begin work..."
+                    placeholder={tx(
+                      "Briefly state your relevant experience, tools you bring, or when you can begin work...",
+                      "आफ्नो अनुभव, ल्याउने औजारहरू वा कहिले काम सुरु गर्न सक्नुहुन्छ संक्षेपमा लेख्नुहोस्..."
+                    )}
                     className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white resize-none placeholder:text-slate-400"
                   />
                   <p className="text-[11px] text-slate-400 text-right mt-0.5">{coverNote.length}/500</p>
+
+                  {/* Audio Proposal Recorder */}
+                  <div className="pt-1">
+                    <VoiceNoteRecorder
+                      onAudioRecorded={setAudioProposalUrl}
+                      label={tx(
+                        "Voice Proposal / Audio Pitch (Hold to Record)",
+                        "आवाजमा प्रस्ताव / अडियो रेकर्ड गर्नुहोस्"
+                      )}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-2">
@@ -513,7 +556,7 @@ export default function JobsFeed({
                     onClick={() => setSelectedJobForApply(null)}
                     className="flex-1 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                   >
-                    Cancel
+                    {tx("Cancel", "रद्द गर्नुहोस्")}
                   </button>
                   <button
                     type="submit"
@@ -523,12 +566,12 @@ export default function JobsFeed({
                     {isApplying ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Submitting...</span>
+                        <span>{tx("Submitting...", "पठाउँदै...")}</span>
                       </>
                     ) : (
                       <>
                         <Send className="w-3.5 h-3.5" />
-                        <span>Send Application</span>
+                        <span>{tx("Send Application", "आवेदन पेश गर्नुहोस्")}</span>
                       </>
                     )}
                   </button>

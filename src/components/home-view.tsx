@@ -25,24 +25,37 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
+import LanguageToggle from "@/components/language-toggle";
+import NotificationDropdown from "@/components/notification-dropdown";
+import ChatModal from "@/components/chat-modal";
+import { useLanguage } from "@/components/language-provider";
 import { createClient } from "@/lib/supabase/client";
 
 const CATEGORIES = [
-  { name: "Electrician", icon: Zap, jobs: "120+ gigs" },
-  { name: "Plumbing", icon: Wrench, jobs: "85+ gigs" },
-  { name: "Painting & Masonry", icon: Paintbrush, jobs: "64+ gigs" },
-  { name: "Carpentry", icon: Briefcase, jobs: "45+ gigs" },
-  { name: "Tutoring & Classes", icon: BookOpen, jobs: "90+ gigs" },
-  { name: "Digital & Design", icon: Laptop, jobs: "110+ gigs" },
-  { name: "Delivery & Moving", icon: Truck, jobs: "75+ gigs" },
-  { name: "Home Cleaning", icon: Sparkles, jobs: "95+ gigs" },
+  { name: "Electrician", nameNe: "इलेक्ट्रीसियन", icon: Zap, jobs: "120+ gigs", jobsNe: "१२०+ कामहरू" },
+  { name: "Plumbing", nameNe: "प्लम्बिङ", icon: Wrench, jobs: "85+ gigs", jobsNe: "८५+ कामहरू" },
+  { name: "Painting & Masonry", nameNe: "पेन्टिङ र डकर्मी", icon: Paintbrush, jobs: "64+ gigs", jobsNe: "६४+ कामहरू" },
+  { name: "Carpentry", nameNe: "सिकर्मी / काष्ठकला", icon: Briefcase, jobs: "45+ gigs", jobsNe: "४५+ कामहरू" },
+  { name: "Tutoring & Classes", nameNe: "ट्युसन र कक्षाहरू", icon: BookOpen, jobs: "90+ gigs", jobsNe: "९०+ कामहरू" },
+  { name: "Digital & Design", nameNe: "डिजिटल र डिजाइन", icon: Laptop, jobs: "110+ gigs", jobsNe: "११०+ कामहरू" },
+  { name: "Delivery & Moving", nameNe: "डेलिभरी र ढुवानी", icon: Truck, jobs: "75+ gigs", jobsNe: "७५+ कामहरू" },
+  { name: "Home Cleaning", nameNe: "घर सरसफाइ", icon: Sparkles, jobs: "95+ gigs", jobsNe: "९५+ कामहरू" },
 ];
 
 export default function HomeView() {
+  const { lang, tx, t } = useLanguage();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "true";
   const [showBanner, setShowBanner] = useState(justRegistered);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [activeChat, setActiveChat] = useState<{
+    conversationId: string;
+    recipientName: string;
+    recipientPhoto?: string | null;
+    recipientPhone?: string | null;
+    recipientRole?: string;
+    recipientVerified?: boolean;
+  } | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -115,17 +128,23 @@ export default function HomeView() {
               href="/jobs"
               className="text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors hidden sm:inline px-2"
             >
-              Browse Jobs
+              {tx("Browse Jobs", "काम खोज्नुहोस्")}
             </Link>
             <Link
               href="/workers"
               className="text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors hidden sm:inline px-2"
             >
-              Find Workers
+              {tx("Find Workers", "कामदार खोज्नुहोस्")}
             </Link>
+
+            {/* Notification Dropdown for logged in user */}
+            {isLoggedIn && (
+              <NotificationDropdown onOpenChat={(chat) => setActiveChat(chat)} />
+            )}
 
             {/* Theme Toggle Button */}
             <ThemeToggle />
+            <LanguageToggle />
 
             {isLoggedIn ? (
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -134,7 +153,7 @@ export default function HomeView() {
                   className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold shadow-sm shadow-orange-500/20 transition-all flex items-center gap-1.5"
                 >
                   <LayoutDashboard className="w-4 h-4" />
-                  <span>Dashboard</span>
+                  <span>{tx("Dashboard", "ड्यासबोर्ड")}</span>
                 </Link>
               </motion.div>
             ) : (
@@ -143,14 +162,14 @@ export default function HomeView() {
                   href="/login"
                   className="px-3 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                 >
-                  Log in
+                  {tx("Log in", "लग इन")}
                 </Link>
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                   <Link
                     href="/register"
                     className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold shadow-sm shadow-orange-500/20 transition-all inline-block"
                   >
-                    Get Started
+                    {tx("Get Started", "सुरु गर्नुहोस्")}
                   </Link>
                 </motion.div>
               </>
@@ -194,7 +213,7 @@ export default function HomeView() {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-600" />
                   </span>
                   <MapPin className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-                  Nepal&apos;s #1 Local Gig Marketplace
+                  {tx("Nepal's #1 Local Gig Marketplace", "नेपालको नं. १ स्थानीय गिग बजार")}
                 </motion.div>
 
                 {/* Headline */}
@@ -204,10 +223,10 @@ export default function HomeView() {
                   transition={{ duration: 0.6, delay: 0.1 }}
                   className="text-5xl sm:text-6xl xl:text-7xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.08]"
                 >
-                  Find work.{" "}
+                  {tx("Find work.", "काम खोज्नुहोस्।")}{" "}
                   <span className="relative inline-block">
                     <span className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-400 bg-clip-text text-transparent">
-                      Hire talent.
+                      {tx("Hire talent.", "जनशक्ति रोज्नुहोस्।")}
                     </span>
                     <motion.svg
                       initial={{ pathLength: 0, opacity: 0 }}
@@ -234,7 +253,7 @@ export default function HomeView() {
                     </motion.svg>
                   </span>
                   <br />
-                  Near you in Nepal.
+                  {tx("Near you in Nepal.", "तपाईंको नजिकै।")}
                 </motion.h1>
 
                 {/* Subheading */}
@@ -244,7 +263,10 @@ export default function HomeView() {
                   transition={{ duration: 0.5, delay: 0.25 }}
                   className="mt-7 text-lg text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg"
                 >
-                  Electricians, plumbers, tutors, designers — connect with verified local talent or find gigs, all sorted by proximity to your location.
+                  {tx(
+                    "Electricians, plumbers, tutors, designers — connect with verified local talent or find gigs, all sorted by proximity to your location.",
+                    "इलेक्ट्रीसियन, प्लम्बर, शिक्षक, डिजाइनर — तपाईंको स्थान नजिकका प्रमाणित कामदारहरूसँग जोडिनुहोस् वा नयाँ काम पाउनुहोस्।"
+                  )}
                 </motion.p>
 
                 {/* CTA Buttons */}
@@ -260,7 +282,7 @@ export default function HomeView() {
                       className="group inline-flex items-center justify-center gap-2.5 px-8 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-bold shadow-xl shadow-orange-500/30 transition-all text-base w-full sm:w-auto"
                     >
                       <Briefcase className="w-5 h-5" />
-                      I Want to Work
+                      {tx("I Want to Work", "म काम गर्न चाहन्छु")}
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </motion.div>
@@ -271,7 +293,7 @@ export default function HomeView() {
                       className="inline-flex items-center justify-center gap-2.5 px-8 py-4 bg-white dark:bg-slate-900 hover:bg-orange-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white border-2 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700 rounded-2xl font-bold shadow-sm transition-all text-base w-full sm:w-auto"
                     >
                       <Users className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                      I Need to Hire
+                      {tx("I Need to Hire", "मलाई कामदार चाहिन्छ")}
                     </Link>
                   </motion.div>
                 </motion.div>
@@ -284,9 +306,9 @@ export default function HomeView() {
                   className="mt-8 flex flex-wrap gap-2.5"
                 >
                   {[
-                    { icon: Check, label: "Zero Commission" },
-                    { icon: MapPin, label: "GPS Matching" },
-                    { icon: ShieldCheck, label: "Verified Profiles" },
+                    { icon: Check, label: tx("Zero Commission", "शून्य कमिसन") },
+                    { icon: MapPin, label: tx("GPS Matching", "जीपीएस म्याचिङ") },
+                    { icon: ShieldCheck, label: tx("Verified Profiles", "प्रमाणित प्रोफाइलहरू") },
                   ].map(({ icon: Icon, label }) => (
                     <span
                       key={label}
@@ -306,9 +328,9 @@ export default function HomeView() {
                   className="mt-10 grid grid-cols-3 gap-6 border-t border-slate-200 dark:border-slate-800 pt-8 w-full max-w-sm"
                 >
                   {[
-                    { value: "2,400+", label: "Active Workers" },
-                    { value: "840+", label: "Open Gigs" },
-                    { value: "14+", label: "Skill Categories" },
+                    { value: "2,400+", label: tx("Active Workers", "सक्रिय कामदार") },
+                    { value: "840+", label: tx("Open Gigs", "खुला कामहरू") },
+                    { value: "14+", label: tx("Skill Categories", "सीप विधाहरू") },
                   ].map(({ value, label }) => (
                     <div key={label}>
                       <div className="text-2xl font-extrabold text-slate-900 dark:text-white">{value}</div>
@@ -448,15 +470,15 @@ export default function HomeView() {
               <div className="flex flex-wrap items-center justify-center lg:justify-between gap-6 text-sm">
                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  <span className="font-semibold text-slate-700 dark:text-slate-200">Zero commission</span> for workers — keep 100% of earnings
+                  <span className="font-semibold text-slate-700 dark:text-slate-200">{tx("Zero commission", "शून्य कमिसन")}</span> {tx("for workers — keep 100% of earnings", "कामदारका लागि — १००% कमाइ आफ्नै")}
                 </div>
                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                   <MapPin className="w-4 h-4 text-orange-500" />
-                  Available across <span className="font-semibold text-slate-700 dark:text-slate-200 mx-1">77 districts</span> of Nepal
+                  {tx("Available across", "उपलब्ध")} <span className="font-semibold text-slate-700 dark:text-slate-200 mx-1">{tx("77 districts", "७७ जिल्ला")}</span> {tx("of Nepal", "नेपालभरि")}
                 </div>
                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                   <ShieldCheck className="w-4 h-4 text-blue-500" />
-                  <span className="font-semibold text-slate-700 dark:text-slate-200">Verified</span> worker profiles
+                  <span className="font-semibold text-slate-700 dark:text-slate-200">{tx("Verified", "प्रमाणित")}</span> {tx("worker profiles", "कामदार प्रोफाइलहरू")}
                 </div>
               </div>
             </motion.div>
@@ -470,12 +492,17 @@ export default function HomeView() {
 
             {/* Left-anchored heading */}
             <div className="max-w-lg mb-16">
-              <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-widest mb-2">Why KamGhar exists</p>
+              <p className="text-xs font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-widest mb-2">
+                {tx("Why KamGhar exists", "कामघर किन बनाइयो?")}
+              </p>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight">
-                Rohan spent 3 days idle with a fully-charged drill and no one to call him.
+                {tx("Rohan spent 3 days idle with a fully-charged drill and no one to call him.", "रोहनसँग काम गर्ने उपकरण थियो, तर काम बोलाउने कोही थिएन।")}
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-base mt-4 leading-relaxed">
-                He&apos;s a licensed electrician in Lalitpur. Knows his trade cold. But the only way people found workers in his neighborhood was word of mouth — and that week, the word hadn&apos;t reached him. We built KamGhar so that never happens again.
+                {tx(
+                  "He's a licensed electrician in Lalitpur. Knows his trade cold. But the only way people found workers in his neighborhood was word of mouth — and that week, the word hadn't reached him. We built KamGhar so that never happens again.",
+                  "ललितपुरका दक्ष कामदारहरूले पनि कहिलेकाहीँ काम पाउन मुस्किल हुन्थ्यो। कामघरले सीप भएका कामदार र काम दिने ग्राहकलाई सिधै जोड्छ ताकि कोही पनि खाली बस्न नपरोस्।"
+                )}
               </p>
             </div>
 
@@ -486,16 +513,26 @@ export default function HomeView() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
                 <div>
                   <span className="text-6xl font-black text-slate-100 dark:text-slate-800 select-none leading-none block mb-4">01</span>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">You drop a pin, not a form.</h3>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
+                    {tx("You drop a pin, not a form.", "फारम होइन, सिधै नक्सामा स्थान छान्नुहोस्।")}
+                  </h3>
                   <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4">
-                    No resume uploads. No cover letters. Open the map, drag to your location — Baneshwor, Patan, Bhaktapur, wherever — and workers within your chosen radius appear instantly sorted by distance.
+                    {tx(
+                      "No resume uploads. No cover letters. Open the map, drag to your location — Baneshwor, Patan, Bhaktapur, wherever — and workers within your chosen radius appear instantly sorted by distance.",
+                      "बायोडाटा भर्नु पर्दैन। आफ्नो स्थान छान्नुहोस् र नजिकैका कामदारहरूलाई दुरी अनुसार तत्काल सम्पर्क गर्नुहोस्।"
+                    )}
                   </p>
-                  <p className="text-slate-500 dark:text-slate-500 text-xs">Average time from signup to first job offer: <strong className="text-slate-700 dark:text-slate-300">23 minutes.</strong></p>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs">
+                    {tx("Average time from signup to first job offer:", "साइनअप देखि पहिलो कामको प्रस्ताव सम्म औसत समय:")}{" "}
+                    <strong className="text-slate-700 dark:text-slate-300">{tx("23 minutes.", "२३ मिनेट।")}</strong>
+                  </p>
                 </div>
                 <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <MapPin className="w-4 h-4 text-orange-500" />
-                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Showing workers within 3 km</span>
+                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                      {tx("Showing workers within 3 km", "३ किमी भित्रका कामदारहरू")}
+                    </span>
                   </div>
                   <div className="space-y-3">
                     {[
@@ -522,17 +559,25 @@ export default function HomeView() {
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">Electrical wiring for new flat — Chabahil</h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">2-bedroom flat, full wiring needed. Must have own tools. Budget NPR 4,500.</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">4 workers applied within 40 minutes</span>
-                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">Filled</span>
+                    <span className="text-xs text-slate-400">{tx("4 workers applied within 40 minutes", "४ जना कामदारले ४० मिनेटमै आवेदन दिए")}</span>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">{tx("Filled", "सम्पन्न")}</span>
                   </div>
                 </div>
                 <div className="md:order-2 order-1">
                   <span className="text-6xl font-black text-slate-100 dark:text-slate-800 select-none leading-none block mb-4">02</span>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Post a job in under 2 minutes.</h3>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
+                    {tx("Post a job in under 2 minutes.", "२ मिनेटमै नयाँ काम पोस्ट गर्नुहोस्।")}
+                  </h3>
                   <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4">
-                    Describe the work, set a budget, drop your location. Workers near you see it immediately — no waiting for a platform to match you, no algorithm deciding who&apos;s &quot;relevant.&quot;
+                    {tx(
+                      "Describe the work, set a budget, drop your location. Workers near you see it immediately — no waiting for a platform to match you, no algorithm deciding who's 'relevant.'",
+                      "कामको विवरण लेख्नुहोस्, बजेट तोक्नुहोस् र स्थान राख्नुहोस्। नजिकका दक्ष कामदारहरूले तुरुन्तै देख्नेछन् र आवेदन दिन सक्नेछन्।"
+                    )}
                   </p>
-                  <p className="text-slate-500 dark:text-slate-500 text-xs">Most Kathmandu jobs get their first applicant in under <strong className="text-slate-700 dark:text-slate-300">35 minutes.</strong></p>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs">
+                    {tx("Most Kathmandu jobs get their first applicant in under", "काठमाडौंका अधिकांश काममा पहिलो आवेदन आउन लाग्ने समय:")}{" "}
+                    <strong className="text-slate-700 dark:text-slate-300">{tx("35 minutes.", "३५ मिनेट।")}</strong>
+                  </p>
                 </div>
               </div>
 
@@ -540,27 +585,34 @@ export default function HomeView() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
                 <div>
                   <span className="text-6xl font-black text-slate-100 dark:text-slate-800 select-none leading-none block mb-4">03</span>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">Workers keep everything they earn.</h3>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
+                    {tx("Workers keep everything they earn.", "कामदारले आफ्नो सबै कमाइ आफै राख्छन्।")}
+                  </h3>
                   <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4">
-                    Most platforms take 15–30% per job. We charge workers nothing. Ever. The NPR 850/hr you agree on is the NPR 850/hr they receive. Recruiters pay a small flat fee only when they post a job.
+                    {tx(
+                      "Most platforms take 15–30% per job. We charge workers nothing. Ever. The NPR 850/hr you agree on is the NPR 850/hr they receive. Recruiters pay a small flat fee only when they post a job.",
+                      "अन्य प्लेटफर्महरूले १५-३०% कमिसन काट्छन्। कामघरमा कामदारहरूको कुनै पनि कमिसन काटिँदैन। सम्पूर्ण पारिश्रमिक आफ्नै।"
+                    )}
                   </p>
-                  <p className="text-slate-500 dark:text-slate-500 text-xs">Suraj — our first electrician — has done <strong className="text-slate-700 dark:text-slate-300">47 jobs since March 2026</strong> without losing a rupee to commission.</p>
+                  <p className="text-slate-500 dark:text-slate-500 text-xs">
+                    {tx("Suraj — our first electrician — has done 47 jobs without losing a rupee to commission.", "हाम्रो पहिलो कामदार सुरजले कमिसन बिना ४७ भन्दा बढी काम सफलतापूर्वक पूरा गरिसकेका छन्।")}
+                  </p>
                 </div>
                 <div className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-3xl p-6 shadow-lg shadow-orange-500/20">
-                  <div className="text-white/80 text-xs font-semibold mb-3">Monthly earnings breakdown</div>
+                  <div className="text-white/80 text-xs font-semibold mb-3">{tx("Monthly earnings breakdown", "मासिक आम्दानी विवरण")}</div>
                   <div className="text-4xl font-extrabold text-white mb-1">NPR 38,400</div>
-                  <div className="text-orange-100 text-sm mb-5">earned by Suraj in September 2026</div>
+                  <div className="text-orange-100 text-sm mb-5">{tx("earned by Suraj in September 2026", "सुरजले आर्जन गरेको आम्दानी")}</div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-orange-100">Gross from jobs</span>
+                      <span className="text-orange-100">{tx("Gross from jobs", "कुल आम्दानी")}</span>
                       <span className="text-white font-bold">NPR 38,400</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-orange-100">KamGhar commission</span>
+                      <span className="text-orange-100">{tx("KamGhar commission", "कामघर कमिसन")}</span>
                       <span className="text-white font-bold">NPR 0</span>
                     </div>
                     <div className="border-t border-white/20 pt-2 flex justify-between text-sm">
-                      <span className="text-white font-semibold">Take home</span>
+                      <span className="text-white font-semibold">{tx("Take home", "आफ्नो बचत")}</span>
                       <span className="text-white font-extrabold">NPR 38,400</span>
                     </div>
                   </div>
@@ -574,9 +626,14 @@ export default function HomeView() {
         <section className="py-16 bg-white dark:bg-slate-900/50 border-t border-slate-200/80 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-md mb-12">
-              <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">Built for how Nepal actually works.</h2>
+              <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {tx("Built for how Nepal actually works.", "नेपालको वास्तविक आवश्यकता अनुसार निर्मित।")}
+              </h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm mt-3 leading-relaxed">
-                No phone bank. No call center. Just an app that works in Kathmandu and in Pokhara, with eSewa and with cash.
+                {tx(
+                  "No phone bank. No call center. Just an app that works in Kathmandu and in Pokhara, with eSewa and with cash.",
+                  "काठमाडौं होस् वा पोखरा, eSewa, Khalti वा नगद — नेपाली परिवेश अनुसार पूर्णतया उपयोगी।"
+                )}
               </p>
             </div>
 
@@ -653,16 +710,30 @@ export default function HomeView() {
             <span className="font-bold text-white text-base">
               Kam<span className="text-orange-500">Ghar</span>
             </span>
-            <span className="text-xs text-slate-500">© {new Date().getFullYear()} · Built in Kathmandu</span>
+            <span className="text-xs text-slate-500">© {new Date().getFullYear()} · {tx("Built in Kathmandu", "काठमाडौंमा निर्मित")}</span>
           </div>
 
           <div className="flex items-center gap-6 text-xs text-slate-500">
-            <Link href="/jobs" className="hover:text-slate-300 transition-colors">Browse Jobs</Link>
-            <Link href="/workers" className="hover:text-slate-300 transition-colors">Find Workers</Link>
-            <Link href="/register" className="hover:text-slate-300 transition-colors">Join</Link>
+            <Link href="/jobs" className="hover:text-slate-300 transition-colors">{tx("Browse Jobs", "काम खोज्नुहोस्")}</Link>
+            <Link href="/workers" className="hover:text-slate-300 transition-colors">{tx("Find Workers", "कामदार खोज्नुहोस्")}</Link>
+            <Link href="/register" className="hover:text-slate-300 transition-colors">{tx("Join", "दर्ता हुनुहोस्")}</Link>
           </div>
         </div>
       </footer>
+
+      {/* In-App Direct Chat Modal when triggered from a message notification */}
+      {activeChat && (
+        <ChatModal
+          isOpen={!!activeChat}
+          onClose={() => setActiveChat(null)}
+          conversationId={activeChat.conversationId}
+          recipientName={activeChat.recipientName}
+          recipientRole={activeChat.recipientRole}
+          recipientPhoto={activeChat.recipientPhoto}
+          recipientPhone={activeChat.recipientPhone}
+          recipientVerified={activeChat.recipientVerified}
+        />
+      )}
     </div>
   );
 }

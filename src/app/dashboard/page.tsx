@@ -16,7 +16,7 @@ export default async function DashboardPage(props: {
   const searchParams = await props.searchParams;
   const skipOnboarding = searchParams?.skipOnboarding === "true";
 
-  if (!skipOnboarding) {
+  if (!skipOnboarding && user.role !== "ADMIN") {
     const isWorker = user.role === "WORKER";
     const isOnboarded = isWorker
       ? Boolean(

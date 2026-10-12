@@ -21,6 +21,9 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
   const passwordJustReset = searchParams.get("passwordReset") === "true";
 
+  const redirectParam = searchParams.get("redirect");
+  const isWorkersRedirect = redirectParam === "/workers";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -28,9 +31,12 @@ export default function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(
-    passwordJustReset ? "Password updated! Log in with your new password." : null
+    passwordJustReset
+      ? "Password updated! Log in with your new password."
+      : isWorkersRedirect
+      ? "Please log in to view verified worker profiles and direct contacts."
+      : null
   );
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,8 +51,9 @@ export default function LoginForm() {
         setErrorMessage(response.error ?? "Invalid email or password");
       } else {
         setSuccessMessage(response.message ?? "Logged in successfully!");
+        const destination = redirectParam || "/dashboard";
         setTimeout(() => {
-          router.push("/dashboard");
+          router.push(destination);
           router.refresh();
         }, 1000);
       }

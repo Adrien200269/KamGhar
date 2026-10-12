@@ -4,6 +4,7 @@ import Image from "next/image";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import RegisterForm from "./register-form";
 import ThemeToggle from "@/components/theme-toggle";
+import AuthImageCarousel from "@/components/auth-image-carousel";
 
 export const metadata = {
   title: "Sign Up — KamGhar",
@@ -12,11 +13,11 @@ export const metadata = {
 
 export default function RegisterPage() {
   return (
-    <div className="h-screen max-h-screen flex bg-white dark:bg-slate-950 transition-colors duration-200 overflow-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-slate-950 transition-colors duration-200">
       {/* ── Left panel: Form ── */}
-      <div className="flex-1 flex flex-col justify-between px-6 py-5 sm:px-10 lg:px-12 xl:px-16 max-w-2xl h-full overflow-y-auto">
+      <div className="flex-1 flex flex-col justify-between px-6 py-6 sm:px-10 lg:px-12 xl:px-16 max-w-2xl min-h-screen overflow-y-auto">
         {/* Top nav */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
@@ -27,8 +28,13 @@ export default function RegisterPage() {
           <ThemeToggle />
         </div>
 
+        {/* Mobile Animated Image Carousel (visible only on mobile/tablet) */}
+        <div className="lg:hidden mb-4">
+          <AuthImageCarousel variant="mobile" intervalSeconds={4} />
+        </div>
+
         {/* Content Area */}
-        <div className="my-auto">
+        <div className="my-auto py-2">
           {/* Logo + heading */}
           <div className="mb-4">
             <Link href="/" className="inline-block mb-2">
@@ -64,21 +70,14 @@ export default function RegisterPage() {
         </div>
 
         {/* Footer */}
-        <p className="pt-3 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-400 dark:text-slate-600">
+        <p className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-400 dark:text-slate-600">
           © {new Date().getFullYear()} KamGhar · Built in Kathmandu
         </p>
       </div>
 
-      {/* ── Right panel: Photo only ── */}
-      <div className="hidden lg:flex flex-1 relative bg-slate-900 overflow-hidden h-full">
-        <Image
-          src="/worker-mechanic.webp"
-          alt="Skilled automotive mechanic at work"
-          fill
-          className="object-cover object-center"
-          sizes="50vw"
-          priority
-        />
+      {/* ── Right panel: Full desktop animated carousel (clean, no text on image) ── */}
+      <div className="hidden lg:flex flex-1 relative bg-slate-950 overflow-hidden min-h-screen">
+        <AuthImageCarousel variant="desktop" intervalSeconds={4} />
       </div>
     </div>
   );
