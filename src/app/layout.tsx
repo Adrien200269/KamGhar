@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/components/language-provider";
+import ScrollProgress from "@/components/scroll-progress";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,7 +39,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
         <ThemeProvider>
-          <LanguageProvider>{children}</LanguageProvider>
+          <LanguageProvider>
+            {children}
+            <ScrollProgress />
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>
