@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/components/language-provider";
 import ScrollProgress from "@/components/scroll-progress";
+import MacCursor from "@/components/mac-cursor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,6 +43,7 @@ export default function RootLayout({
           <LanguageProvider>
             {children}
             <ScrollProgress />
+            <MacCursor />
           </LanguageProvider>
         </ThemeProvider>
       </body>
