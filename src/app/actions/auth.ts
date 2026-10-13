@@ -11,6 +11,7 @@ export type AuthActionResult = {
   message?: string;
   error?: string;
   requiresEmailVerification?: boolean;
+  role?: string;
 };
 
 export async function registerUser(rawInput: unknown): Promise<AuthActionResult> {
@@ -114,7 +115,7 @@ export async function loginUser(rawInput: unknown): Promise<AuthActionResult> {
   const { email, password } = result.data;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: authData, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -123,9 +124,19 @@ export async function loginUser(rawInput: unknown): Promise<AuthActionResult> {
     return { success: false, error: error.message };
   }
 
+  let role: string | undefined;
+  if (authData.user) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: authData.user.id },
+      select: { role: true },
+    });
+    role = dbUser?.role;
+  }
+
   return {
     success: true,
     message: "Logged in successfully!",
+    role,
   };
 }
 

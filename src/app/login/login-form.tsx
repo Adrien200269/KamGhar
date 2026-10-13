@@ -51,7 +51,8 @@ export default function LoginForm() {
         setErrorMessage(response.error ?? "Invalid email or password");
       } else {
         setSuccessMessage(response.message ?? "Logged in successfully!");
-        const destination = redirectParam || "/dashboard";
+        const destination =
+          redirectParam || (response.role === "ADMIN" ? "/admin" : "/dashboard");
         setTimeout(() => {
           router.push(destination);
           router.refresh();
