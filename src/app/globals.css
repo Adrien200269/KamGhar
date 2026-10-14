@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Kalam:wght@400;700&family=Schoolbell&family=Space+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -104,4 +105,35 @@ textarea,
 :active:is(.cursor-grab) {
   cursor: url("/cursors/mac-grabbing.svg") 15 15, grabbing !important;
 }
+
+/* ── Notebook & Handwriting Aesthetic Styles ── */
+.font-handwriting {
+  font-family: 'Caveat', cursive, sans-serif;
+}
+
+.font-kalam {
+  font-family: 'Kalam', cursive, sans-serif;
+}
+
+.font-schoolbell {
+  font-family: 'Schoolbell', cursive, sans-serif;
+}
+
+.notebook-ruled-bg {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    rgba(148, 163, 184, 0.28) 28px
+  );
+  line-height: 28px;
+}
+
+.notebook-grid-bg {
+  background-size: 24px 24px;
+  background-image: 
+    linear-gradient(to right, rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.16) 1px, transparent 1px);
+}
+
 

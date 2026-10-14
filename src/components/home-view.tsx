@@ -28,6 +28,7 @@ import ThemeToggle from "@/components/theme-toggle";
 import LanguageToggle from "@/components/language-toggle";
 import NotificationDropdown from "@/components/notification-dropdown";
 import ChatModal from "@/components/chat-modal";
+import HomeNotebook from "@/components/home-notebook";
 import { useLanguage } from "@/components/language-provider";
 import { createClient } from "@/lib/supabase/client";
 
@@ -701,6 +702,9 @@ export default function HomeView() {
             </div>
           </div>
         </section>
+
+        {/* ── Notebook / Journal Section (Field Notes & Community Sticky Notes) ── */}
+        <HomeNotebook />
       </main>
 
       {/* Footer */}
