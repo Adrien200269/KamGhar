@@ -97,50 +97,58 @@ const INITIAL_NOTES: StickyNote[] = [
 
 const POLAROIDS = [
   {
-    name: "Rohan Tamang",
-    role: "Master Electrician",
-    roleNe: "विद्युत् विशेषज्ञ",
-    location: "Chabahil, Kathmandu",
-    exp: "8 yrs exp · 140+ gigs",
-    img: "/worker-electrician.jpg",
-    caption: "Rewiring solar inverter backup at Baneshwor",
-    captionNe: "बानेश्वरमा सोलार इन्भर्टर ब्याकअप जडान गर्दै",
+    name: "Aregato Shrestha",
+    nameNe: "अरेगातो श्रेष्ठ",
+    role: "Master Electrician & Pro",
+    roleNe: "विद्युत् तथा प्राविधिक विशेषज्ञ",
+    location: "Gokarneshwar, Kathmandu",
+    locationNe: "गोकर्णेश्वर, काठमाडौं",
+    exp: "4 yrs exp · 65 gigs",
+    img: "/aregato-shrestha.jpg",
+    caption: "Wiring backup solar inverters & emergency home electricals",
+    captionNe: "गोकर्णेश्वरमा सोलार इन्भर्टर र आपतकालीन विद्युत् मर्मत",
     rating: "4.9",
     rotation: -2,
   },
   {
-    name: "Sunita Magar",
-    role: "Professional Home Cleaner",
-    roleNe: "घर सरसफाइ विशेषज्ञ",
-    location: "Sanepa, Lalitpur",
-    exp: "5 yrs exp · 98 gigs",
-    img: "/worker-cleaner.webp",
-    caption: "Post-renovation sparkle clean in Sanepa",
-    captionNe: "सानेपामा घर मर्मत पछिको विशेष सरसफाइ",
+    name: "Tulsi Shrestha",
+    nameNe: "तुलसी श्रेष्ठ",
+    role: "Home Specialist & Designer",
+    roleNe: "गृह व्यवस्थापन तथा डिजाइन विशेषज्ञ",
+    location: "Gokarneshwar, Kathmandu",
+    locationNe: "गोकर्णेश्वर, काठमाडौं",
+    exp: "3 yrs exp · 48 gigs",
+    img: "/tulsi-shrestha.jpg",
+    caption: "Post-renovation deep clean & organization in Kathmandu",
+    captionNe: "घर मर्मत पछिको विशेष सरसफाइ र आन्तरिक व्यवस्थापन",
     rating: "5.0",
     rotation: 2,
   },
   {
-    name: "Bikram Maharjan",
-    role: "Plumbing Specialist",
-    roleNe: "प्लम्बिङ तथा मोटर विशेषज्ञ",
-    location: "Lagankhel, Lalitpur",
-    exp: "11 yrs exp · 210+ gigs",
-    img: "/worker-plumber.jpg",
-    caption: "Replacing emergency water pump on Sunday",
-    captionNe: "आइतबार बिहान आपतकालीन पानी पम्प मर्मत गर्दै",
+    name: "Adrien Shrestha",
+    nameNe: "एड्रियन श्रेष्ठ",
+    role: "Technical Operations Lead",
+    roleNe: "प्राविधिक तथा कार्य व्यवस्थापक",
+    location: "Kathmandu, Nepal",
+    locationNe: "काठमाडौं, नेपाल",
+    exp: "5 yrs exp · 92 gigs",
+    img: "/adrien-shrestha.jpg",
+    caption: "Coordinating on-demand technicians & rapid response dispatches",
+    captionNe: "कार्यस्थल प्राविधिक परिचालन र मर्मत कार्य समन्वय गर्दै",
     rating: "4.9",
     rotation: -1.5,
   },
   {
-    name: "Deepak Silwal",
-    role: "Motorcycle Mechanic",
-    roleNe: "मोटरसाइकल मेकानिक",
-    location: "Kalanki, Kathmandu",
-    exp: "6 yrs exp · 85 gigs",
-    img: "/worker-mechanic.webp",
-    caption: "On-site carburetor repair on Ring Road",
-    captionNe: "रिङरोडमै पुगेर गरिएको अन-साइट कार्बोरेटर मर्मत",
+    name: "Sabja Shrestha",
+    nameNe: "सब्जा श्रेष्ठ",
+    role: "Language & Arts Educator",
+    roleNe: "शिक्षा, भाषा तथा कला प्रशिक्षक",
+    location: "Kathmandu, Nepal",
+    locationNe: "काठमाडौं, नेपाल",
+    exp: "4 yrs exp · 76 gigs",
+    img: "/sabja-shrestha.png",
+    caption: "Interactive learning and personalized home tutoring",
+    captionNe: "प्रत्यक्ष गृह शिक्षण र रचनात्मक कला सीप कक्षा सञ्चालन",
     rating: "4.8",
     rotation: 2.5,
   },
@@ -849,6 +857,7 @@ export default function HomeNotebook() {
                                   src={worker.img}
                                   alt={worker.name}
                                   fill
+                                  unoptimized
                                   className="object-cover group-hover:scale-105 transition-transform duration-300"
                                 />
                                 <div className="absolute top-1 right-1 px-1 py-0.2 rounded bg-black/60 text-white text-[9px] font-bold flex items-center gap-0.5">
@@ -858,7 +867,7 @@ export default function HomeNotebook() {
                               </div>
                               <div className="text-center">
                                 <h4 className="font-bold text-xs text-stone-900 dark:text-stone-100 truncate">
-                                  {worker.name}
+                                  {lang === "ne" && worker.nameNe ? worker.nameNe : worker.name}
                                 </h4>
                                 <p className="text-[10px] text-orange-600 dark:text-orange-400 font-medium truncate">
                                   {lang === "ne" ? worker.roleNe : worker.role}
@@ -1170,12 +1179,15 @@ export default function HomeNotebook() {
                   src={POLAROIDS[selectedPolaroid].img}
                   alt={POLAROIDS[selectedPolaroid].name}
                   fill
+                  unoptimized
                   className="object-cover"
                 />
               </div>
 
               <h3 className="font-bold text-base text-stone-900 dark:text-white">
-                {POLAROIDS[selectedPolaroid].name}
+                {lang === "ne" && POLAROIDS[selectedPolaroid].nameNe
+                  ? POLAROIDS[selectedPolaroid].nameNe
+                  : POLAROIDS[selectedPolaroid].name}
               </h3>
               <p className="text-orange-600 dark:text-orange-400 font-semibold text-xs">
                 {lang === "ne"
@@ -1183,7 +1195,9 @@ export default function HomeNotebook() {
                   : POLAROIDS[selectedPolaroid].role}
               </p>
               <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
-                📍 {POLAROIDS[selectedPolaroid].location} · {POLAROIDS[selectedPolaroid].exp}
+                📍 {lang === "ne" && POLAROIDS[selectedPolaroid].locationNe
+                  ? POLAROIDS[selectedPolaroid].locationNe
+                  : POLAROIDS[selectedPolaroid].location} · {POLAROIDS[selectedPolaroid].exp}
               </p>
               <p className="font-schoolbell text-stone-700 dark:text-stone-300 text-sm mt-2 italic">
                 &ldquo;

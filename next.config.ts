@@ -10,6 +10,16 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "*.ucarecdn.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.ucarecd.net",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "images.unsplash.com",
         pathname: "/**",
       },
