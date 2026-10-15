@@ -36,7 +36,11 @@ export default async function JobsPage() {
             </div>
           }
         >
-          <JobsFeed initialJobs={initialJobs} appliedJobIds={appliedJobIds} />
+          <JobsFeed
+            initialJobs={initialJobs}
+            appliedJobIds={appliedJobIds}
+            isLoggedIn={!!user}
+          />
         </Suspense>
       </main>
     </div>

@@ -20,11 +20,15 @@ import {
   ArrowRight,
   RotateCcw,
   Radio,
+  LockKeyhole,
+  LogIn,
+  UserPlus,
 } from "lucide-react";
 import { applyToJob, getJobs } from "@/app/actions/job";
 import { NEPAL_DISTRICTS } from "@/lib/constants";
 import { VoiceNoteRecorder, VoiceNotePlayer } from "@/components/voice-note";
 import { useLanguage } from "@/components/language-provider";
+import { createClient } from "@/lib/supabase/client";
 
 const CATEGORIES = [
   "ALL",
@@ -76,9 +80,11 @@ type JobItem = {
 export default function JobsFeed({
   initialJobs,
   appliedJobIds,
+  isLoggedIn: initialIsLoggedIn = false,
 }: {
   initialJobs: JobItem[];
   appliedJobIds: string[];
+  isLoggedIn?: boolean;
 }) {
   const { lang, t, tx } = useLanguage();
   const searchParams = useSearchParams();
@@ -87,6 +93,7 @@ export default function JobsFeed({
 
   const [jobs, setJobs] = useState<JobItem[]>(initialJobs);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set(appliedJobIds));
+  const [isLoggedIn, setIsLoggedIn] = useState(initialIsLoggedIn);
 
   // Filter states
   const [search, setSearch] = useState("");
@@ -96,6 +103,23 @@ export default function JobsFeed({
   const [selectedSort, setSelectedSort] = useState("newest");
 
   useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setIsLoggedIn(!!data.user);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session?.user);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (paramCategory !== "ALL" || paramDistrict !== "ALL") {
       handleFilterChange(search, paramCategory, paramDistrict, selectedUrgency, selectedSort);
     }
@@ -103,6 +127,8 @@ export default function JobsFeed({
 
   // Application modal state
   const [selectedJobForApply, setSelectedJobForApply] = useState<JobItem | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [targetJobForLogin, setTargetJobForLogin] = useState<JobItem | null>(null);
   const [proposedRate, setProposedRate] = useState("");
   const [coverNote, setCoverNote] = useState("");
   const [audioProposalUrl, setAudioProposalUrl] = useState<string | null>(null);
@@ -141,6 +167,11 @@ export default function JobsFeed({
   };
 
   const openApplyModal = (job: JobItem) => {
+    if (!isLoggedIn) {
+      setTargetJobForLogin(job);
+      setShowLoginPrompt(true);
+      return;
+    }
     setSelectedJobForApply(job);
     setProposedRate(job.budget ? String(job.budget) : "");
     setCoverNote("");
@@ -163,7 +194,17 @@ export default function JobsFeed({
       });
 
       if (!res.success) {
-        setApplyError(res.error ?? "Failed to submit application.");
+        if (
+          res.error?.toLowerCase().includes("log in") ||
+          res.error?.toLowerCase().includes("login")
+        ) {
+          setIsLoggedIn(false);
+          setTargetJobForLogin(selectedJobForApply);
+          setSelectedJobForApply(null);
+          setShowLoginPrompt(true);
+        } else {
+          setApplyError(res.error ?? "Failed to submit application.");
+        }
       } else {
         setAppliedIds((prev) => new Set([...prev, selectedJobForApply.id]));
         setApplySuccessMessage(`Application sent for "${selectedJobForApply.title}"!`);
@@ -484,9 +525,25 @@ export default function JobsFeed({
               </div>
 
               {applyError && (
-                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs flex items-center gap-2 font-medium">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  {applyError}
+                <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs flex items-center justify-between gap-2.5 font-medium">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-600 dark:text-red-400" />
+                    <span>{applyError}</span>
+                  </div>
+                  {(applyError.toLowerCase().includes("log in") ||
+                    applyError.toLowerCase().includes("login")) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetJobForLogin(selectedJobForApply);
+                        setSelectedJobForApply(null);
+                        setShowLoginPrompt(true);
+                      }}
+                      className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer flex-shrink-0"
+                    >
+                      {tx("Log In", "लग इन")}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -577,6 +634,117 @@ export default function JobsFeed({
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Big Prominent Login Alert Modal ─────────────────── */}
+      <AnimatePresence>
+        {showLoginPrompt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
+              className="relative w-full max-w-md sm:max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-orange-200/80 dark:border-orange-900/50 p-6 sm:p-8 shadow-2xl text-center space-y-5 overflow-hidden"
+            >
+              {/* Decorative background glows */}
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-orange-500/15 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowLoginPrompt(false)}
+                className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Big Animated Lock Icon */}
+              <motion.div
+                initial={{ scale: 0.7, rotate: -8 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 320, damping: 20 }}
+                className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-orange-500 via-amber-500 to-orange-600 flex items-center justify-center text-white shadow-xl shadow-orange-500/30"
+              >
+                <LockKeyhole className="w-10 h-10" />
+              </motion.div>
+
+              {/* Header Text */}
+              <div className="space-y-2">
+                <span className="inline-block text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/60">
+                  {tx("Sign in to Apply", "आवेदन दिन लग इन गर्नुहोस्")}
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                  {tx("Please Log In to Apply", "काममा आवेदन दिन कृपया लग इन गर्नुहोस्")}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  {tx(
+                    "You must have an active KamGhar account to submit applications, propose rates, and chat directly with employers.",
+                    "काममा आवेदन पेश गर्न, दर प्रस्ताव गर्न र रोजगारदातासँग कुराकानी गर्न कृपया लग इन गर्नुहोस्।"
+                  )}
+                </p>
+              </div>
+
+              {/* Targeted Job Context Card */}
+              {targetJobForLogin && (
+                <div className="p-3.5 rounded-2xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-900/40 text-left flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-orange-600 dark:text-orange-400">
+                      {targetJobForLogin.category}
+                    </p>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {targetJobForLogin.title}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                      <MapPin className="w-3 h-3 text-orange-500" />
+                      {targetJobForLogin.address}
+                    </p>
+                  </div>
+                  {targetJobForLogin.budget && (
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-[10px] text-slate-400 block font-medium">Budget</span>
+                      <span className="text-xs font-extrabold text-orange-600 dark:text-orange-400">
+                        Rs. {targetJobForLogin.budget.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="space-y-2.5 pt-1">
+                <Link
+                  href="/login?redirect=/jobs"
+                  className="w-full py-3.5 px-5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>{tx("Log In to Apply", "आवेदन दिन लग इन गर्नुहोस्")}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+
+                <Link
+                  href="/register"
+                  className="w-full py-3 px-5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <UserPlus className="w-4 h-4 text-orange-500" />
+                  <span>{tx("Don't have an account? Sign Up", "खाता छैन? नयाँ दर्ता हुनुहोस्")}</span>
+                </Link>
+              </div>
+
+              {/* Dismiss Link */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPrompt(false)}
+                  className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium transition-colors cursor-pointer"
+                >
+                  {tx("Continue browsing jobs", "कामहरू हेरिरहनुहोस्")}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
