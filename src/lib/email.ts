@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { getSiteUrl } from "@/lib/site-url";
 
 interface SendHiredEmailParams {
   workerEmail: string;
@@ -31,7 +32,7 @@ export async function sendHiredEmail(params: SendHiredEmailParams): Promise<{
     recruiterEmail,
   } = params;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = await getSiteUrl();
   const dashboardUrl = `${siteUrl}/dashboard`;
 
   const formattedRate = budgetOrRate ? `Rs. ${Number(budgetOrRate).toLocaleString()}` : "Agreed Rate";

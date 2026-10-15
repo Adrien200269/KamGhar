@@ -25,7 +25,7 @@ export default async function WorkersPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      <AppHeader badgeText="Worker Directory" badgeTextNe="कामदार सूची" />
+      <AppHeader badgeText="Worker Directory" badgeTextNe="कामदार सूची" isLoggedIn={true} />
 
       {/* ── Main Content ───────────────────────────────────── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">

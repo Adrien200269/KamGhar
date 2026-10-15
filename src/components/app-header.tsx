@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Plus } from "lucide-react";
@@ -9,17 +9,21 @@ import LanguageToggle from "@/components/language-toggle";
 import NotificationDropdown from "@/components/notification-dropdown";
 import ChatModal from "@/components/chat-modal";
 import { useLanguage } from "@/components/language-provider";
+import { createClient } from "@/lib/supabase/client";
 
 export default function AppHeader({
   badgeText = "Gig Explorer",
   badgeTextNe = "गिग खोजकर्ता",
   isAdmin = false,
+  isLoggedIn: initialIsLoggedIn,
 }: {
   badgeText?: string;
   badgeTextNe?: string;
   isAdmin?: boolean;
+  isLoggedIn?: boolean;
 }) {
   const { tx } = useLanguage();
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(initialIsLoggedIn ?? false);
   const [activeChat, setActiveChat] = useState<{
     conversationId: string;
     recipientName: string;
@@ -28,6 +32,24 @@ export default function AppHeader({
     recipientRole?: string;
     recipientVerified?: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    supabase.auth.getUser().then(({ data }) => {
+      setIsLoggedIn(!!data.user);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session?.user);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200">
@@ -52,8 +74,10 @@ export default function AppHeader({
             <span className="hidden xs:inline">{tx("Post a Job", "काम पोस्ट गर्नुहोस्")}</span>
           </Link>
 
-          {/* Notification Button & Dropdown */}
-          <NotificationDropdown onOpenChat={(chat) => setActiveChat(chat)} />
+          {/* Notification Button & Dropdown (only for logged-in user) */}
+          {isLoggedIn && (
+            <NotificationDropdown onOpenChat={(chat) => setActiveChat(chat)} />
+          )}
 
           <ThemeToggle />
           <LanguageToggle />
@@ -67,12 +91,29 @@ export default function AppHeader({
             </Link>
           )}
 
-          <Link
-            href="/dashboard"
-            className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-          >
-            {tx("Dashboard", "ड्यासबोर्ड")}
-          </Link>
+          {isLoggedIn ? (
+            <Link
+              href="/dashboard"
+              className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+            >
+              {tx("Dashboard", "ड्यासबोर्ड")}
+            </Link>
+          ) : (
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Link
+                href="/login"
+                className="hidden xs:inline-flex px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              >
+                {tx("Log in", "लग इन")}
+              </Link>
+              <Link
+                href="/register"
+                className="px-3 py-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800/60 hover:bg-orange-100 dark:hover:bg-orange-900/60 rounded-xl transition-colors"
+              >
+                {tx("Sign Up", "दर्ता हुनुहोस्")}
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 

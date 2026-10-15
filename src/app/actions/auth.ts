@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { RegisterSchema, LoginSchema } from "@/lib/validations";
 import { redirect } from "next/navigation";
+import { getSiteUrl } from "@/lib/site-url";
 
 
 export type AuthActionResult = {
@@ -26,11 +27,7 @@ export async function registerUser(rawInput: unknown): Promise<AuthActionResult>
   const { email, password, role, name, phone } = result.data;
   const supabase = await createClient();
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000");
+  const siteUrl = await getSiteUrl();
 
   // 1. Register with Supabase Auth
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -165,11 +162,7 @@ export async function requestPasswordReset(
   const { email } = result.data;
   const supabase = await createClient();
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000");
+  const siteUrl = await getSiteUrl();
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${siteUrl}/auth/callback?type=recovery&next=/reset-password`,

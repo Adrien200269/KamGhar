@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { getJobs, getAppliedJobIds } from "@/app/actions/job";
+import { createClient } from "@/lib/supabase/server";
 import JobsFeed from "./jobs-feed";
 import AppHeader from "@/components/app-header";
 
@@ -10,14 +11,20 @@ export const metadata = {
 };
 
 export default async function JobsPage() {
-  const [initialJobs, appliedJobIds] = await Promise.all([
+  const supabase = await createClient();
+  const [{ data: { user } }, initialJobs, appliedJobIds] = await Promise.all([
+    supabase.auth.getUser(),
     getJobs(),
     getAppliedJobIds(),
   ]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      <AppHeader badgeText="Gig Explorer" badgeTextNe="गिग खोजकर्ता" />
+      <AppHeader
+        badgeText="Gig Explorer"
+        badgeTextNe="गिग खोजकर्ता"
+        isLoggedIn={!!user}
+      />
 
       {/* ── Main Content ───────────────────────────────────── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">

@@ -7,11 +7,17 @@ import { createClient } from "@/lib/supabase/server";
  * We exchange the code for a session and redirect to the target page.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get("code");
+  const type = requestUrl.searchParams.get("type");
+  const next = requestUrl.searchParams.get("next") ?? "/";
 
-  const code = searchParams.get("code");
-  const type = searchParams.get("type");
-  const next = searchParams.get("next") ?? "/";
+  // Ensure origin matches the public host in production/reverse proxies (e.g. Vercel)
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
+  const origin = forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : requestUrl.origin;
 
   if (code) {
     const supabase = await createClient();
