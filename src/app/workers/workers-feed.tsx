@@ -61,6 +61,7 @@ export type WorkerItem = {
   kycStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
   user: {
     id?: string;
+    role?: string;
     email: string;
     phone: string | null;
     applications?: {
@@ -97,13 +98,23 @@ export type WorkerItem = {
   };
 };
 
+function isNotAdminWorker(w: WorkerItem) {
+  const role = w.user?.role;
+  if (role && role === "ADMIN") return false;
+  const name = w.name?.toLowerCase() || "";
+  if (name.includes("admin") || name.includes("platform admin")) return false;
+  return true;
+}
+
 export default function WorkersFeed({
   initialWorkers,
 }: {
   initialWorkers: WorkerItem[];
 }) {
   const { lang, t, tx } = useLanguage();
-  const [workers, setWorkers] = useState<WorkerItem[]>(initialWorkers);
+  const [workers, setWorkers] = useState<WorkerItem[]>(() =>
+    initialWorkers.filter(isNotAdminWorker)
+  );
   const [search, setSearch] = useState("");
   const [selectedSkill, setSelectedSkill] = useState("ALL");
   const [selectedDistrict, setSelectedDistrict] = useState("ALL");
@@ -156,7 +167,9 @@ export default function WorkersFeed({
         availableOnly: newAvail,
         verifiedOnly: newVerif,
       });
-      setWorkers(updated as unknown as WorkerItem[]);
+      setWorkers(
+        (updated as unknown as WorkerItem[]).filter(isNotAdminWorker)
+      );
     });
   };
 

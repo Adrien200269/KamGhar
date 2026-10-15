@@ -586,7 +586,17 @@ export async function getPublicWorkers(filters?: {
     return [];
   }
 
-  const where: any = {};
+  const where: any = {
+    // Only genuine workers should appear in public directory, never admins or platform staff
+    user: {
+      role: "WORKER",
+    },
+    NOT: [
+      { name: { contains: "admin", mode: "insensitive" } },
+      { user: { role: "ADMIN" } },
+      { user: { email: { contains: "admin", mode: "insensitive" } } },
+    ],
+  };
 
   if (filters?.skill && filters.skill !== "ALL") {
     where.skills = { has: filters.skill };
@@ -598,10 +608,14 @@ export async function getPublicWorkers(filters?: {
 
   if (filters?.search && filters.search.trim()) {
     const q = filters.search.trim();
-    where.OR = [
-      { name: { contains: q, mode: "insensitive" } },
-      { bio: { contains: q, mode: "insensitive" } },
-      { address: { contains: q, mode: "insensitive" } },
+    where.AND = [
+      {
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { bio: { contains: q, mode: "insensitive" } },
+          { address: { contains: q, mode: "insensitive" } },
+        ],
+      },
     ];
   }
 
@@ -627,6 +641,7 @@ export async function getPublicWorkers(filters?: {
           select: {
             id: true,
             email: true,
+            role: true,
             phone: true,
             phoneVerified: true,
             applications: {
