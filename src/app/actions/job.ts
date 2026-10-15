@@ -512,3 +512,90 @@ export async function getAppliedJobIds(): Promise<string[]> {
     return [];
   }
 }
+
+/* ── Fetch Real Field Logs for Home Notebook ──────────────── */
+export type FieldLogItem = {
+  time: string;
+  category: string;
+  title: string;
+  titleNe: string;
+  location: string;
+  fee: string;
+  status: string;
+  notes: string;
+};
+
+export async function getRealFieldLogs(): Promise<FieldLogItem[]> {
+  try {
+    const jobs = await prisma.job.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      include: {
+        applications: {
+          where: { status: "ACCEPTED" },
+          select: { proposedRate: true },
+        },
+      },
+    });
+
+    return jobs.map((job) => {
+      const created = new Date(job.createdAt);
+      const now = new Date();
+      const isToday = created.toDateString() === now.toDateString();
+      const yesterday = new Date();
+      yesterday.setDate(now.getDate() - 1);
+      const isYesterday = yesterday.toDateString() === created.toDateString();
+
+      let timeStr: string;
+      if (isToday) {
+        timeStr = created.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      } else if (isYesterday) {
+        timeStr = "Yesterday";
+      } else {
+        timeStr = created.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      }
+
+      const acceptedApp = job.applications[0];
+      const feeAmount = acceptedApp?.proposedRate || job.budget;
+      const fee = feeAmount ? `NPR ${feeAmount.toLocaleString()}` : "NPR 1,200";
+
+      let cleanLocation = "Kathmandu";
+      if (job.address) {
+        const parts = job.address.split(",").map((p) => p.trim()).filter(Boolean);
+        cleanLocation = parts.slice(0, 2).join(", ");
+      }
+
+      let titleNe = job.title;
+      const lower = job.title.toLowerCase();
+      if (lower.includes("fridge")) {
+        titleNe = "फ्रिज मर्मतका लागि इलेक्ट्रीसियन";
+      } else if (lower.includes("painting")) {
+        titleNe = "क्याफेको लागि एनिमे थिम भित्ते चित्रकला";
+      } else if (lower.includes("teacher") || lower.includes("science")) {
+        titleNe = "कक्षा १० को लागि विज्ञान र गणित शिक्षक";
+      } else if (lower.includes("plumber") || lower.includes("sink")) {
+        titleNe = "भान्साको सिंक ड्रेन सफाइ तथा मर्मत";
+      } else if (lower.includes("toilet") || lower.includes("cleaner")) {
+        titleNe = "शौचालय तथा बाथरुम विशेष सरसफाइ";
+      } else if (lower.includes("electrician")) {
+        titleNe = "विद्युत् तथा टिभी उपकरण मर्मत";
+      } else if (lower.includes("software")) {
+        titleNe = "डिजिटल सफ्टवेयर अपडेट सेवा";
+      }
+
+      return {
+        time: timeStr,
+        category: job.category || "General",
+        title: job.title,
+        titleNe,
+        location: cleanLocation,
+        fee,
+        status: job.status === "COMPLETED" ? "Completed" : job.status === "MATCHED" ? "Matched" : "Dispatched",
+        notes: job.description ? (job.description.length > 85 ? job.description.slice(0, 85) + "..." : job.description) : "On-site service completed.",
+      };
+    });
+  } catch (err) {
+    console.error("Error fetching real field logs:", err);
+    return [];
+  }
+}

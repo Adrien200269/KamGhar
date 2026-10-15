@@ -24,6 +24,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
+import { getRealFieldLogs, type FieldLogItem } from "@/app/actions/job";
 
 interface StickyNote {
   id: string;
@@ -154,46 +155,66 @@ const POLAROIDS = [
   },
 ];
 
-const FIELD_LOGS = [
+const INITIAL_FIELD_LOGS: FieldLogItem[] = [
   {
-    time: "11:20 AM",
-    category: "Electrical",
-    title: "Distribution box short-circuit repair",
-    titleNe: "मेन बक्स सर्ट-सर्किट मर्मत",
-    location: "New Baneshwor, Ward 10",
-    fee: "NPR 1,500",
-    status: "Completed",
-    notes: "Client needed urgent power restoration for office. Arrived in 18 minutes.",
+    time: "Today, 12:00 PM",
+    category: "Appliance Repair",
+    title: "Electrician needed for fridge",
+    titleNe: "फ्रिज मर्मतका लागि इलेक्ट्रीसियन",
+    location: "Kathmandu, Nepal",
+    fee: "NPR 1,000",
+    status: "Dispatched",
+    notes: "Refrigerator cooling failure diagnosed and restored on-site.",
   },
   {
-    time: "09:45 AM",
+    time: "Oct 14",
+    category: "Painting & Masonry",
+    title: "Anime theme background painting for Cafe",
+    titleNe: "क्याफेको लागि एनिमे थिम भित्ते चित्रकला",
+    location: "Gokarneshwar, Kathmandu",
+    fee: "NPR 5,000",
+    status: "Completed",
+    notes: "Youth-friendly creative mural painted with acrylics on main cafe wall.",
+  },
+  {
+    time: "Oct 06",
+    category: "Tutoring & Classes",
+    title: "Science & Mathematics Class 10 Tutoring",
+    titleNe: "कक्षा १० अनिवार्य तथा ऐच्छिक गणित ट्युसन",
+    location: "Gokarneshwar, Kathmandu",
+    fee: "NPR 2,500",
+    status: "Completed",
+    notes: "Compulsory & Optional Maths preparation sessions completed.",
+  },
+  {
+    time: "Sept 21",
     category: "Plumbing",
     title: "Kitchen sink drain unclogging",
-    titleNe: "भान्साको सिंक ड्रेन सफाइ",
-    location: "Jhamsikhel, Lalitpur",
+    titleNe: "भान्साको सिंक ड्रेन सफाइ तथा मर्मत",
+    location: "Gokarneshwar, Kathmandu",
+    fee: "NPR 500",
+    status: "Completed",
+    notes: "Jammed pipe cleared and sealed with zero water leakage.",
+  },
+  {
+    time: "Sept 14",
+    category: "Electrician",
+    title: "Television circuit & electrician repair",
+    titleNe: "बौद्धमा टेलिभिजन सर्किट तथा पावर मर्मत",
+    location: "Boudha, Kathmandu",
+    fee: "NPR 1,400",
+    status: "Completed",
+    notes: "Television power supply circuitry repaired in 25 minutes.",
+  },
+  {
+    time: "Sept 14",
+    category: "Home Cleaning",
+    title: "Deep washroom sanitization & cleaning",
+    titleNe: "शौचालय तथा बाथरुम विशेष सरसफाइ",
+    location: "Gokarneshwar, Kathmandu",
     fee: "NPR 900",
     status: "Completed",
-    notes: "Pipe cleared without tearing floor tiles. Direct cash payment.",
-  },
-  {
-    time: "Yesterday",
-    category: "Carpentry",
-    title: "Balcony wooden railing restoration",
-    titleNe: "कौशीको काठे रेलिङ मर्मत",
-    location: "Thamel, Kathmandu",
-    fee: "NPR 4,200",
-    status: "Completed",
-    notes: "Weather-proof sealant applied. Client left a glowing handwritten review.",
-  },
-  {
-    time: "Oct 12",
-    category: "Appliance",
-    title: "Washing machine capacitor replacement",
-    titleNe: "वाशिङ मेसिन क्यापासिटर फेर्ने काम",
-    location: "Kausaltar, Bhaktapur",
-    fee: "NPR 1,800",
-    status: "Completed",
-    notes: "Diagnosed in 10 mins. Part sourced from local hardware shop.",
+    notes: "Thorough deep cleaning and tile descaling completed with eco supplies.",
   },
 ];
 
@@ -236,6 +257,19 @@ export default function HomeNotebook() {
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [isPlayingVinyl, setIsPlayingVinyl] = useState(false);
   const [selectedPolaroid, setSelectedPolaroid] = useState<number | null>(null);
+
+  // Real-time Field Logs State (initialized with real DB jobs, auto-updated from live records)
+  const [fieldLogs, setFieldLogs] = useState<FieldLogItem[]>(INITIAL_FIELD_LOGS);
+
+  useEffect(() => {
+    getRealFieldLogs()
+      .then((logs) => {
+        if (logs && logs.length > 0) {
+          setFieldLogs(logs);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // New Note Form State
   const [authorName, setAuthorName] = useState("");
@@ -881,29 +915,41 @@ export default function HomeNotebook() {
                       {/* TAB 3: DAILY FIELD LOGS */}
                       {currentPage === 2 && (
                         <div className="space-y-2">
-                          {FIELD_LOGS.map((item, idx) => (
+                          {fieldLogs.map((item, idx) => (
                             <div
                               key={idx}
-                              className="p-2.5 rounded-xl bg-white/80 dark:bg-stone-900/60 border border-stone-200 dark:border-slate-800 flex items-start justify-between gap-2 shadow-sm text-xs"
+                              className="p-2.5 rounded-xl bg-white/80 dark:bg-stone-900/60 border border-stone-200 dark:border-slate-800 flex items-start justify-between gap-2 shadow-sm text-xs hover:border-orange-300 dark:hover:border-orange-800/80 transition-colors"
                             >
-                              <div>
-                                <div className="flex items-center gap-1.5 font-bold text-stone-900 dark:text-stone-100">
-                                  <span className="font-mono text-[9px] px-1 py-0.2 bg-stone-100 dark:bg-slate-800 rounded">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 font-bold text-stone-900 dark:text-stone-100 flex-wrap">
+                                  <span className="font-mono text-[9px] px-1.5 py-0.2 bg-stone-100 dark:bg-slate-800 text-stone-600 dark:text-stone-300 rounded">
                                     {item.time}
                                   </span>
-                                  <span>{lang === "ne" ? item.titleNe : item.title}</span>
+                                  <span className="truncate">{lang === "ne" && item.titleNe ? item.titleNe : item.title}</span>
                                 </div>
-                                <p className="text-[11px] text-stone-500 font-schoolbell mt-0.5">{item.notes}</p>
-                                <span className="text-[10px] text-stone-400 flex items-center gap-0.5 mt-0.5">
-                                  <MapPin className="w-2.5 h-2.5 text-orange-500" />
-                                  {item.location}
+                                <p className="text-[11px] text-stone-500 dark:text-stone-400 font-schoolbell mt-0.5 line-clamp-2">
+                                  {item.notes}
+                                </p>
+                                <span className="text-[10px] text-stone-400 flex items-center gap-0.5 mt-0.5 truncate">
+                                  <MapPin className="w-2.5 h-2.5 text-orange-500 flex-shrink-0" />
+                                  <span className="truncate">{item.location}</span>
                                 </span>
                               </div>
                               <div className="text-right flex-shrink-0">
-                                <span className="font-mono font-bold text-emerald-600 text-xs block">{item.fee}</span>
+                                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs block">
+                                  {item.fee}
+                                </span>
                                 <span className="text-[9px] text-stone-400 flex items-center gap-0.5 justify-end">
                                   <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" />
-                                  {item.status}
+                                  <span>
+                                    {lang === "ne"
+                                      ? item.status === "Completed"
+                                        ? "सम्पन्न"
+                                        : item.status === "Matched"
+                                        ? "जोडियो"
+                                        : "सक्रिय"
+                                      : item.status}
+                                  </span>
                                 </span>
                               </div>
                             </div>
