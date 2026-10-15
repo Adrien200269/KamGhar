@@ -202,18 +202,14 @@ export async function updateUserProfileSettings(data: {
 
 /* ── Change Account Password ───────────────────────────────── */
 export async function changeAccountPassword(
-  newPasswordOrOld: string,
-  maybeNewPassword?: string
+  currentPassword: string,
+  newPassword: string
 ): Promise<ProfileActionResult> {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user || !user.email) return { success: false, error: "Not authenticated" };
 
-  const isTwoArg = typeof maybeNewPassword === "string";
-  const oldPassword = isTwoArg ? newPasswordOrOld : "";
-  const newPassword = isTwoArg ? maybeNewPassword : newPasswordOrOld;
-
-  if (isTwoArg && !oldPassword) {
+  if (!currentPassword?.trim()) {
     return { success: false, error: "Current password is required." };
   }
 
@@ -221,20 +217,18 @@ export async function changeAccountPassword(
     return { success: false, error: "New password must be at least 6 characters long." };
   }
 
-  if (isTwoArg && oldPassword === newPassword) {
+  if (currentPassword === newPassword) {
     return { success: false, error: "New password cannot be the same as your current password." };
   }
 
-  // If old password provided, verify it first
-  if (oldPassword) {
-    const { error: signInErr } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: oldPassword,
-    });
+  // Verify current password first
+  const { error: signInErr } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
 
-    if (signInErr) {
-      return { success: false, error: "Current password is incorrect." };
-    }
+  if (signInErr) {
+    return { success: false, error: "Current password is incorrect." };
   }
 
   // Update password on current user session

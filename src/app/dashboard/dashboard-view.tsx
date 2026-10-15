@@ -352,9 +352,12 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
 
   // Password change state
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
@@ -546,8 +549,16 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const handleChangePassword = async () => {
     setPasswordError(null);
     setPasswordSuccess(null);
+    if (!currentPassword) {
+      setPasswordError("Please enter your current password.");
+      return;
+    }
     if (!newPassword || newPassword.length < 6) {
-      setPasswordError("Password must be at least 6 characters.");
+      setPasswordError("New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setPasswordError("New password cannot be the same as your current password.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -556,9 +567,10 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
     }
     setPasswordSaving(true);
     try {
-      const res = await changeAccountPassword(newPassword);
+      const res = await changeAccountPassword(currentPassword, newPassword);
       if (res.success) {
         setPasswordSuccess("Password changed successfully!");
+        setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       } else {
@@ -2219,6 +2231,9 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                     setSettingsSuccess(null);
                     setPasswordError(null);
                     setPasswordSuccess(null);
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
                   }}
                   className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
                 >
@@ -2780,11 +2795,33 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Current Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          placeholder="Enter your current password"
+                          className="w-full px-3.5 py-2.5 pr-10 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword((v) => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                         New Password
                       </label>
                       <div className="relative">
                         <input
-                          type={showPassword ? "text" : "password"}
+                          type={showNewPassword ? "text" : "password"}
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="Minimum 6 characters"
@@ -2792,10 +2829,10 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                         />
                         <button
                           type="button"
-                          onClick={() => setShowPassword((v) => !v)}
+                          onClick={() => setShowNewPassword((v) => !v)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                         >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
@@ -2804,13 +2841,22 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                         Confirm New Password
                       </label>
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Re-enter your new password"
-                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Re-enter your new password"
+                          className="w-full px-3.5 py-2.5 pr-10 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword((v) => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
 
                     {passwordError && (
