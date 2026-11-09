@@ -599,3 +599,215 @@ export async function getRealFieldLogs(): Promise<FieldLogItem[]> {
     return [];
   }
 }
+
+/* ── Fetch Single Job by ID (for /jobs/[id]) ─────────────────── */
+export async function getJobById(jobId: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      include: {
+        recruiter: {
+          select: {
+            id: true,
+            email: true,
+            phone: true,
+            phoneVerified: true,
+            createdAt: true,
+            recruiterProfile: {
+              select: {
+                name: true,
+                businessName: true,
+                profilePhotoUrl: true,
+                address: true,
+                kycStatus: true,
+              },
+            },
+            _count: {
+              select: {
+                postedJobs: true,
+                reviewsReceived: true,
+              },
+            },
+          },
+        },
+        applications: {
+          select: {
+            id: true,
+            workerId: true,
+            status: true,
+            proposedRate: true,
+            createdAt: true,
+            worker: {
+              select: {
+                id: true,
+                email: true,
+                workerProfile: {
+                  select: {
+                    name: true,
+                    profilePhotoUrl: true,
+                    rating: true,
+                    skills: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        reviews: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                email: true,
+                workerProfile: { select: { name: true, profilePhotoUrl: true } },
+                recruiterProfile: { select: { name: true, profilePhotoUrl: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!job) return null;
+
+    const hasApplied = user ? job.applications.some((app) => app.workerId === user.id) : false;
+    const isOwner = user ? job.recruiterId === user.id : false;
+
+    return {
+      job,
+      hasApplied,
+      isOwner,
+      currentUserId: user?.id || null,
+    };
+  } catch (err) {
+    console.error("Error fetching job by ID:", err);
+    return null;
+  }
+}
+
+/* ── Direct Hire Request from Worker Profile ───────────────── */
+export async function requestDirectHire(input: {
+  workerId: string;
+  jobId?: string;
+  title?: string;
+  category?: string;
+  description?: string;
+  budget?: number;
+  address?: string;
+  scheduledTime?: string;
+}): Promise<JobActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Please log in to hire this worker." };
+  }
+
+  if (user.id === input.workerId) {
+    return { success: false, error: "You cannot hire yourself." };
+  }
+
+  try {
+    // Verify worker exists
+    const worker = await prisma.user.findUnique({
+      where: { id: input.workerId },
+      include: { workerProfile: true },
+    });
+
+    if (!worker || worker.role !== "WORKER") {
+      return { success: false, error: "Worker not found." };
+    }
+
+    let targetJobId = input.jobId;
+
+    if (!targetJobId) {
+      if (!input.title || !input.category) {
+        return { success: false, error: "Please provide a job title and category." };
+      }
+
+      // Ensure recruiter profile exists
+      let dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: { recruiterProfile: true },
+      });
+
+      if (!dbUser?.recruiterProfile) {
+        await prisma.recruiterProfile.create({
+          data: {
+            userId: user.id,
+            name: user.user_metadata?.name || user.email?.split("@")[0] || "Recruiter",
+            address: input.address || "Kathmandu",
+          },
+        });
+      }
+
+      const defaultLat = 27.7172;
+      const defaultLng = 85.324;
+
+      const newJob = await prisma.job.create({
+        data: {
+          recruiterId: user.id,
+          title: input.title.trim(),
+          description: input.description?.trim() || `Direct hire request for ${worker.workerProfile?.name || "worker"}. Time: ${input.scheduledTime || "Flexible"}`,
+          category: input.category,
+          urgency: "HIGH",
+          budget: input.budget || worker.workerProfile?.hourlyRate || null,
+          latitude: worker.workerProfile?.latitude || defaultLat,
+          longitude: worker.workerProfile?.longitude || defaultLng,
+          address: input.address?.trim() || worker.workerProfile?.address || "Kathmandu, Nepal",
+          status: "OPEN",
+        },
+      });
+
+      targetJobId = newJob.id;
+    }
+
+    // Create or update application for this worker
+    const existingApp = await prisma.application.findUnique({
+      where: {
+        jobId_workerId: {
+          jobId: targetJobId,
+          workerId: input.workerId,
+        },
+      },
+    });
+
+    if (!existingApp) {
+      await prisma.application.create({
+        data: {
+          jobId: targetJobId,
+          workerId: input.workerId,
+          proposedRate: input.budget || null,
+          coverNote: `Direct gig offer from ${user.user_metadata?.name || user.email?.split("@")[0]}`,
+          status: "APPLIED",
+        },
+      });
+    }
+
+    // Send high-priority in-app notification to worker
+    await prisma.notification.create({
+      data: {
+        userId: input.workerId,
+        type: "JOB_APPLICATION",
+        title: "⚡ Direct Gig Offer Received!",
+        titleNe: "⚡ प्रत्यक्ष कामको प्रस्ताव प्राप्त भयो!",
+        message: `A recruiter has sent you a direct booking request for "${input.title || "Gig Work"}" (Rs. ${input.budget || "Negotiable"}).`,
+        messageNe: `तपाईंलाई "${input.title || "काम"}" को लागि प्रत्यक्ष प्रस्ताव आएको छ (रु. ${input.budget || "सहमति अनुसार"})।`,
+        link: "/dashboard",
+        isRead: false,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/jobs");
+    revalidatePath(`/workers/${input.workerId}`);
+
+    return { success: true, jobId: targetJobId };
+  } catch (err) {
+    console.error("Direct hire error:", err);
+    return { success: false, error: "Failed to dispatch direct hire request." };
+  }
+}

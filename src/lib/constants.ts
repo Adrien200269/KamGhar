@@ -1,4 +1,16 @@
 /* ── Nepal districts ──────────────────────────────────────── */
+export const BOOST_PACKAGES = [
+  { days: 3, price: 150, label: "3 Days Boost", labelNe: "३ दिन बुस्ट", popular: false },
+  { days: 7, price: 250, label: "7 Days (Best Value)", labelNe: "७ दिन (उत्कृष्ट)", popular: true },
+  { days: 14, price: 400, label: "14 Days Maximum", labelNe: "१४ दिन अधिकतम", popular: false },
+];
+
+export const FEATURE_PACKAGES = [
+  { days: 7, price: 200, label: "7 Days Featured", labelNe: "७ दिन फिचर्ड", popular: false },
+  { days: 14, price: 350, label: "14 Days (Popular)", labelNe: "१४ दिन (लोकप्रिय)", popular: true },
+  { days: 30, price: 600, label: "30 Days Pro Spotlight", labelNe: "३० दिन प्रो स्पटलाइट", popular: false },
+];
+
 export const NEPAL_DISTRICTS = [
   "Kathmandu","Lalitpur","Bhaktapur","Pokhara","Chitwan",
   "Butwal","Nepalgunj","Dhangadhi","Biratnagar","Birgunj",

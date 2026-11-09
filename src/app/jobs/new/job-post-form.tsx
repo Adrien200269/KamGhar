@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -29,6 +29,7 @@ import {
 import { createJob } from "@/app/actions/job";
 import { NEPAL_DISTRICTS, getDistrictCoordinates } from "@/lib/constants";
 import { VoiceNoteRecorder } from "@/components/voice-note";
+import { SCHEDULE_TIME_SLOTS, getApproximateBsDate } from "@/lib/nepali-date";
 
 // Load Leaflet map only client-side (no SSR â€” Leaflet touches window/document)
 const MapPicker = dynamic(() => import("@/components/map-picker"), { ssr: false });
@@ -58,6 +59,7 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
   const [specificAddress, setSpecificAddress] = useState("");
   const [budget, setBudget] = useState("");
   const [isNegotiable, setIsNegotiable] = useState(false);
+  const [preferredTime, setPreferredTime] = useState(SCHEDULE_TIME_SLOTS[1].labelEn);
   const [description, setDescription] = useState("");
   const [isUrgentBroadcast, setIsUrgentBroadcast] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -72,6 +74,23 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const qTitle = searchParams.get("title");
+      const qCategory = searchParams.get("category");
+      const qBudget = searchParams.get("budget");
+      if (qTitle) setTitle(qTitle);
+      if (qCategory) {
+        const found = CATEGORIES.find(
+          (c) => c.name.toLowerCase() === qCategory.toLowerCase()
+        );
+        if (found) setCategory(found.name);
+      }
+      if (qBudget) setBudget(qBudget);
+    }
+  }, []);
 
   const handleDistrictChange = (d: string) => {
     setDistrict(d);
@@ -139,7 +158,7 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
     try {
       const response = await createJob({
         title: title.trim(),
-        description: description.trim(),
+        description: preferredTime ? `${description.trim()}\n\n[Preferred Timing: ${preferredTime}]` : description.trim(),
         category,
         urgency: isUrgentBroadcast ? "URGENT" : "MEDIUM",
         budget: isNegotiable || !budget ? null : parseFloat(budget),
@@ -371,6 +390,19 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between text-[11px] pb-1 w-full">
+                    <span className="text-slate-400">Standard market rates:</span>
+                    <Link
+                      href="/rate-guide"
+                      target="_blank"
+                      className="text-orange-600 dark:text-orange-400 hover:underline font-semibold inline-flex items-center gap-1"
+                    >
+                      <span>कति पर्ला? Rate Guide</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
                   <span className="text-[11px] text-slate-400">Quick set:</span>
                   {BUDGET_PRESETS.map((val) => (
                     <button
@@ -385,6 +417,42 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Preferred Timing & Nepali Date Hint */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                Preferred Timing / Shift
+              </label>
+              <span className="text-[11px] text-orange-600 font-semibold">
+                {getApproximateBsDate().formattedNe}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {SCHEDULE_TIME_SLOTS.map((slot) => {
+                const active = preferredTime === slot.labelEn;
+                return (
+                  <button
+                    key={slot.value}
+                    type="button"
+                    onClick={() => {
+                      setPreferredTime(slot.labelEn);
+                      if (slot.value === "IMMEDIATE") {
+                        setIsUrgentBroadcast(true);
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                      active
+                        ? "bg-orange-600 text-white shadow-sm"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                    }`}
+                  >
+                    {slot.labelEn}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* 5. Description */}

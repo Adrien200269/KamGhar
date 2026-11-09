@@ -67,6 +67,16 @@ export default function AppHeader({
 
         <div className="flex items-center gap-1.5 sm:gap-3">
           <Link
+            href="/rate-guide"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <span>{tx("Rate Guide", "कति पर्ला?")}</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400">
+              NPR
+            </span>
+          </Link>
+
+          <Link
             href="/jobs/new"
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
           >

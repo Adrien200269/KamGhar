@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/components/language-provider";
 import ScrollProgress from "@/components/scroll-progress";
 import MacCursor from "@/components/mac-cursor";
+import PwaInstallBanner from "@/components/pwa-install-banner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,10 +17,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#ea580c",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export const metadata: Metadata = {
   title: "KamGhar — Location-Based Freelancing & Gig Platform in Nepal",
   description:
     "Find nearby gig jobs or hire reliable local talent across Nepal. Hyper-local matching inspired by ride-hailing.",
+  manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
@@ -42,6 +51,7 @@ export default function RootLayout({
         <ThemeProvider>
           <LanguageProvider>
             {children}
+            <PwaInstallBanner />
             <ScrollProgress />
             <MacCursor />
           </LanguageProvider>
@@ -50,3 +60,4 @@ export default function RootLayout({
     </html>
   );
 }
+

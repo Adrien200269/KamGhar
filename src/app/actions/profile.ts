@@ -791,3 +791,115 @@ export async function submitKycVerification(data: {
     return { success: false, error: msg };
   }
 }
+
+/* ── Fetch Single Worker Profile by ID (for /workers/[id]) ────── */
+export async function getWorkerById(workerId: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // workerId can be either worker_profiles.id or user.id
+    const worker = await prisma.user.findFirst({
+      where: {
+        role: "WORKER",
+        OR: [
+          { id: workerId },
+          { workerProfile: { id: workerId } },
+        ],
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        phoneVerified: true,
+        createdAt: true,
+        workerProfile: true,
+        reviewsReceived: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            author: {
+              select: {
+                id: true,
+                email: true,
+                recruiterProfile: {
+                  select: {
+                    name: true,
+                    businessName: true,
+                    profilePhotoUrl: true,
+                  },
+                },
+              },
+            },
+            job: {
+              select: {
+                id: true,
+                title: true,
+                category: true,
+              },
+            },
+          },
+        },
+        applications: {
+          where: {
+            OR: [
+              { status: ApplicationStatus.COMPLETED },
+              { status: ApplicationStatus.ACCEPTED, job: { status: "COMPLETED" } },
+            ],
+          },
+          include: {
+            job: {
+              select: {
+                id: true,
+                title: true,
+                category: true,
+                address: true,
+                budget: true,
+                createdAt: true,
+              },
+            },
+          },
+          orderBy: { updatedAt: "desc" },
+        },
+        _count: {
+          select: {
+            applications: true,
+            reviewsReceived: true,
+          },
+        },
+      },
+    });
+
+    if (!worker || !worker.workerProfile) return null;
+
+    let recruiterOpenJobs: { id: string; title: string; category: string; budget: number | null }[] = [];
+    let isRecruiter = false;
+
+    if (user && user.id !== worker.id) {
+      const caller = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: {
+          role: true,
+          postedJobs: {
+            where: { status: "OPEN" },
+            select: { id: true, title: true, category: true, budget: true },
+          },
+        },
+      });
+      if (caller?.role === "RECRUITER") {
+        isRecruiter = true;
+        recruiterOpenJobs = caller.postedJobs;
+      }
+    }
+
+    return {
+      worker,
+      isOwner: user?.id === worker.id,
+      isRecruiter,
+      recruiterOpenJobs,
+      currentUserId: user?.id || null,
+    };
+  } catch (err) {
+    console.error("Error fetching worker by ID:", err);
+    return null;
+  }
+}

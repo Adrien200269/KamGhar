@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,12 +23,23 @@ import {
   LockKeyhole,
   LogIn,
   UserPlus,
+  Map as MapIcon,
+  List as ListIcon,
+  Navigation,
+  Crosshair,
+  ExternalLink,
+  Heart,
 } from "lucide-react";
 import { applyToJob, getJobs } from "@/app/actions/job";
 import { NEPAL_DISTRICTS } from "@/lib/constants";
 import { VoiceNoteRecorder, VoiceNotePlayer } from "@/components/voice-note";
 import { useLanguage } from "@/components/language-provider";
 import { createClient } from "@/lib/supabase/client";
+import { calculateHaversineDistanceKm, formatDistance } from "@/lib/geo";
+import dynamic from "next/dynamic";
+
+const InteractiveMapView = dynamic(() => import("@/components/interactive-map-view"), { ssr: false });
+
 
 const CATEGORIES = [
   "ALL",
@@ -101,6 +112,103 @@ export default function JobsFeed({
   const [selectedDistrict, setSelectedDistrict] = useState(paramDistrict);
   const [selectedUrgency, setSelectedUrgency] = useState("ALL");
   const [selectedSort, setSelectedSort] = useState("newest");
+  const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set());
+  const [onlySaved, setOnlySaved] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("kg_saved_jobs");
+      if (raw) {
+        setSavedJobIds(new Set(JSON.parse(raw)));
+      }
+    } catch {
+      // LocalStorage fallback
+    }
+  }, []);
+
+  const toggleSaveJob = (id: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setSavedJobIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      try {
+        localStorage.setItem("kg_saved_jobs", JSON.stringify(Array.from(next)));
+      } catch {
+        // Ignore
+      }
+      return next;
+    });
+  };
+
+  // Map & Location states
+  const [viewMode, setViewMode] = useState<"LIST" | "MAP">("LIST");
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [radiusKm, setRadiusKm] = useState<number | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+
+  const handleLocateMe = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setIsLocating(false);
+      },
+      (err) => {
+        console.warn("Geolocation warning:", err);
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const filteredAndSortedJobs = useMemo(() => {
+    let list = [...jobs];
+    if (onlySaved) {
+      list = list.filter((j) => savedJobIds.has(j.id));
+    }
+    if (userLocation && radiusKm) {
+      list = list.filter((j) => {
+        if (!j.latitude || !j.longitude) return false;
+        const d = calculateHaversineDistanceKm(userLocation.lat, userLocation.lng, j.latitude, j.longitude);
+        return d <= radiusKm;
+      });
+    }
+    if (userLocation && selectedSort === "nearest") {
+      list.sort((a, b) => {
+        const dA = calculateHaversineDistanceKm(userLocation.lat, userLocation.lng, a.latitude, a.longitude);
+        const dB = calculateHaversineDistanceKm(userLocation.lat, userLocation.lng, b.latitude, b.longitude);
+        return dA - dB;
+      });
+    }
+    return list;
+  }, [jobs, userLocation, radiusKm, selectedSort, onlySaved, savedJobIds]);
+
+  const mapDiscoveryItems = useMemo(() => {
+    return filteredAndSortedJobs.map((j) => ({
+      id: j.id,
+      type: "JOB" as const,
+      title: j.title,
+      category: j.category,
+      latitude: j.latitude,
+      longitude: j.longitude,
+      address: j.address,
+      price: j.budget,
+      isUrgent: j.urgency === "URGENT",
+      rawItem: j,
+    }));
+  }, [filteredAndSortedJobs]);
+
 
   useEffect(() => {
     const supabase = createClient();
@@ -314,34 +422,122 @@ export default function JobsFeed({
               className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white"
             >
               <option value="newest">{tx("Newest First", "नयाँ पहिले")}</option>
+              {userLocation && (
+                <option value="nearest">{tx("Nearest to Me", "मेरो नजिक पहिले")}</option>
+              )}
               <option value="budget_high">{tx("Highest Budget", "बढी बजेट पहिले")}</option>
               <option value="budget_low">{tx("Lowest Budget", "कम बजेट पहिले")}</option>
             </select>
           </div>
         </div>
 
-        {/* Category Filter Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-1">
-          {CATEGORIES.map((cat) => {
-            const active = selectedCategory === cat;
-            return (
+        {/* Category Filter Chips & View Mode Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
+            <button
+              type="button"
+              onClick={() => setOnlySaved((prev) => !prev)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                onlySaved
+                  ? "bg-rose-600 text-white shadow-md shadow-rose-500/20"
+                  : "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/60 border border-rose-200 dark:border-rose-900/40"
+              }`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${onlySaved ? "fill-white text-white" : "fill-rose-500 text-rose-500"}`} />
+              <span>{tx("Saved Gigs", "मन परेका")}</span>
+              {savedJobIds.size > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${onlySaved ? "bg-white/20 text-white" : "bg-rose-200/60 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 font-bold"}`}>
+                  {savedJobIds.size}
+                </span>
+              )}
+            </button>
+            {CATEGORIES.map((cat) => {
+              const active = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    handleFilterChange(search, cat);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    active
+                      ? "bg-orange-600 text-white shadow-md shadow-orange-500/20"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {cat === "ALL" ? tx("All Categories", "सबै विधाहरू") : cat}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* View Switcher & GPS Locate */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleLocateMe}
+              disabled={isLocating}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                userLocation
+                  ? "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              <Crosshair className={`w-3.5 h-3.5 ${isLocating ? "animate-spin text-orange-600" : ""}`} />
+              <span>{userLocation ? tx("GPS Active", "GPS सक्रिय") : tx("Near Me", "मेरो नजिक")}</span>
+            </button>
+
+            <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
               <button
-                key={cat}
-                onClick={() => {
-                  setSelectedCategory(cat);
-                  handleFilterChange(search, cat);
-                }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  active
-                    ? "bg-orange-600 text-white shadow-md shadow-orange-500/20"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                type="button"
+                onClick={() => setViewMode("LIST")}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                  viewMode === "LIST"
+                    ? "bg-white dark:bg-slate-900 text-orange-600 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
                 }`}
               >
-                {cat === "ALL" ? tx("All Categories", "सबै विधाहरू") : cat}
+                <ListIcon className="w-3.5 h-3.5" />
+                <span>{tx("List", "सूची")}</span>
               </button>
-            );
-          })}
+
+              <button
+                type="button"
+                onClick={() => setViewMode("MAP")}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                  viewMode === "MAP"
+                    ? "bg-white dark:bg-slate-900 text-orange-600 shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                <MapIcon className="w-3.5 h-3.5" />
+                <span>{tx("Map", "नक्सा")}</span>
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Radius Filter Pills (When Location is Enabled) */}
+        {userLocation && (
+          <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs flex-wrap">
+            <span className="text-slate-400 font-semibold">{tx("Search Radius:", "खोज दायरा:")}</span>
+            {[null, 5, 10, 25, 50].map((r) => (
+              <button
+                key={r === null ? "all" : r}
+                onClick={() => setRadiusKm(r)}
+                className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition cursor-pointer ${
+                  radiusKm === r
+                    ? "bg-orange-600 text-white shadow-xs"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                }`}
+              >
+                {r === null ? tx("All Nepal", "सबै नेपाल") : `${r} km`}
+              </button>
+            ))}
+          </div>
+        )}
+
 
         {/* Secondary Filters Bar */}
         {hasActiveFilters && (
@@ -369,8 +565,16 @@ export default function JobsFeed({
         )}
       </div>
 
-      {/* ── Job Cards Grid ─────────────────────────────────── */}
-      {jobs.length === 0 ? (
+      {/* ── Job Cards / Map View ──────────────────────────── */}
+      {viewMode === "MAP" ? (
+        <InteractiveMapView
+          items={mapDiscoveryItems}
+          userLocation={userLocation}
+          onLocateMe={handleLocateMe}
+          isLocating={isLocating}
+          onSelectItem={(item) => openApplyModal(item.rawItem)}
+        />
+      ) : filteredAndSortedJobs.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 border-dashed p-12 text-center">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center text-orange-600 dark:text-orange-400 mb-3">
             <Briefcase className="w-7 h-7" />
@@ -391,13 +595,23 @@ export default function JobsFeed({
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {jobs.map((job) => {
+          {filteredAndSortedJobs.map((job) => {
             const isApplied = appliedIds.has(job.id);
             const isUrgent = job.urgency === "URGENT";
             const recruiterName =
               job.recruiter?.recruiterProfile?.businessName ||
               job.recruiter?.recruiterProfile?.name ||
               "Verified Client";
+
+            const distanceKm =
+              userLocation && job.latitude && job.longitude
+                ? calculateHaversineDistanceKm(
+                    userLocation.lat,
+                    userLocation.lng,
+                    job.latitude,
+                    job.longitude
+                  )
+                : null;
 
             return (
               <motion.div
@@ -421,15 +635,33 @@ export default function JobsFeed({
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{new Date(job.createdAt).toLocaleDateString("en-NP", { month: "short", day: "numeric" })}</span>
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => toggleSaveJob(job.id, e)}
+                        title={savedJobIds.has(job.id) ? "Remove from bookmarks" : "Save this gig"}
+                        className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                      >
+                        <Heart
+                          className={`w-3.5 h-3.5 ${
+                            savedJobIds.has(job.id)
+                              ? "fill-rose-500 text-rose-500"
+                              : "text-slate-400 hover:text-rose-500"
+                          }`}
+                        />
+                      </button>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{new Date(job.createdAt).toLocaleDateString("en-NP", { month: "short", day: "numeric" })}</span>
+                      </span>
+                    </div>
                   </div>
 
                   {/* Title */}
                   <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug line-clamp-2">
-                    {job.title}
+                    <Link href={`/jobs/${job.id}`} className="hover:text-orange-600 transition">
+                      {job.title}
+                    </Link>
                   </h3>
 
                   {/* Description snippet */}
@@ -450,7 +682,12 @@ export default function JobsFeed({
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
                       <MapPin className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
-                      <span className="truncate max-w-[150px]">{job.address}</span>
+                      <span className="truncate max-w-[140px]">{job.address}</span>
+                      {distanceKm !== null && (
+                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 shrink-0">
+                          ({formatDistance(distanceKm)})
+                        </span>
+                      )}
                     </span>
                     <span className="font-extrabold text-sm text-slate-900 dark:text-white">
                       {job.budget ? `Rs. ${job.budget.toLocaleString()}` : "Negotiable"}
@@ -458,7 +695,7 @@ export default function JobsFeed({
                   </div>
 
                   <div className="flex items-center justify-between gap-3 pt-1">
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 truncate max-w-[65%]">
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 truncate max-w-[55%]">
                       {job.recruiter?.recruiterProfile?.profilePhotoUrl ? (
                         <img
                           src={job.recruiter.recruiterProfile.profilePhotoUrl}
@@ -471,20 +708,30 @@ export default function JobsFeed({
                       </span>
                     </div>
 
-                    {isApplied ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>{tx("Applied", "आवेदन गरियो")}</span>
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => openApplyModal(job)}
-                        className="inline-flex items-center gap-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/jobs/${job.id}`}
+                        className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold p-1"
+                        title="View Full Page"
                       >
-                        <span>{tx("Apply Now", "आवेदन दिनुहोस्")}</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    )}
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Link>
+
+                      {isApplied ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>{tx("Applied", "आवेदन गरियो")}</span>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => openApplyModal(job)}
+                          className="inline-flex items-center gap-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
+                        >
+                          <span>{tx("Apply Now", "आवेदन दिनुहोस्")}</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -492,6 +739,7 @@ export default function JobsFeed({
           })}
         </div>
       )}
+
 
       {/* ── Apply Modal ────────────────────────────────────── */}
       <AnimatePresence>

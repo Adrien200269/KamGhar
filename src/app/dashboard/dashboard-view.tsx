@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,6 +23,7 @@ import {
   User,
   Sparkles,
   Trash2,
+  Flame,
   Check,
   X,
   AlertCircle,
@@ -46,6 +47,11 @@ import {
   Award,
   Radio,
   Mic,
+  QrCode,
+  Receipt,
+  TrendingUp,
+  Wallet,
+  Banknote,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import LanguageToggle from "@/components/language-toggle";
@@ -54,6 +60,12 @@ import { useLanguage } from "@/components/language-provider";
 import LiveRouteTrackerModal from "@/components/live-route-tracker-modal";
 import { VoiceNotePlayer } from "@/components/voice-note";
 import UploadcareImageUploader from "@/components/uploadcare-image-uploader";
+import BoostPaymentModal from "@/components/boost-payment-modal";
+import JobCompletionReceiptModal from "@/components/job-completion-receipt-modal";
+import WorkerVisitingCardModal from "@/components/worker-visiting-card-modal";
+import SafetyToolkitModal from "@/components/safety-toolkit-modal";
+import { getJobWhatsAppUrl, getWorkerWhatsAppUrl } from "@/lib/whatsapp";
+import { getApproximateBsDate } from "@/lib/nepali-date";
 import { signOutUser } from "@/app/actions/auth";
 import { updateJobStatus, deleteJob, updateApplicationStatus } from "@/app/actions/job";
 import {
@@ -231,6 +243,71 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [updatingAppId, setUpdatingAppId] = useState<string | null>(null);
+
+  // Boost and Receipt modals
+  const [boostModalData, setBoostModalData] = useState<{
+    type: "BOOST_JOB" | "FEATURE_PROFILE";
+    jobId?: string;
+    itemTitle?: string;
+  } | null>(null);
+
+  const [receiptModalData, setReceiptModalData] = useState<{
+    job: any;
+    recruiter: any;
+    worker: any;
+    paidAmount?: number | null;
+  } | null>(null);
+
+  // Visiting card & Work Safety modals
+  const [showVisitingCardModal, setShowVisitingCardModal] = useState(false);
+  const [safetyModalData, setSafetyModalData] = useState<{
+    jobTitle?: string;
+    location?: string;
+    contactName?: string;
+    contactPhone?: string;
+  } | null>(null);
+
+  // Worker Financials & Monthly Ledger Calculations
+  const completedApps = useMemo(
+    () => user.applications.filter((a) => a.status === "COMPLETED"),
+    [user.applications]
+  );
+
+  const lifetimeEarnings = useMemo(
+    () => completedApps.reduce((acc, a) => acc + (a.proposedRate || a.job.budget || 0), 0),
+    [completedApps]
+  );
+
+  const thisMonthApps = useMemo(() => {
+    const now = new Date();
+    return completedApps.filter((a) => {
+      const d = new Date(a.createdAt);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+  }, [completedApps]);
+
+  const thisMonthEarnings = useMemo(
+    () => thisMonthApps.reduce((acc, a) => acc + (a.proposedRate || a.job.budget || 0), 0),
+    [thisMonthApps]
+  );
+
+  const averageGigRate = useMemo(
+    () =>
+      completedApps.length > 0
+        ? Math.round(lifetimeEarnings / completedApps.length)
+        : user.workerProfile?.hourlyRate || 0,
+    [completedApps.length, lifetimeEarnings, user.workerProfile?.hourlyRate]
+  );
+
+  const categoryEarnings = useMemo(() => {
+    const map: Record<string, number> = {};
+    completedApps.forEach((a) => {
+      const cat = a.job.category || "General";
+      const amt = a.proposedRate || a.job.budget || 0;
+      map[cat] = (map[cat] || 0) + amt;
+    });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  }, [completedApps]);
 
   // Live Route Tracking state
   const [activeLiveRoute, setActiveLiveRoute] = useState<{
@@ -1039,7 +1116,41 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
             </div>
 
             {isWorker ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <QuickAction
+                  icon={<QrCode className="w-5 h-5 text-orange-600" />}
+                  label={tx("My Visiting Card & QR", "भिजिटिङ कार्ड")}
+                  onClick={() => setShowVisitingCardModal(true)}
+                  color="orange"
+                />
+                <QuickAction
+                  icon={<ShieldAlert className="w-5 h-5 text-red-600" />}
+                  label={tx("Safety & SOS", "सुरक्षा SOS")}
+                  onClick={() =>
+                    setSafetyModalData({
+                      jobTitle: "Worker Active Session",
+                      location: user.workerProfile?.address || "Nepal",
+                    })
+                  }
+                  color="purple"
+                />
+                <QuickAction
+                  icon={<Wallet className="w-5 h-5 text-emerald-600" />}
+                  label={tx("Earnings & Ledger", "आम्दानी लेजर")}
+                  href="#earnings"
+                  color="emerald"
+                />
+                <QuickAction
+                  icon={<Sparkles className="w-5 h-5 text-amber-500" />}
+                  label={tx("Feature Profile", "प्रोफाइल फिचर्ड")}
+                  onClick={() => {
+                    setBoostModalData({
+                      type: "FEATURE_PROFILE",
+                      itemTitle: user.workerProfile?.name || user.email.split("@")[0],
+                    });
+                  }}
+                  color="purple"
+                />
                 <QuickAction
                   icon={<Search className="w-5 h-5" />}
                   label={tx("Find a Job", "काम खोज्नुहोस्")}
@@ -1055,24 +1166,37 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   }}
                   color="blue"
                 />
-                <QuickAction
-                  icon={<Briefcase className="w-5 h-5" />}
-                  label={tx("My Applications", "मेरा आवेदनहरू")}
-                  href="#applications"
-                  color="emerald"
-                />
-                <QuickAction
-                  icon={<KeyRound className="w-5 h-5" />}
-                  label={tx("Change Password", "पासवर्ड परिवर्तन")}
-                  onClick={() => {
-                    setSettingsTab("password");
-                    setShowSettingsModal(true);
-                  }}
-                  color="purple"
-                />
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <QuickAction
+                  icon={<ShieldAlert className="w-5 h-5 text-red-600" />}
+                  label={tx("Safety & SOS", "सुरक्षा SOS")}
+                  onClick={() =>
+                    setSafetyModalData({
+                      jobTitle: "Household Active Gig",
+                      location: user.recruiterProfile?.address || "Nepal",
+                    })
+                  }
+                  color="purple"
+                />
+                <QuickAction
+                  icon={<Flame className="w-5 h-5 text-amber-500" />}
+                  label={tx("Boost a Job", "काम बुस्ट गर्नुहोस्")}
+                  onClick={() => {
+                    const firstOpen = user.postedJobs.find((j) => j.status === "OPEN");
+                    if (firstOpen) {
+                      setBoostModalData({
+                        type: "BOOST_JOB",
+                        jobId: firstOpen.id,
+                        itemTitle: firstOpen.title,
+                      });
+                    } else {
+                      router.push("/jobs/new");
+                    }
+                  }}
+                  color="orange"
+                />
                 <QuickAction
                   icon={<Plus className="w-5 h-5" />}
                   label={tx("Post a Job", "काम पोस्ट गर्नुहोस्")}
@@ -1193,6 +1317,169 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 </div>
               </motion.div>
 
+              {/* ── Worker Earnings & Monthly Ledger Section ── */}
+              <motion.div variants={fadeUp} id="earnings" className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-emerald-600" />
+                    <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                      {tx("Earnings & Financial Ledger", "आम्दानी तथा मासिक लेजर")}
+                    </h3>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    {tx("Direct Worker Payouts", "१००% सीधै कामदारलाई")}
+                  </span>
+                </div>
+
+                {/* Financial Summary Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      {tx("Lifetime Earnings", "कुल जीवनकाल आम्दानी")}
+                    </span>
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                      रू {lifetimeEarnings.toLocaleString()}
+                    </div>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                      {completedApps.length} {tx("completed gigs", "सम्पन्न काम")}
+                    </p>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      {tx("This Month", "चालु महिनाको आम्दानी")}
+                    </span>
+                    <div className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                      रू {thisMonthEarnings.toLocaleString()}
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      {thisMonthApps.length} {tx("gigs this month", "यो महिनाको काम")}
+                    </p>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      {tx("Avg Gig Payout", "औसत काम दर")}
+                    </span>
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                      रू {averageGigRate.toLocaleString()}
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      {tx("Per completed contract", "प्रति सम्पन्न सम्झौता")}
+                    </p>
+                  </div>
+
+                  <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      {tx("Primary Trade", "प्रमुख विधा")}
+                    </span>
+                    <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate">
+                      {categoryEarnings[0]?.[0] || user.workerProfile?.skills[0] || "General"}
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      {categoryEarnings[0]
+                        ? `रू ${categoryEarnings[0][1].toLocaleString()} earned`
+                        : "Ready for first gig"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Completed Work Ledger Table */}
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Receipt className="w-4 h-4 text-orange-500" />
+                      <span>{tx("Completed Work Ledger & Tax Receipts", "सम्पन्न काम लेजर तथा कर बिजक")}</span>
+                    </h4>
+                    <span className="text-[11px] text-slate-400 font-semibold">
+                      {completedApps.length} {tx("Records", "रेकर्ड")}
+                    </span>
+                  </div>
+
+                  {completedApps.length === 0 ? (
+                    <div className="py-8 text-center text-slate-400 text-xs">
+                      {tx(
+                        "No completed gigs yet. When a recruiter marks a gig completed, your earnings ledger and official tax receipt will appear here.",
+                        "हालसम्म कुनै काम सम्पन्न भएको छैन। काम सम्पन्न भएपछि तपाईंको आम्दानी लेजर र कर बिजक यहाँ देखिनेछ।"
+                      )}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold">
+                            <th className="pb-2.5">{tx("Date (BS / AD)", "मिति")}</th>
+                            <th className="pb-2.5">{tx("Gig Title & Category", "काम तथा विधा")}</th>
+                            <th className="pb-2.5">{tx("Client & Location", "ग्राहक र स्थान")}</th>
+                            <th className="pb-2.5 text-right">{tx("Amount Paid", "प्राप्त रकम")}</th>
+                            <th className="pb-2.5 text-right">{tx("Action", "कार्य")}</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {completedApps.map((app) => {
+                            const bs = getApproximateBsDate(new Date(app.createdAt));
+                            const paidAmt = app.proposedRate || app.job.budget || 0;
+                            const clientName =
+                              app.job.recruiter?.recruiterProfile?.name ||
+                              app.job.recruiter?.email?.split("@")[0] ||
+                              "Verified Client";
+
+                            return (
+                              <tr key={app.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                                <td className="py-3 font-mono text-[11px] text-slate-500">
+                                  <div>{bs.formattedNe}</div>
+                                  <div className="text-[10px] text-slate-400">
+                                    {new Date(app.createdAt).toLocaleDateString("en-NP")}
+                                  </div>
+                                </td>
+                                <td className="py-3">
+                                  <div className="font-bold text-slate-900 dark:text-white line-clamp-1">
+                                    {app.job.title}
+                                  </div>
+                                  <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">
+                                    {app.job.category}
+                                  </span>
+                                </td>
+                                <td className="py-3 text-slate-600 dark:text-slate-300">
+                                  <div className="font-semibold line-clamp-1">{clientName}</div>
+                                  <div className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                                    {app.job.address}
+                                  </div>
+                                </td>
+                                <td className="py-3 text-right font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                                  रू {paidAmt.toLocaleString()}
+                                </td>
+                                <td className="py-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setReceiptModalData({
+                                        job: app.job,
+                                        recruiter: app.job.recruiter,
+                                        worker: {
+                                          email: user.email,
+                                          phone: user.phone,
+                                          workerProfile: user.workerProfile,
+                                        },
+                                        paidAmount: paidAmt,
+                                      })
+                                    }
+                                    className="px-2.5 py-1 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/60 hover:bg-orange-100 text-[11px] font-bold transition inline-flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Receipt className="w-3 h-3" />
+                                    <span>{tx("Receipt", "कर बिजक")}</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+
               {/* Worker Applications Section */}
               <motion.div variants={fadeUp} id="applications" className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -1278,7 +1565,34 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                 )}
                               </p>
                             </div>
-                            <StatusBadge status={app.status} />
+                            <div className="flex items-center gap-2">
+                              {app.status === "COMPLETED" && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReceiptModalData({
+                                      job: app.job,
+                                      recruiter: {
+                                        name: recruiterName,
+                                        businessName: recruiterBusiness,
+                                        address: app.job.address,
+                                      },
+                                      worker: {
+                                        name: user.workerProfile?.name || user.email.split("@")[0],
+                                        phone: user.phone,
+                                        kycStatus: user.workerProfile?.kycStatus,
+                                      },
+                                      paidAmount: app.proposedRate || app.job.budget,
+                                    });
+                                  }}
+                                  className="px-2 py-1 text-[11px] font-bold rounded-lg bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border border-orange-200 flex items-center gap-1 cursor-pointer"
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  <span>Receipt</span>
+                                </button>
+                              )}
+                              <StatusBadge status={app.status} />
+                            </div>
                           </div>
                         );
                       }
@@ -1353,6 +1667,22 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
 
                             {/* Communication Action Buttons */}
                             <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSafetyModalData({
+                                    jobTitle: app.job.title,
+                                    location: app.job.address,
+                                    contactName: recruiterName,
+                                    contactPhone: recruiterPhone || undefined,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                              >
+                                <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                                <span>{tx("Safety SOS", "सुरक्षा SOS")}</span>
+                              </button>
+
                               {recruiterPhone ? (
                                 <>
                                   <a
@@ -1590,6 +1920,60 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                         </div>
 
                         <div className="flex items-center gap-2">
+                          <Link
+                            href={`/jobs/${job.id}`}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-orange-600 transition"
+                            title="View Public Page"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                          {job.status === "OPEN" && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setBoostModalData({
+                                  type: "BOOST_JOB",
+                                  jobId: job.id,
+                                  itemTitle: job.title,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition cursor-pointer"
+                            >
+                              <Flame className="w-3 h-3 text-amber-600" />
+                              <span>Boost</span>
+                            </button>
+                          )}
+                          {job.status === "COMPLETED" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const acceptedApp = job.applications?.find(
+                                  (a: any) => a.status === "ACCEPTED" || a.status === "COMPLETED"
+                                );
+                                setReceiptModalData({
+                                  job,
+                                  recruiter: {
+                                    name: user.recruiterProfile?.name || user.email.split("@")[0],
+                                    businessName: user.recruiterProfile?.businessName,
+                                    address: user.recruiterProfile?.address || job.address,
+                                  },
+                                  worker: {
+                                    name:
+                                      acceptedApp?.worker?.workerProfile?.name ||
+                                      acceptedApp?.worker?.email?.split("@")[0] ||
+                                      "Worker",
+                                    phone: acceptedApp?.worker?.phone,
+                                    kycStatus: acceptedApp?.worker?.workerProfile?.kycStatus,
+                                  },
+                                  paidAmount: acceptedApp?.proposedRate || job.budget,
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 hover:bg-slate-200 transition cursor-pointer"
+                            >
+                              <FileText className="w-3 h-3 text-orange-600" />
+                              <span>Receipt</span>
+                            </button>
+                          )}
                           {job.status === "OPEN" ? (
                             <button
                               disabled={updatingJobId === job.id}
@@ -1793,6 +2177,31 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                         </div>
 
                                         <div className="flex items-center gap-2">
+                                          {app.status === "COMPLETED" && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setReceiptModalData({
+                                                  job,
+                                                  recruiter: {
+                                                    name: user.recruiterProfile?.name || user.email.split("@")[0],
+                                                    businessName: user.recruiterProfile?.businessName,
+                                                    address: user.recruiterProfile?.address || job.address,
+                                                  },
+                                                  worker: {
+                                                    name: app.worker.workerProfile?.name || app.worker.email.split("@")[0],
+                                                    phone: app.worker.phone,
+                                                    kycStatus: app.worker.workerProfile?.kycStatus,
+                                                  },
+                                                  paidAmount: app.proposedRate || job.budget,
+                                                });
+                                              }}
+                                              className="px-2 py-1 text-[11px] font-bold rounded-lg bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 border border-orange-200 flex items-center gap-1 cursor-pointer"
+                                            >
+                                              <FileText className="w-3 h-3" />
+                                              <span>Receipt</span>
+                                            </button>
+                                          )}
                                           <StatusBadge status={app.status} />
                                         </div>
                                       </div>
@@ -2916,6 +3325,65 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           jobCoords={activeLiveRoute.jobCoords}
           worker={activeLiveRoute.worker}
           onOpenChat={activeLiveRoute.onOpenChat}
+        />
+      )}
+
+      {/* ── Boost / Feature Payment Modal ─────────────────── */}
+      {boostModalData && (
+        <BoostPaymentModal
+          isOpen={!!boostModalData}
+          onClose={() => setBoostModalData(null)}
+          type={boostModalData.type}
+          jobId={boostModalData.jobId}
+          itemTitle={boostModalData.itemTitle}
+          onSuccess={() => {
+            router.refresh();
+          }}
+        />
+      )}
+
+      {/* ── Work Completion Receipt / Invoice Modal ───────── */}
+      {receiptModalData && (
+        <JobCompletionReceiptModal
+          isOpen={!!receiptModalData}
+          onClose={() => setReceiptModalData(null)}
+          job={receiptModalData.job}
+          recruiter={receiptModalData.recruiter}
+          worker={receiptModalData.worker}
+          paidAmount={receiptModalData.paidAmount}
+        />
+      )}
+
+      {/* ── Worker Visiting Card & QR Modal ───────────────── */}
+      {showVisitingCardModal && isWorker && (
+        <WorkerVisitingCardModal
+          isOpen={showVisitingCardModal}
+          onClose={() => setShowVisitingCardModal(false)}
+          worker={{
+            id: user.id,
+            name: displayName,
+            photo: user.workerProfile?.profilePhotoUrl,
+            phone: user.phone,
+            address: user.workerProfile?.address,
+            primarySkill: user.workerProfile?.skills[0],
+            skills: user.workerProfile?.skills,
+            hourlyRate: user.workerProfile?.hourlyRate,
+            avgRating: user.workerProfile?.rating,
+            reviewCount: user.workerProfile?.reviewCount,
+            verified: user.workerProfile?.kycStatus === "VERIFIED",
+          }}
+        />
+      )}
+
+      {/* ── Work Safety & Emergency SOS Modal ─────────────── */}
+      {safetyModalData && (
+        <SafetyToolkitModal
+          isOpen={!!safetyModalData}
+          onClose={() => setSafetyModalData(null)}
+          jobTitle={safetyModalData.jobTitle}
+          location={safetyModalData.location}
+          contactName={safetyModalData.contactName}
+          contactPhone={safetyModalData.contactPhone}
         />
       )}
     </div>

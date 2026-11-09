@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -24,12 +24,21 @@ import {
   Zap,
   Award,
   ExternalLink,
+  Map as MapIcon,
+  List as ListIcon,
+  Crosshair,
+  Navigation,
 } from "lucide-react";
 import { getPublicWorkers } from "@/app/actions/profile";
 import { NEPAL_DISTRICTS, getWorkerTier } from "@/lib/constants";
 import ChatModal from "@/components/chat-modal";
 import { getOrCreateConversation } from "@/app/actions/chat";
 import { useLanguage } from "@/components/language-provider";
+import { calculateHaversineDistanceKm, formatDistance } from "@/lib/geo";
+import dynamic from "next/dynamic";
+
+const InteractiveMapView = dynamic(() => import("@/components/interactive-map-view"), { ssr: false });
+
 
 const POPULAR_SKILLS = [
   "ALL",
@@ -55,6 +64,8 @@ export type WorkerItem = {
   rating: number;
   reviewCount: number;
   address: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   profilePhotoUrl: string | null;
   isFeatured: boolean;
   isAvailableNow?: boolean;
@@ -120,6 +131,70 @@ export default function WorkersFeed({
   const [selectedDistrict, setSelectedDistrict] = useState("ALL");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [onlyVerified, setOnlyVerified] = useState(false);
+
+  // Map & Location states
+  const [viewMode, setViewMode] = useState<"LIST" | "MAP">("LIST");
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [radiusKm, setRadiusKm] = useState<number | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+
+  const handleLocateMe = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setIsLocating(false);
+      },
+      (err) => {
+        console.warn("Geolocation warning:", err);
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const filteredAndSortedWorkers = useMemo(() => {
+    let list = [...workers];
+    if (userLocation && radiusKm) {
+      list = list.filter((w) => {
+        if (!w.latitude || !w.longitude) return false;
+        const d = calculateHaversineDistanceKm(userLocation.lat, userLocation.lng, w.latitude, w.longitude);
+        return d <= radiusKm;
+      });
+    }
+    if (userLocation) {
+      list.sort((a, b) => {
+        const dA = a.latitude && a.longitude ? calculateHaversineDistanceKm(userLocation.lat, userLocation.lng, a.latitude, a.longitude) : 9999;
+        const dB = b.latitude && b.longitude ? calculateHaversineDistanceKm(userLocation.lat, userLocation.lng, b.latitude, b.longitude) : 9999;
+        return dA - dB;
+      });
+    }
+    return list;
+  }, [workers, userLocation, radiusKm]);
+
+  const mapDiscoveryItems = useMemo(() => {
+    return filteredAndSortedWorkers.map((w) => ({
+      id: w.id,
+      type: "WORKER" as const,
+      title: w.name,
+      subtitle: w.skills.slice(0, 2).join(", "),
+      category: w.skills[0] || "Worker",
+      latitude: w.latitude || 27.7172,
+      longitude: w.longitude || 85.324,
+      address: w.address,
+      price: w.hourlyRate,
+      rating: w.rating,
+      photoUrl: w.profilePhotoUrl,
+      isAvailableNow: w.isAvailableNow,
+      isFeatured: w.isFeatured,
+      rawItem: w,
+    }));
+  }, [filteredAndSortedWorkers]);
+
 
   const [selectedWorkerDetails, setSelectedWorkerDetails] = useState<WorkerItem | null>(null);
 
@@ -304,15 +379,89 @@ export default function WorkersFeed({
             );
           })}
         </div>
+
+        {/* View Mode & Location Controls Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleLocateMe}
+              disabled={isLocating}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                userLocation
+                  ? "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              <Crosshair className={`w-3.5 h-3.5 ${isLocating ? "animate-spin text-orange-600" : ""}`} />
+              <span>{userLocation ? tx("GPS Active", "GPS सक्रिय") : tx("Near Me", "मेरो नजिक")}</span>
+            </button>
+
+            {userLocation && (
+              <div className="flex items-center gap-1.5 text-xs">
+                {[null, 5, 10, 25, 50].map((r) => (
+                  <button
+                    key={r === null ? "all" : r}
+                    onClick={() => setRadiusKm(r)}
+                    className={`px-2 py-1 rounded-lg font-bold text-[11px] transition ${
+                      radiusKm === r
+                        ? "bg-orange-600 text-white"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                    }`}
+                  >
+                    {r === null ? tx("All", "सबै") : `${r}km`}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setViewMode("LIST")}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                viewMode === "LIST"
+                  ? "bg-white dark:bg-slate-900 text-orange-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              <ListIcon className="w-3.5 h-3.5" />
+              <span>{tx("List", "सूची")}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode("MAP")}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                viewMode === "MAP"
+                  ? "bg-white dark:bg-slate-900 text-orange-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+            >
+              <MapIcon className="w-3.5 h-3.5" />
+              <span>{tx("Map", "नक्सा")}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* ── Workers Grid or Empty State ─────────────────────── */}
-      {isPending ? (
+
+      {/* ── Workers Grid or Map View ───────────────────────── */}
+      {viewMode === "MAP" ? (
+        <InteractiveMapView
+          items={mapDiscoveryItems}
+          userLocation={userLocation}
+          onLocateMe={handleLocateMe}
+          isLocating={isLocating}
+          onSelectItem={(item) => setSelectedWorkerDetails(item.rawItem)}
+        />
+      ) : isPending ? (
         <div className="h-64 flex flex-col items-center justify-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-orange-600" />
           <p className="text-sm text-slate-500 dark:text-slate-400">Updating workers list...</p>
         </div>
-      ) : workers.length === 0 ? (
+      ) : filteredAndSortedWorkers.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-12 text-center">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 flex items-center justify-center mb-4">
             <Users className="w-7 h-7" />
@@ -333,7 +482,7 @@ export default function WorkersFeed({
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {workers.map((worker) => {
+          {filteredAndSortedWorkers.map((worker) => {
             const initial = worker.name ? worker.name[0].toUpperCase() : "W";
             const worksDone = worker.user?._count?.applications ?? 0;
             const recentReview = worker.user?.reviewsReceived?.[0];
@@ -341,6 +490,16 @@ export default function WorkersFeed({
             const tier = getWorkerTier(worksDone, worker.rating || 5.0);
             const rawPhone = worker.user?.phone?.replace(/[^0-9]/g, "");
             const whatsAppPhone = rawPhone && (rawPhone.startsWith("977") ? rawPhone : rawPhone.length === 10 ? `977${rawPhone}` : null);
+
+            const distanceKm =
+              userLocation && worker.latitude && worker.longitude
+                ? calculateHaversineDistanceKm(
+                    userLocation.lat,
+                    userLocation.lng,
+                    worker.latitude,
+                    worker.longitude
+                  )
+                : null;
 
             return (
               <motion.div
@@ -369,7 +528,9 @@ export default function WorkersFeed({
                       <div className="flex items-center justify-between gap-1 flex-wrap">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <h3 className="font-extrabold text-base text-slate-900 dark:text-white truncate">
-                            {worker.name}
+                            <Link href={`/workers/${worker.id}`} className="hover:text-orange-600 transition">
+                              {worker.name}
+                            </Link>
                           </h3>
                           {worker.kycStatus === "VERIFIED" && (
                             <span
@@ -398,6 +559,11 @@ export default function WorkersFeed({
                       <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3 text-orange-500 flex-shrink-0" />
                         <span className="truncate">{worker.address ? `${worker.address}, Nepal` : "Nepal"}</span>
+                        {distanceKm !== null && (
+                          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 shrink-0">
+                            ({formatDistance(distanceKm)})
+                          </span>
+                        )}
                       </p>
 
                       {/* Works Done Badge + Tier Badge */}
@@ -419,6 +585,7 @@ export default function WorkersFeed({
                       </div>
                     </div>
                   </div>
+
 
                   {/* Bio */}
                   {worker.bio && (
@@ -486,7 +653,7 @@ export default function WorkersFeed({
                     </span>
                   </div>
 
-                  <div className={`grid ${whatsAppPhone ? "grid-cols-[1fr_1fr_auto]" : "grid-cols-2"} gap-2`}>
+                  <div className={`grid ${whatsAppPhone ? "grid-cols-[1fr_1fr_auto_auto]" : "grid-cols-[1fr_1fr_auto]"} gap-2`}>
                     <button
                       onClick={() => setSelectedWorkerDetails(worker)}
                       className="w-full py-2 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer"
@@ -503,6 +670,14 @@ export default function WorkersFeed({
                       <span>{lang === "ne" ? "च्याट" : "Chat Now"}</span>
                     </button>
 
+                    <Link
+                      href={`/workers/${worker.id}`}
+                      className="py-2 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl transition flex items-center justify-center"
+                      title={tx("View Public Profile & Direct Hire", "सार्वजनिक प्रोफाइल र काम दिनुहोस्")}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
+
                     {whatsAppPhone && (
                       <a
                         href={`https://wa.me/${whatsAppPhone}?text=${encodeURIComponent(
@@ -517,6 +692,7 @@ export default function WorkersFeed({
                       </a>
                     )}
                   </div>
+
                 </div>
               </motion.div>
             );
