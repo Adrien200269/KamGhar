@@ -28,6 +28,7 @@ import ThemeToggle from "@/components/theme-toggle";
 import LanguageToggle from "@/components/language-toggle";
 import NotificationDropdown from "@/components/notification-dropdown";
 import ChatModal from "@/components/chat-modal";
+import AppHeader from "@/components/app-header";
 import HomeNotebook from "@/components/home-notebook";
 import { useLanguage } from "@/components/language-provider";
 import { createClient } from "@/lib/supabase/client";
@@ -70,7 +71,7 @@ export default function HomeView() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col selection:bg-orange-500 selection:text-white transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col selection:bg-orange-500 selection:text-white transition-colors duration-200 pb-16 sm:pb-0">
       {/* Registration Success Banner Toast */}
       <AnimatePresence>
         {showBanner && (
@@ -100,86 +101,8 @@ export default function HomeView() {
         )}
       </AnimatePresence>
 
-      {/* Header / Navbar */}
-      <motion.header
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4 }}
-        className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <motion.div whileHover={{ scale: 1.05 }} transition={{ type: "spring", stiffness: 400 }}>
-              <div className="dark:bg-white dark:rounded-xl dark:px-2.5 dark:py-1 transition-all duration-200">
-                <Image
-                  src="/logo.png"
-                  alt="KamGhar Logo"
-                  width={160}
-                  height={52}
-                  priority
-                  className="h-9 sm:h-10 w-auto object-contain"
-                />
-              </div>
-            </motion.div>
-            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium px-2.5 py-0.5 bg-orange-50 dark:bg-orange-950/50 rounded-full border border-orange-200 dark:border-orange-800/60 hidden sm:inline">
-              काम घर
-            </span>
-          </Link>
-
-          <nav className="flex items-center gap-2 sm:gap-3 text-sm font-medium">
-            <Link
-              href="/jobs"
-              className="text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors hidden sm:inline px-2"
-            >
-              {tx("Browse Jobs", "काम खोज्नुहोस्")}
-            </Link>
-            <Link
-              href="/workers"
-              className="text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors hidden sm:inline px-2"
-            >
-              {tx("Find Workers", "कामदार खोज्नुहोस्")}
-            </Link>
-
-            {/* Notification Dropdown for logged in user */}
-            {isLoggedIn && (
-              <NotificationDropdown onOpenChat={(chat) => setActiveChat(chat)} />
-            )}
-
-            {/* Theme Toggle Button */}
-            <ThemeToggle />
-            <LanguageToggle />
-
-            {isLoggedIn ? (
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Link
-                  href="/dashboard"
-                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold shadow-sm shadow-orange-500/20 transition-all flex items-center gap-1.5"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>{tx("Dashboard", "ड्यासबोर्ड")}</span>
-                </Link>
-              </motion.div>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="px-3 py-1.5 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                >
-                  {tx("Log in", "लग इन")}
-                </Link>
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Link
-                    href="/register"
-                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold shadow-sm shadow-orange-500/20 transition-all inline-block"
-                  >
-                    {tx("Get Started", "सुरु गर्नुहोस्")}
-                  </Link>
-                </motion.div>
-              </>
-            )}
-          </nav>
-        </div>
-      </motion.header>
+      {/* Global App Header with Responsive Mobile Navigation */}
+      <AppHeader badgeText="काम घर" badgeTextNe="काम घर" isLoggedIn={isLoggedIn} />
 
       <main className="flex-1">
         {/* Hero Section */}
@@ -224,7 +147,7 @@ export default function HomeView() {
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.1 }}
-                  className="text-5xl sm:text-6xl xl:text-7xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.08]"
+                  className="text-3xl xs:text-4xl sm:text-6xl xl:text-7xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.15] sm:leading-[1.08]"
                 >
                   {tx("Find work.", "काम खोज्नुहोस्।")}{" "}
                   <span className="relative inline-block">
@@ -264,7 +187,7 @@ export default function HomeView() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.25 }}
-                  className="mt-7 text-lg text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg"
+                  className="mt-4 sm:mt-7 text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg"
                 >
                   {tx(
                     "Electricians, plumbers, tutors, designers — connect with verified local talent or find gigs, all sorted by proximity to your location.",
@@ -277,12 +200,12 @@ export default function HomeView() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.35 }}
-                  className="mt-9 flex flex-col sm:flex-row gap-3 w-full sm:w-auto"
+                  className="mt-7 sm:mt-9 flex flex-col sm:flex-row gap-3 w-full sm:w-auto"
                 >
-                  <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }}>
+                  <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} className="w-full sm:w-auto">
                     <Link
                       href="/register?role=worker"
-                      className="group inline-flex items-center justify-center gap-2.5 px-8 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-bold shadow-xl shadow-orange-500/30 transition-all text-base w-full sm:w-auto"
+                      className="group inline-flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-bold shadow-xl shadow-orange-500/30 transition-all text-sm sm:text-base w-full sm:w-auto"
                     >
                       <Briefcase className="w-5 h-5" />
                       {tx("I Want to Work", "म काम गर्न चाहन्छु")}
@@ -290,10 +213,10 @@ export default function HomeView() {
                     </Link>
                   </motion.div>
 
-                  <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }}>
+                  <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} className="w-full sm:w-auto">
                     <Link
                       href="/register?role=recruiter"
-                      className="inline-flex items-center justify-center gap-2.5 px-8 py-4 bg-white dark:bg-slate-900 hover:bg-orange-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white border-2 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700 rounded-2xl font-bold shadow-sm transition-all text-base w-full sm:w-auto"
+                      className="inline-flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 bg-white dark:bg-slate-900 hover:bg-orange-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white border-2 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700 rounded-2xl font-bold shadow-sm transition-all text-sm sm:text-base w-full sm:w-auto"
                     >
                       <Users className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                       {tx("I Need to Hire", "मलाई कामदार चाहिन्छ")}
@@ -306,7 +229,7 @@ export default function HomeView() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.6, delay: 0.5 }}
-                  className="mt-8 flex flex-wrap gap-2.5"
+                  className="mt-6 sm:mt-8 flex flex-wrap gap-2 sm:gap-2.5"
                 >
                   {[
                     { icon: Check, label: tx("Zero Commission", "शून्य कमिसन") },
@@ -328,7 +251,7 @@ export default function HomeView() {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.6 }}
-                  className="mt-10 grid grid-cols-3 gap-6 border-t border-slate-200 dark:border-slate-800 pt-8 w-full max-w-sm"
+                  className="mt-8 sm:mt-10 grid grid-cols-3 gap-2 sm:gap-6 border-t border-slate-200 dark:border-slate-800 pt-6 sm:pt-8 w-full max-w-sm"
                 >
                   {[
                     { value: "2,400+", label: tx("Active Workers", "सक्रिय कामदार") },
@@ -336,8 +259,8 @@ export default function HomeView() {
                     { value: "14+", label: tx("Skill Categories", "सीप विधाहरू") },
                   ].map(({ value, label }) => (
                     <div key={label}>
-                      <div className="text-2xl font-extrabold text-slate-900 dark:text-white">{value}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{label}</div>
+                      <div className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">{value}</div>
+                      <div className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium leading-tight">{label}</div>
                     </div>
                   ))}
                 </motion.div>

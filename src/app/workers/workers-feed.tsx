@@ -271,9 +271,9 @@ export default function WorkersFeed({
     onlyVerified;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 pb-20 sm:pb-8">
       {/* ── Search & Filter Panel ───────────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-5">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-8 shadow-sm space-y-4 sm:space-y-5">
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 text-orange-600 dark:text-orange-400 text-xs font-semibold mb-2">
             <Users className="w-3.5 h-3.5" />
@@ -659,7 +659,7 @@ export default function WorkersFeed({
                     </span>
                   </div>
 
-                  <div className={`grid ${whatsAppPhone ? "grid-cols-[1fr_1fr_auto_auto]" : "grid-cols-[1fr_1fr_auto]"} gap-2`}>
+                  <div className={`grid ${whatsAppPhone ? "grid-cols-2 xs:grid-cols-[1fr_1fr_auto_auto]" : "grid-cols-2 xs:grid-cols-[1fr_1fr_auto]"} gap-2`}>
                     <button
                       onClick={() => setSelectedWorkerDetails(worker)}
                       className="w-full py-2 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer"

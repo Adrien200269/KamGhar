@@ -148,7 +148,7 @@ export default function WorkerProfileView({
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col">
       <AppHeader />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8 space-y-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 pb-24 sm:pb-8">
         {/* Back Link */}
         <Link
           href="/workers"
@@ -159,9 +159,9 @@ export default function WorkerProfileView({
         </Link>
 
         {/* Worker Hero Profile Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-8 shadow-sm space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-            <div className="flex items-start gap-5">
+            <div className="flex flex-col xs:flex-row items-start gap-4 sm:gap-5">
               {/* Profile Photo */}
               <div className="relative">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-orange-100 dark:bg-orange-950/70 border-2 border-orange-200 dark:border-orange-800 flex items-center justify-center font-black text-2xl text-orange-600 overflow-hidden shadow-md">
@@ -222,7 +222,7 @@ export default function WorkerProfileView({
             </div>
 
             {/* Hourly Rate & Direct Action */}
-            <div className="flex flex-col sm:items-end justify-between gap-3">
+            <div className="flex flex-col sm:items-end justify-between gap-3 w-full sm:w-auto">
               <div className="p-3.5 rounded-2xl bg-orange-50/70 dark:bg-orange-950/30 border border-orange-200/60 dark:border-orange-900/60 text-left sm:text-right">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">
                   {tx("Standard Rate", "पारिश्रमिक दर")}
@@ -233,7 +233,7 @@ export default function WorkerProfileView({
               </div>
 
               {isOwner ? (
-                <div className="flex items-center gap-2 flex-wrap justify-end">
+                <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setShowVisitingCardModal(true)}
@@ -266,7 +266,7 @@ export default function WorkerProfileView({
                   </Link>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 flex-wrap justify-end">
+                <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setShowVisitingCardModal(true)}
@@ -526,7 +526,7 @@ export default function WorkerProfileView({
       {/* Direct Hire Modal */}
       {showDirectHireModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-5">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-white">

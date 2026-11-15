@@ -22,11 +22,16 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
+  overflow-x: hidden;
+  max-width: 100vw;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ── Custom Sleek Scrollbar ── */
@@ -57,53 +62,55 @@ body {
   background: rgba(249, 115, 22, 0.8);
 }
 
-/* ── macOS Authentic System Cursors ── */
-*,
-*::before,
-*::after {
-  cursor: url("/cursors/mac-default.svg") 10 7, auto;
-}
+/* ── macOS Authentic System Cursors (Desktop mouse only) ── */
+@media (hover: hover) and (pointer: fine) {
+  *,
+  *::before,
+  *::after {
+    cursor: url("/cursors/mac-default.svg") 10 7, auto;
+  }
 
-/* Clickables: links, buttons, dropdowns, inputs */
-a,
-button,
-[role="button"],
-input[type="button"],
-input[type="submit"],
-input[type="reset"],
-input[type="checkbox"],
-input[type="radio"],
-select,
-summary,
-label,
-.cursor-pointer {
-  cursor: url("/cursors/mac-pointer.svg") 11 8, pointer !important;
-}
+  /* Clickables: links, buttons, dropdowns, inputs */
+  a,
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  summary,
+  label,
+  .cursor-pointer {
+    cursor: url("/cursors/mac-pointer.svg") 11 8, pointer !important;
+  }
 
-/* Text fields & editables */
-input[type="text"],
-input[type="password"],
-input[type="email"],
-input[type="number"],
-input[type="tel"],
-input[type="url"],
-input[type="search"],
-textarea,
-[contenteditable="true"],
-.cursor-text {
-  cursor: url("/cursors/mac-text.svg") 16 16, text !important;
-}
+  /* Text fields & editables */
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  [contenteditable="true"],
+  .cursor-text {
+    cursor: url("/cursors/mac-text.svg") 16 16, text !important;
+  }
 
-/* Drag & drop states */
-.cursor-grab,
-[data-draggable="true"] {
-  cursor: url("/cursors/mac-grab.svg") 15 15, grab !important;
-}
+  /* Drag & drop states */
+  .cursor-grab,
+  [data-draggable="true"] {
+    cursor: url("/cursors/mac-grab.svg") 15 15, grab !important;
+  }
 
-.cursor-grabbing,
-[data-dragging="true"],
-:active:is(.cursor-grab) {
-  cursor: url("/cursors/mac-grabbing.svg") 15 15, grabbing !important;
+  .cursor-grabbing,
+  [data-dragging="true"],
+  :active:is(.cursor-grab) {
+    cursor: url("/cursors/mac-grabbing.svg") 15 15, grabbing !important;
+  }
 }
 
 /* ── Notebook & Handwriting Aesthetic Styles ── */

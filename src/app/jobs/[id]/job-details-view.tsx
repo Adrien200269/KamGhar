@@ -141,7 +141,7 @@ export default function JobDetailsView({
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col">
       <AppHeader />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8 space-y-6">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-6 sm:py-8 space-y-6 pb-24 sm:pb-8">
         {/* Back Link */}
         <Link
           href="/jobs"
@@ -152,7 +152,7 @@ export default function JobDetailsView({
         </Link>
 
         {/* Main Job Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-8 shadow-sm space-y-6">
           {/* Header Row */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="space-y-2">
@@ -283,7 +283,7 @@ export default function JobDetailsView({
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {recruiterWhatsAppUrl && (
                 <a
                   href={recruiterWhatsAppUrl}
@@ -316,20 +316,20 @@ export default function JobDetailsView({
           {/* Action Footer */}
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4">
             {isOwner ? (
-              <div className="flex items-center gap-3 w-full justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full justify-between">
                 <span className="text-xs text-slate-500">{tx("You posted this gig listing.", "यो तपाईंले पोस्ट गर्नुभएको काम हो।")}</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setShowBoostModal(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md transition"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md transition"
                   >
                     <Flame className="w-4 h-4" />
                     <span>{tx("Boost Job", "काम बुस्ट गर्नुहोस्")}</span>
                   </button>
                   <Link
                     href="/dashboard"
-                    className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold transition"
+                    className="flex-1 sm:flex-initial text-center px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold transition"
                   >
                     {tx("Manage in Dashboard", "ड्यासबोर्डमा व्यवस्थापन")}
                   </Link>
@@ -389,7 +389,7 @@ export default function JobDetailsView({
       {/* Apply Modal */}
       {showApplyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-5">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
                 {tx("Apply to Gig", "कामको लागि आवेदन दिनुहोस्")}

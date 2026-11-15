@@ -593,8 +593,8 @@ export default function HomeNotebook() {
               ))}
             </div>
 
-            {/* ── Fixed Dual-Page Book Container (Height: 480px) ── */}
-            <div className="relative rounded-2xl overflow-hidden min-h-[480px] max-h-[500px] bg-[#fffdfa] dark:bg-[#151c27] shadow-inner grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-stone-300/80 dark:divide-slate-800">
+            {/* ── Fixed Dual-Page Book Container (Responsive on mobile, fixed height on desktop) ── */}
+            <div className="relative rounded-2xl overflow-hidden min-h-[420px] max-h-none lg:max-h-[520px] bg-[#fffdfa] dark:bg-[#151c27] shadow-inner grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-stone-300/80 dark:divide-slate-800">
               {/* Center spine gutter gradient */}
               <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-10 bg-gradient-to-r from-stone-900/10 via-transparent to-stone-900/10 pointer-events-none z-20" />
 

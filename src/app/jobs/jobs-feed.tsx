@@ -334,7 +334,7 @@ export default function JobsFeed({
     selectedSort !== "newest";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 pb-20 sm:pb-8">
       {/* ── Success Banner ─────────────────────────────────── */}
       <AnimatePresence>
         {applySuccessMessage && (
@@ -361,7 +361,7 @@ export default function JobsFeed({
       </AnimatePresence>
 
       {/* ── Hero Search & Filters Box ──────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-5">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-8 shadow-sm space-y-4 sm:space-y-5">
         <div className="max-w-2xl">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             {tx("Find Work Near You", "नजिकका कामहरू खोज्नुहोस्")}
@@ -749,7 +749,7 @@ export default function JobsFeed({
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-2xl space-y-5"
+              className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-8 shadow-2xl space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>

@@ -51,7 +51,7 @@ export default async function NewJobPage() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 relative z-10">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 pb-24 sm:pb-12 relative z-10">
         <JobPostForm defaultDistrict={defaultDistrict} />
       </main>
     </div>

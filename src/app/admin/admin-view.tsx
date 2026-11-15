@@ -847,7 +847,7 @@ export default function AdminView({
       {/* ── Top Navigation Bar ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/" className="flex items-center">
               <div className="dark:bg-white dark:rounded-xl dark:px-2.5 dark:py-1 transition-all">
                 <Image
@@ -860,21 +860,22 @@ export default function AdminView({
                 />
               </div>
             </Link>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/60 shadow-xs">
+            <span className="hidden xs:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/60 shadow-xs">
               <ShieldCheck className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
               <span>{tx("Admin Console", "प्रशासक कन्सोल")}</span>
             </span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <ThemeToggle />
             <LanguageToggle />
 
             <Link
               href="/dashboard"
-              className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              className="px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
             >
-              {tx("User Dashboard", "प्रयोगकर्ता ड्यासबोर्ड")}
+              <span className="hidden xs:inline">{tx("User Dashboard", "प्रयोगकर्ता ड्यासबोर्ड")}</span>
+              <span className="xs:hidden">{tx("Dashboard", "ड्यासबोर्ड")}</span>
             </Link>
 
             <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -886,7 +887,7 @@ export default function AdminView({
       </header>
 
       {/* ── Main Container ────────────────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Toast Alert */}
         <AnimatePresence>
           {toastMessage && (

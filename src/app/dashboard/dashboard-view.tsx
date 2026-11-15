@@ -755,18 +755,18 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
             {isWorker ? (
               <Link
                 href="/jobs"
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
               >
                 <Search className="w-3.5 h-3.5" />
-                <span>{tx("Find Jobs", "काम खोज्नुहोस्")}</span>
+                <span className="hidden xs:inline">{tx("Find Jobs", "काम खोज्नुहोस्")}</span>
               </Link>
             ) : (
               <Link
                 href="/jobs/new"
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>{tx("Post a Job", "काम पोस्ट गर्नुहोस्")}</span>
+                <span className="hidden xs:inline">{tx("Post a Job", "काम पोस्ट गर्नुहोस्")}</span>
               </Link>
             )}
 
@@ -776,7 +776,8 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
 
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors cursor-pointer"
+              title={tx("Sign out", "लग आउट")}
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{tx("Sign out", "लग आउट")}</span>
@@ -785,7 +786,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
         </div>
       </motion.header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 pb-20 sm:pb-8">
         {/* Recruiter Success Banner when newly posted */}
         <AnimatePresence>
           {showPostedBanner && !isWorker && (
@@ -852,34 +853,38 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           {/* ── Profile incomplete banner ─────────────────── */}
           {!profileComplete && !profileBannerDismissed && (
             <motion.div variants={fadeUp}>
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/50">
-                <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-5 h-5 text-white" />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/50">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-orange-800 dark:text-orange-300">Complete your profile</p>
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5 line-clamp-2">
+                      {isWorker
+                        ? "Add your skills, hourly rate, and district so recruiters can discover and hire you."
+                        : "Add your organization details and location to start hiring workers."}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-orange-800 dark:text-orange-300">Complete your profile</p>
-                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5">
-                    {isWorker
-                      ? "Add your skills, hourly rate, and district so recruiters can discover and hire you."
-                      : "Add your organization details and location to start hiring workers."}
-                  </p>
+                <div className="flex items-center gap-2 justify-end pt-1 sm:pt-0">
+                  <button
+                    onClick={() => {
+                      setSettingsTab("profile");
+                      setShowSettingsModal(true);
+                    }}
+                    className="flex-1 sm:flex-initial px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer text-center"
+                  >
+                    Edit Details
+                  </button>
+                  <button
+                    onClick={() => setProfileBannerDismissed(true)}
+                    className="p-1.5 rounded-lg text-orange-400 hover:text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors cursor-pointer shrink-0"
+                    title="Dismiss notice"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    setSettingsTab("profile");
-                    setShowSettingsModal(true);
-                  }}
-                  className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-colors whitespace-nowrap cursor-pointer"
-                >
-                  Edit Details
-                </button>
-                <button
-                  onClick={() => setProfileBannerDismissed(true)}
-                  className="p-1 rounded-lg text-orange-400 hover:text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors cursor-pointer"
-                  title="Dismiss notice"
-                >
-                  <X className="w-4 h-4" />
-                </button>
               </div>
             </motion.div>
           )}
@@ -887,7 +892,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           {/* ── Welcome + Profile card ────────────────────── */}
           <motion.div variants={fadeUp} className="grid sm:grid-cols-3 gap-4">
             {/* Profile summary */}
-            <div className="sm:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 flex items-start gap-4 shadow-sm">
+            <div className="sm:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 flex flex-col xs:flex-row items-start gap-3.5 sm:gap-4 shadow-sm">
               {/* Avatar with photo and camera badge */}
               <div className="relative group flex-shrink-0">
                 {profile?.profilePhotoUrl ? (
@@ -1423,8 +1428,8 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                       )}
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
+                    <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+                      <table className="w-full text-left text-xs min-w-[540px]">
                         <thead>
                           <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold">
                             <th className="pb-2.5">{tx("Date (BS / AD)", "मिति")}</th>
@@ -2680,10 +2685,10 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               </div>
 
               {/* Tabs */}
-              <div className="flex border-b border-slate-200/80 dark:border-slate-800 px-6">
+              <div className="flex border-b border-slate-200/80 dark:border-slate-800 px-4 sm:px-6 overflow-x-auto scrollbar-none gap-4 sm:gap-6">
                 <button
                   onClick={() => setSettingsTab("profile")}
-                  className={`flex items-center gap-1.5 px-1 py-3 mr-6 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-1 py-3 text-xs font-bold border-b-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                     settingsTab === "profile"
                       ? "border-orange-600 text-orange-600 dark:text-orange-400"
                       : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
@@ -2695,7 +2700,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 {isWorker && (
                   <button
                     onClick={() => setSettingsTab("documents")}
-                    className={`flex items-center gap-1.5 px-1 py-3 mr-6 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-1 py-3 text-xs font-bold border-b-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                       settingsTab === "documents"
                         ? "border-orange-600 text-orange-600 dark:text-orange-400"
                         : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
@@ -2707,7 +2712,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 )}
                 <button
                   onClick={() => setSettingsTab("kyc")}
-                  className={`flex items-center gap-1.5 px-1 py-3 mr-6 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-1 py-3 text-xs font-bold border-b-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                     settingsTab === "kyc"
                       ? "border-orange-600 text-orange-600 dark:text-orange-400"
                       : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
@@ -2718,7 +2723,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 </button>
                 <button
                   onClick={() => setSettingsTab("password")}
-                  className={`flex items-center gap-1.5 px-1 py-3 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-1 py-3 text-xs font-bold border-b-2 transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                     settingsTab === "password"
                       ? "border-orange-600 text-orange-600 dark:text-orange-400"
                       : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
