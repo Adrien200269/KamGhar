@@ -1365,35 +1365,61 @@ export default function AdminView({
                         )}
                       </div>
 
-                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={isPending && isVerified}
-                          onClick={() => handleReviewKyc(item, "VERIFIED")}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>{tx("Approve", "स्वीकृत")}</span>
-                        </button>
+                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+                        {isVerified ? (
+                          <div className="flex items-center justify-between">
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                              <span>{tx("Verified & Approved", "प्रमाणित तथा स्वीकृत")}</span>
+                            </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setRejectKycTarget(item)}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          <span>{tx("Reject", "अस्वीकृत")}</span>
-                        </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReviewKyc(item, "PENDING")}
+                              title={tx("Revoke or Reset to Pending review", "पुनरावलोकनमा फर्काउनुहोस्")}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>{tx("Revoke", "रद्द")}</span>
+                            </button>
+                          </div>
+                        ) : isRejected ? (
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold">
+                              <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                              <span>{tx("Application Rejected", "आवेदन अस्वीकृत")}</span>
+                            </div>
 
-                        {item.kycStatus !== "PENDING" && (
-                          <button
-                            type="button"
-                            onClick={() => handleReviewKyc(item, "PENDING")}
-                            title={tx("Reset to Pending review", "समीक्षामा फर्काउनुहोस्")}
-                            className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors cursor-pointer"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReviewKyc(item, "PENDING")}
+                              title={tx("Reset to Pending review", "समीक्षामा फर्काउनुहोस्")}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              <span>{tx("Re-evaluate", "पुनरावलोकन")}</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleReviewKyc(item, "VERIFIED")}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>{tx("Approve", "स्वीकृत")}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setRejectKycTarget(item)}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>{tx("Reject", "अस्वीकृत")}</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
