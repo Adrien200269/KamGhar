@@ -49,6 +49,7 @@ export default function HomeView() {
   const justRegistered = searchParams.get("registered") === "true";
   const [showBanner, setShowBanner] = useState(justRegistered);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
   const [activeChat, setActiveChat] = useState<{
     conversationId: string;
     recipientName: string;
@@ -63,6 +64,7 @@ export default function HomeView() {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
         setIsLoggedIn(true);
+        setCurrentUserId(data.user.id);
       }
     });
   }, []);
@@ -736,6 +738,7 @@ export default function HomeView() {
           recipientPhoto={activeChat.recipientPhoto}
           recipientPhone={activeChat.recipientPhone}
           recipientVerified={activeChat.recipientVerified}
+          currentUserId={currentUserId}
         />
       )}
     </div>

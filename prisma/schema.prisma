@@ -249,9 +249,11 @@ model Conversation {
   messages  Message[]
 
   @@unique([user1Id, user2Id, jobId])
+  @@index([user1Id, user2Id])
   @@index([user1Id])
   @@index([user2Id])
   @@index([jobId])
+  @@index([updatedAt])
   @@map("conversations")
 }
 
@@ -268,6 +270,9 @@ model Message {
   isRead         Boolean      @default(false)
   createdAt      DateTime     @default(now())
 
+  @@index([conversationId, createdAt])
+  @@index([conversationId, receiverId, isRead])
+  @@index([receiverId, createdAt])
   @@index([conversationId])
   @@index([senderId])
   @@index([receiverId])

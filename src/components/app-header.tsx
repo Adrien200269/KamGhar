@@ -32,18 +32,25 @@ export default function AppHeader({
     recipientRole?: string;
     recipientVerified?: boolean;
   } | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
 
   useEffect(() => {
     const supabase = createClient();
 
     supabase.auth.getUser().then(({ data }) => {
       setIsLoggedIn(!!data.user);
+      if (data.user) {
+        setCurrentUserId(data.user.id);
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsLoggedIn(!!session?.user);
+      if (session?.user) {
+        setCurrentUserId(session.user.id);
+      }
     });
 
     return () => {
@@ -138,6 +145,7 @@ export default function AppHeader({
           recipientPhoto={activeChat.recipientPhoto}
           recipientPhone={activeChat.recipientPhone}
           recipientVerified={activeChat.recipientVerified}
+          currentUserId={currentUserId}
         />
       )}
     </header>

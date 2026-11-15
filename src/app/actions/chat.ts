@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
@@ -37,65 +36,149 @@ export type ConversationItem = {
   unreadCount: number;
 };
 
+export type OpenConversationResult = {
+  conversationId: string;
+  messages: MessageItem[];
+  currentUserId: string;
+};
+
 /* ── Get or create a conversation between current user and target user ── */
-export async function getOrCreateConversation(targetUserId: string, jobId?: string | null) {
+export async function getOrCreateConversation(
+  targetUserId: string,
+  jobId?: string | null
+): Promise<OpenConversationResult> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
   if (user.id === targetUserId) throw new Error("Cannot chat with yourself");
 
   // Consistent ordering of user IDs to respect unique constraint
   const [user1Id, user2Id] = [user.id, targetUserId].sort();
 
-  const conversation = await prisma.conversation.upsert({
+  // 1. Fast find existing conversation and its initial messages in ONE query
+  let conversation = await prisma.conversation.findFirst({
     where: {
-      user1Id_user2Id_jobId: {
-        user1Id,
-        user2Id,
-        jobId: jobId || null as any,
-      },
-    },
-    update: {},
-    create: {
       user1Id,
       user2Id,
       jobId: jobId || null,
     },
+    include: {
+      messages: {
+        orderBy: { createdAt: "asc" },
+        take: 100,
+      },
+    },
   });
 
-  return conversation.id;
+  // 2. If no conversation exists yet, create it
+  if (!conversation) {
+    try {
+      conversation = await prisma.conversation.create({
+        data: {
+          user1Id,
+          user2Id,
+          jobId: jobId || null,
+        },
+        include: {
+          messages: true,
+        },
+      });
+    } catch {
+      // In case of race condition creating simultaneously
+      conversation = await prisma.conversation.findFirst({
+        where: {
+          user1Id,
+          user2Id,
+          jobId: jobId || null,
+        },
+        include: {
+          messages: {
+            orderBy: { createdAt: "asc" },
+            take: 100,
+          },
+        },
+      });
+      if (!conversation) {
+        throw new Error("Failed to initiate conversation");
+      }
+    }
+  }
+
+  // 3. Mark unread messages received by current user in the background (non-blocking)
+  const hasUnread = conversation.messages.some(
+    (m) => !m.isRead && m.receiverId === user.id
+  );
+  if (hasUnread) {
+    prisma.message
+      .updateMany({
+        where: {
+          conversationId: conversation.id,
+          receiverId: user.id,
+          isRead: false,
+        },
+        data: { isRead: true },
+      })
+      .catch(() => {});
+  }
+
+  return {
+    conversationId: conversation.id,
+    messages: conversation.messages,
+    currentUserId: user.id,
+  };
 }
 
 /* ── Fetch messages for a specific conversation ───────────────── */
-export async function getConversationMessages(conversationId: string) {
+export async function getConversationMessages(
+  conversationId: string,
+  afterTimestamp?: string
+): Promise<MessageItem[]> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return [];
 
-  // Verify access
+  // Single query: access check + fetch messages
   const convo = await prisma.conversation.findUnique({
     where: { id: conversationId },
+    select: {
+      user1Id: true,
+      user2Id: true,
+      messages: {
+        where: afterTimestamp
+          ? { createdAt: { gt: new Date(afterTimestamp) } }
+          : undefined,
+        orderBy: { createdAt: "asc" },
+        take: 100,
+      },
+    },
   });
+
   if (!convo || (convo.user1Id !== user.id && convo.user2Id !== user.id)) {
     return [];
   }
 
-  // Mark unread messages received by current user as read
-  await prisma.message.updateMany({
-    where: {
-      conversationId,
-      receiverId: user.id,
-      isRead: false,
-    },
-    data: { isRead: true },
-  });
+  // Mark unread messages in the background without delaying response
+  const hasUnread = convo.messages.some(
+    (m) => !m.isRead && m.receiverId === user.id
+  );
+  if (hasUnread) {
+    prisma.message
+      .updateMany({
+        where: {
+          conversationId,
+          receiverId: user.id,
+          isRead: false,
+        },
+        data: { isRead: true },
+      })
+      .catch(() => {});
+  }
 
-  const messages = await prisma.message.findMany({
-    where: { conversationId },
-    orderBy: { createdAt: "asc" },
-  });
-
-  return messages;
+  return convo.messages;
 }
 
 /* ── Send a message (text and/or audio voice note) ─────────────── */
@@ -105,16 +188,20 @@ export async function sendMessage(data: {
   audioUrl?: string | null;
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
-  if (!data.content.trim() && !data.audioUrl) {
+  const contentText = data.content.trim();
+  if (!contentText && !data.audioUrl) {
     return { success: false, error: "Message cannot be empty." };
   }
 
   try {
     const convo = await prisma.conversation.findUnique({
       where: { id: data.conversationId },
+      select: { user1Id: true, user2Id: true },
     });
     if (!convo || (convo.user1Id !== user.id && convo.user2Id !== user.id)) {
       return { success: false, error: "Conversation not found." };
@@ -122,22 +209,24 @@ export async function sendMessage(data: {
 
     const receiverId = convo.user1Id === user.id ? convo.user2Id : convo.user1Id;
 
-    const message = await prisma.message.create({
-      data: {
-        conversationId: data.conversationId,
-        senderId: user.id,
-        receiverId,
-        content: data.content.trim() || (data.audioUrl ? "🎙️ Voice message" : ""),
-        audioUrl: data.audioUrl || null,
-      },
-    });
+    // Single transaction for creating message and updating conversation updatedAt
+    const [message] = await prisma.$transaction([
+      prisma.message.create({
+        data: {
+          conversationId: data.conversationId,
+          senderId: user.id,
+          receiverId,
+          content: contentText || (data.audioUrl ? "🎙️ Voice message" : ""),
+          audioUrl: data.audioUrl || null,
+        },
+      }),
+      prisma.conversation.update({
+        where: { id: data.conversationId },
+        data: { updatedAt: new Date() },
+      }),
+    ]);
 
-    await prisma.conversation.update({
-      where: { id: data.conversationId },
-      data: { updatedAt: new Date() },
-    });
-
-    // Create notification for receiver (non-blocking)
+    // Create notification for receiver (non-blocking background task)
     prisma.notification
       .create({
         data: {
@@ -145,15 +234,14 @@ export async function sendMessage(data: {
           type: "MESSAGE",
           title: "New chat message",
           titleNe: "नयाँ च्याट सन्देश",
-          message: data.content.trim() || "🎙️ Voice message",
-          messageNe: data.content.trim() || "🎙️ भ्वाइस नोट",
+          message: contentText || "🎙️ Voice message",
+          messageNe: contentText || "🎙️ भ्वाइस नोट",
           link: `/dashboard?chat=${data.conversationId}`,
           isRead: false,
         },
       })
       .catch(() => {});
 
-    revalidatePath("/dashboard");
     return { success: true, message };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to send message.";
@@ -164,7 +252,9 @@ export async function sendMessage(data: {
 /* ── Fetch User's Conversations ───────────────────────────────── */
 export async function getUserConversations(): Promise<ConversationItem[]> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return [];
 
   const convos = await prisma.conversation.findMany({
@@ -172,6 +262,7 @@ export async function getUserConversations(): Promise<ConversationItem[]> {
       OR: [{ user1Id: user.id }, { user2Id: user.id }],
     },
     orderBy: { updatedAt: "desc" },
+    take: 50,
     include: {
       user1: {
         select: {

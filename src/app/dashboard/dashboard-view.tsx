@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -79,7 +79,7 @@ import {
   submitKycVerification,
 } from "@/app/actions/profile";
 import ChatModal from "@/components/chat-modal";
-import { getOrCreateConversation } from "@/app/actions/chat";
+import { getOrCreateConversation, type MessageItem } from "@/app/actions/chat";
 import { getWorkerTier } from "@/lib/constants";
 type JobApplicant = {
   id: string;
@@ -334,6 +334,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const [copiedPhone, setCopiedPhone] = useState(false);
 
   // In-App Chat Modal state
+  const [chatLoadingId, setChatLoadingId] = useState<string | null>(null);
   const [activeChat, setActiveChat] = useState<{
     conversationId: string;
     recipientName: string;
@@ -341,6 +342,8 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
     recipientPhoto?: string | null;
     recipientPhone?: string | null;
     recipientVerified?: boolean;
+    initialMessages?: MessageItem[];
+    currentUserId?: string;
   } | null>(null);
 
   const handleOpenChat = async (
@@ -353,19 +356,35 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
     jobId?: string | null
   ) => {
     try {
-      const convoId = await getOrCreateConversation(targetUserId, jobId);
+      setChatLoadingId(targetUserId);
+      const res = await getOrCreateConversation(targetUserId, jobId);
       setActiveChat({
-        conversationId: convoId,
+        conversationId: res.conversationId,
         recipientName: targetName,
         recipientRole: role,
         recipientPhoto: photo,
         recipientPhone: phone,
         recipientVerified: verified,
+        initialMessages: res.messages,
+        currentUserId: res.currentUserId || user.id,
       });
     } catch (err) {
       console.error("Failed to start chat:", err);
+    } finally {
+      setChatLoadingId(null);
     }
   };
+
+  useEffect(() => {
+    const chatParam = searchParams.get("chat");
+    if (chatParam && !activeChat) {
+      setActiveChat({
+        conversationId: chatParam,
+        recipientName: "Chat",
+        currentUserId: user.id,
+      });
+    }
+  }, [searchParams]);
 
   // Derived role helpers — used in initial state below
   const isWorker = user.role === "WORKER";
@@ -1757,6 +1776,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
 
                               <button
                                 type="button"
+                                disabled={chatLoadingId === app.job.recruiter?.id}
                                 onClick={() => {
                                   if (app.job.recruiter?.id) {
                                     handleOpenChat(
@@ -1772,9 +1792,13 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                     setChatModalApp(app);
                                   }
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
                               >
-                                <MessageCircle className="w-3.5 h-3.5" />
+                                {chatLoadingId === app.job.recruiter?.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                )}
                                 <span>In-App Chat</span>
                               </button>
 
@@ -2259,6 +2283,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                         <div className="flex flex-wrap items-center gap-2">
                                           <button
                                             type="button"
+                                            disabled={chatLoadingId === app.worker.id}
                                             onClick={() =>
                                               handleOpenChat(
                                                 app.worker.id,
@@ -2270,9 +2295,13 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                                                 job.id
                                               )
                                             }
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 text-white transition-all cursor-pointer shadow-xs"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white transition-all cursor-pointer shadow-xs"
                                           >
-                                            <MessageCircle className="w-3.5 h-3.5" />
+                                            {chatLoadingId === app.worker.id ? (
+                                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                              <MessageCircle className="w-3.5 h-3.5" />
+                                            )}
                                             <span>Chat</span>
                                           </button>
                                           {app.worker.phone && (
@@ -3310,8 +3339,9 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           recipientPhoto={activeChat.recipientPhoto}
           recipientPhone={activeChat.recipientPhone}
           recipientVerified={activeChat.recipientVerified}
-          currentUserId={user.id}
+          currentUserId={activeChat.currentUserId || user.id}
           currentUserRole={isWorker ? "WORKER" : "RECRUITER"}
+          initialMessages={activeChat.initialMessages}
         />
       )}
 

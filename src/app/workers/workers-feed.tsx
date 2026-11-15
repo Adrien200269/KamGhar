@@ -32,7 +32,7 @@ import {
 import { getPublicWorkers } from "@/app/actions/profile";
 import { NEPAL_DISTRICTS, getWorkerTier } from "@/lib/constants";
 import ChatModal from "@/components/chat-modal";
-import { getOrCreateConversation } from "@/app/actions/chat";
+import { getOrCreateConversation, type MessageItem } from "@/app/actions/chat";
 import { useLanguage } from "@/components/language-provider";
 import { calculateHaversineDistanceKm, formatDistance } from "@/lib/geo";
 import dynamic from "next/dynamic";
@@ -198,6 +198,7 @@ export default function WorkersFeed({
 
   const [selectedWorkerDetails, setSelectedWorkerDetails] = useState<WorkerItem | null>(null);
 
+  const [chatLoadingId, setChatLoadingId] = useState<string | null>(null);
   const [activeChat, setActiveChat] = useState<{
     conversationId: string;
     recipientName: string;
@@ -205,23 +206,28 @@ export default function WorkersFeed({
     recipientPhoto?: string | null;
     recipientPhone?: string | null;
     recipientVerified?: boolean;
-    currentUserId: string;
+    currentUserId?: string;
+    initialMessages?: MessageItem[];
   } | null>(null);
 
   const handleStartChat = async (worker: WorkerItem) => {
     try {
-      const convoId = await getOrCreateConversation(worker.userId);
+      setChatLoadingId(worker.userId);
+      const res = await getOrCreateConversation(worker.userId);
       setActiveChat({
-        conversationId: convoId,
+        conversationId: res.conversationId,
         recipientName: worker.name,
         recipientRole: "WORKER",
         recipientPhoto: worker.profilePhotoUrl,
         recipientPhone: worker.user.phone,
         recipientVerified: worker.kycStatus === "VERIFIED",
-        currentUserId: "", // Handled inside or server
+        currentUserId: res.currentUserId,
+        initialMessages: res.messages,
       });
     } catch (err) {
       console.error("Could not start chat:", err);
+    } finally {
+      setChatLoadingId(null);
     }
   };
 
@@ -664,9 +670,14 @@ export default function WorkersFeed({
 
                     <button
                       onClick={() => handleStartChat(worker)}
-                      className="w-full py-2 px-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-sm shadow-orange-600/20 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      disabled={chatLoadingId === worker.userId}
+                      className="w-full py-2 px-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-bold text-xs rounded-xl shadow-sm shadow-orange-600/20 transition-all flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      <MessageCircle className="w-3.5 h-3.5" />
+                      {chatLoadingId === worker.userId ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <MessageCircle className="w-3.5 h-3.5" />
+                      )}
                       <span>{lang === "ne" ? "च्याट" : "Chat Now"}</span>
                     </button>
 
@@ -1037,8 +1048,9 @@ export default function WorkersFeed({
           recipientPhoto={activeChat.recipientPhoto}
           recipientPhone={activeChat.recipientPhone}
           recipientVerified={activeChat.recipientVerified}
-          currentUserId=""
+          currentUserId={activeChat.currentUserId}
           currentUserRole="RECRUITER"
+          initialMessages={activeChat.initialMessages}
         />
       )}
     </div>

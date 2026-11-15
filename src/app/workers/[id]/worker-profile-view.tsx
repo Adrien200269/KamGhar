@@ -30,7 +30,7 @@ import AppHeader from "@/components/app-header";
 import { useLanguage } from "@/components/language-provider";
 import { getWorkerTier } from "@/lib/constants";
 import { requestDirectHire } from "@/app/actions/job";
-import { getOrCreateConversation } from "@/app/actions/chat";
+import { getOrCreateConversation, type MessageItem } from "@/app/actions/chat";
 import ChatModal from "@/components/chat-modal";
 import BoostPaymentModal from "@/components/boost-payment-modal";
 import WorkerVisitingCardModal from "@/components/worker-visiting-card-modal";
@@ -99,16 +99,23 @@ export default function WorkerProfileView({
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
+  const [isStartingChat, setIsStartingChat] = useState(false);
+  const [chatInitialMessages, setChatInitialMessages] = useState<MessageItem[] | undefined>(undefined);
+
   const handleStartChat = async () => {
     if (!currentUserId) {
       router.push(`/login?next=/workers/${worker.id}`);
       return;
     }
     try {
-      const convoId = await getOrCreateConversation(worker.id);
-      setActiveChatConvoId(convoId);
+      setIsStartingChat(true);
+      const res = await getOrCreateConversation(worker.id);
+      setChatInitialMessages(res.messages);
+      setActiveChatConvoId(res.conversationId);
     } catch (err) {
       console.error("Failed to start chat:", err);
+    } finally {
+      setIsStartingChat(false);
     }
   };
 
@@ -292,10 +299,15 @@ export default function WorkerProfileView({
 
                   <button
                     type="button"
+                    disabled={isStartingChat}
                     onClick={handleStartChat}
-                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-800 dark:text-slate-200 text-xs font-bold transition"
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 disabled:opacity-60 text-slate-800 dark:text-slate-200 text-xs font-bold transition cursor-pointer"
                   >
-                    <MessageSquare className="w-4 h-4 text-orange-600" />
+                    {isStartingChat ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+                    ) : (
+                      <MessageSquare className="w-4 h-4 text-orange-600" />
+                    )}
                     <span>{tx("Chat", "च्याट")}</span>
                   </button>
 
@@ -708,6 +720,7 @@ export default function WorkerProfileView({
           recipientVerified={profile.kycStatus === "VERIFIED"}
           onClose={() => setActiveChatConvoId(null)}
           currentUserId={currentUserId!}
+          initialMessages={chatInitialMessages}
         />
       )}
     </div>

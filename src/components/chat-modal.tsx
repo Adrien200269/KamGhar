@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   Languages,
   CheckCheck,
-  Globe,
+  Clock,
 } from "lucide-react";
 import {
   sendMessage,
@@ -23,7 +23,6 @@ import {
 import {
   RECRUITER_QUICK_TEMPLATES,
   WORKER_QUICK_TEMPLATES,
-  QUICK_TEMPLATES,
   type QuickChatTemplate,
 } from "@/lib/constants";
 
@@ -38,6 +37,11 @@ interface ChatModalProps {
   recipientVerified?: boolean;
   currentUserId?: string;
   currentUserRole?: "WORKER" | "RECRUITER";
+  initialMessages?: MessageItem[];
+}
+
+function createOptimisticId(counter: number): string {
+  return `optimistic-${Date.now()}-${counter}`;
 }
 
 export default function ChatModal({
@@ -51,31 +55,42 @@ export default function ChatModal({
   recipientVerified,
   currentUserId,
   currentUserRole,
+  initialMessages,
 }: ChatModalProps) {
-  const [activeUserId, setActiveUserId] = useState<string>(currentUserId || "");
-  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [fetchedUserId, setFetchedUserId] = useState<string>("");
+  const activeUserId = currentUserId || fetchedUserId;
+
+  const [messages, setMessages] = useState<MessageItem[]>(initialMessages || []);
   const [inputText, setInputText] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialMessages === undefined);
   const [sending, setSending] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const msgCounterRef = useRef(0);
+
+  // Latest message timestamp tracker for incremental polling
+  const latestTimestampRef = useRef<string | null>(
+    initialMessages && initialMessages.length > 0
+      ? new Date(initialMessages[initialMessages.length - 1].createdAt).toISOString()
+      : null
+  );
 
   useEffect(() => {
-    if (currentUserId) {
-      setActiveUserId(currentUserId);
-    } else {
+    if (!currentUserId) {
       import("@/lib/supabase/client").then(({ createClient }) => {
         const supabase = createClient();
         supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user) setActiveUserId(user.id);
+          if (user) setFetchedUserId(user.id);
         });
       });
     }
   }, [currentUserId]);
 
   // Role-tailored quick chat states
-  const initialRole: "WORKER" | "RECRUITER" =
+  const defaultRole: "WORKER" | "RECRUITER" =
     currentUserRole || (recipientRole === "WORKER" ? "RECRUITER" : "WORKER");
-  const [templateRole, setTemplateRole] = useState<"WORKER" | "RECRUITER">(initialRole);
+  const [selectedRole, setSelectedRole] = useState<"WORKER" | "RECRUITER" | null>(null);
+  const templateRole = selectedRole || defaultRole;
+
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [chatLangMode, setChatLangMode] = useState<"both" | "ne" | "en">("both");
 
@@ -87,16 +102,6 @@ export default function ChatModal({
     if (mode === "en") return tmpl.english;
     return `${tmpl.nepali}\n(${tmpl.english})`;
   };
-
-  useEffect(() => {
-    if (currentUserRole) {
-      setTemplateRole(currentUserRole);
-    } else if (recipientRole === "WORKER") {
-      setTemplateRole("RECRUITER");
-    } else if (recipientRole === "RECRUITER") {
-      setTemplateRole("WORKER");
-    }
-  }, [currentUserRole, recipientRole]);
 
   const activeTemplates =
     templateRole === "RECRUITER" ? RECRUITER_QUICK_TEMPLATES : WORKER_QUICK_TEMPLATES;
@@ -123,35 +128,72 @@ export default function ChatModal({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Poll or refresh conversation messages
+  // Initial load and fast incremental polling
   useEffect(() => {
     if (!isOpen || !conversationId) return;
 
     let mounted = true;
-    const fetchMsgs = async () => {
+
+    // Fetch full messages if not provided via props
+    if (initialMessages === undefined) {
+      getConversationMessages(conversationId)
+        .then((msgs) => {
+          if (mounted) {
+            setMessages(msgs);
+            setLoading(false);
+            if (msgs.length > 0) {
+              const last = msgs[msgs.length - 1];
+              latestTimestampRef.current = new Date(last.createdAt).toISOString();
+            }
+          }
+        })
+        .catch((err) => {
+          console.error("Error loading chat messages:", err);
+          if (mounted) setLoading(false);
+        });
+    }
+
+    // Fast incremental polling: only fetches new messages since latest timestamp
+    // and pauses automatically when the user is on another tab
+    const pollInterval = setInterval(async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+
       try {
-        const msgs = await getConversationMessages(conversationId);
-        if (mounted) {
-          setMessages(msgs as any);
-          setLoading(false);
+        const since = latestTimestampRef.current;
+        if (since) {
+          const newMsgs = await getConversationMessages(conversationId, since);
+          if (mounted && newMsgs && newMsgs.length > 0) {
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id));
+              const fresh = newMsgs.filter((m) => !existingIds.has(m.id));
+              if (fresh.length === 0) return prev;
+              return [...prev, ...fresh];
+            });
+            const last = newMsgs[newMsgs.length - 1];
+            latestTimestampRef.current = new Date(last.createdAt).toISOString();
+          }
+        } else {
+          const msgs = await getConversationMessages(conversationId);
+          if (mounted && msgs && msgs.length > 0) {
+            setMessages(msgs);
+            const last = msgs[msgs.length - 1];
+            latestTimestampRef.current = new Date(last.createdAt).toISOString();
+          }
         }
       } catch (err) {
-        console.error("Error loading chat messages:", err);
+        console.error("Polling error:", err);
       }
-    };
-
-    fetchMsgs();
-    const interval = setInterval(fetchMsgs, 3000);
+    }, 2500);
 
     return () => {
       mounted = false;
-      clearInterval(interval);
+      clearInterval(pollInterval);
     };
-  }, [isOpen, conversationId]);
+  }, [isOpen, conversationId, initialMessages]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages.length]);
 
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend ?? inputText).trim();
@@ -161,6 +203,21 @@ export default function ChatModal({
     setInputText("");
     setShowTemplates(false);
 
+    // Instant Optimistic Message Render
+    const tempId = createOptimisticId(msgCounterRef.current++);
+    const optimisticMessage: MessageItem = {
+      id: tempId,
+      conversationId,
+      senderId: activeUserId || currentUserId || "me",
+      receiverId: "",
+      content: text,
+      audioUrl: null,
+      isRead: false,
+      createdAt: new Date(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+
     try {
       const res = await sendMessage({
         conversationId,
@@ -168,10 +225,18 @@ export default function ChatModal({
       });
 
       if (res.success && res.message) {
-        setMessages((prev) => [...prev, res.message as any]);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? (res.message as MessageItem) : m))
+        );
+        latestTimestampRef.current = new Date(res.message.createdAt).toISOString();
+      } else {
+        // Roll back on error
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        alert(res.error || "Failed to send message.");
       }
     } catch (err) {
       console.error("Send error:", err);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setSending(false);
     }
@@ -193,12 +258,25 @@ export default function ChatModal({
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        // Create an object URL or base64 representation for instant preview & transfer
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
           const base64Audio = reader.result as string;
           setSending(true);
+
+          const tempId = createOptimisticId(msgCounterRef.current++);
+          const optimisticMsg: MessageItem = {
+            id: tempId,
+            conversationId,
+            senderId: activeUserId || currentUserId || "me",
+            receiverId: "",
+            content: "🎙️ Voice Message (" + recordingSeconds + "s)",
+            audioUrl: base64Audio,
+            isRead: false,
+            createdAt: new Date(),
+          };
+          setMessages((prev) => [...prev, optimisticMsg]);
+
           try {
             const res = await sendMessage({
               conversationId,
@@ -206,7 +284,10 @@ export default function ChatModal({
               audioUrl: base64Audio,
             });
             if (res.success && res.message) {
-              setMessages((prev) => [...prev, res.message as any]);
+              setMessages((prev) =>
+                prev.map((m) => (m.id === tempId ? (res.message as MessageItem) : m))
+              );
+              latestTimestampRef.current = new Date(res.message.createdAt).toISOString();
             }
           } finally {
             setSending(false);
@@ -221,7 +302,7 @@ export default function ChatModal({
       timerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
-    } catch (err) {
+    } catch {
       alert("Microphone permission denied or not supported on this browser.");
     }
   };
@@ -321,7 +402,7 @@ export default function ChatModal({
                     <button
                       type="button"
                       onClick={() => {
-                        setTemplateRole("RECRUITER");
+                        setSelectedRole("RECRUITER");
                         setSelectedCategory("ALL");
                       }}
                       className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -336,7 +417,7 @@ export default function ChatModal({
                     <button
                       type="button"
                       onClick={() => {
-                        setTemplateRole("WORKER");
+                        setSelectedRole("WORKER");
                         setSelectedCategory("ALL");
                       }}
                       className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -497,6 +578,8 @@ export default function ChatModal({
             ) : (
               messages.map((m) => {
                 const isMe = activeUserId ? m.senderId === activeUserId : m.senderId === currentUserId;
+                const isOptimistic = m.id.startsWith("optimistic-");
+
                 return (
                   <div
                     key={m.id}
@@ -509,7 +592,7 @@ export default function ChatModal({
                           : "bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200/80 dark:border-slate-700/80 rounded-bl-xs"
                       }`}
                     >
-                      <p>{m.content}</p>
+                      <p className="whitespace-pre-wrap">{m.content}</p>
 
                       {/* Audio Voice Note Player if present */}
                       {m.audioUrl && (
@@ -525,7 +608,13 @@ export default function ChatModal({
                           minute: "2-digit",
                         })}
                       </span>
-                      {isMe && <CheckCheck className="w-3 h-3 text-orange-500" />}
+                      {isMe && (
+                        isOptimistic ? (
+                          <Clock className="w-3 h-3 text-slate-400 animate-pulse" />
+                        ) : (
+                          <CheckCheck className="w-3 h-3 text-orange-500" />
+                        )
+                      )}
                     </div>
                   </div>
                 );
@@ -623,7 +712,7 @@ export default function ChatModal({
             </div>
 
             {isRecording ? (
-              <div className="flex items-center justify-between bg-red-50 dark:bg-red-950/40 p-2.5 rounded-2xl border border-red-200 dark:border-red-900/60">
+              <div className="flex items-center justify-between bg-red-50 dark:bg-red-950/40 p-2.5 rounded-2xl border border-red-200 dark:red-900/60">
                 <div className="flex items-center gap-2">
                   <span className="w-3 h-3 rounded-full bg-red-600 animate-ping" />
                   <span className="text-xs font-bold text-red-700 dark:text-red-400">
