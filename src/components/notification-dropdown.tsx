@@ -46,6 +46,8 @@ export default function NotificationDropdown({ onOpenChat }: NotificationDropdow
   const { lang, tx } = useLanguage();
 
   const fetchNotifs = async () => {
+    // Avoid hammering network when tab is hidden or in background
+    if (typeof document !== "undefined" && document.hidden) return;
     try {
       const data = await getUserNotifications();
       setNotifications(data.notifications);
@@ -57,8 +59,19 @@ export default function NotificationDropdown({ onOpenChat }: NotificationDropdow
 
   useEffect(() => {
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 6000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchNotifs, 15000);
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        fetchNotifs();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 
   // Close on outside click

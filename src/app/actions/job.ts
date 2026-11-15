@@ -406,10 +406,25 @@ export async function applyToJob(input: {
   const { jobId, coverNote, proposedRate, audioUrl } = input;
 
   try {
-    const job = await prisma.job.findUnique({
-      where: { id: jobId },
-      select: { id: true, recruiterId: true, status: true },
-    });
+    // Run pre-checks concurrently to minimize round-trips
+    const [job, dbUser, existing] = await Promise.all([
+      prisma.job.findUnique({
+        where: { id: jobId },
+        select: { id: true, recruiterId: true, status: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: user.id },
+        include: { workerProfile: true },
+      }),
+      prisma.application.findUnique({
+        where: {
+          jobId_workerId: {
+            jobId,
+            workerId: user.id,
+          },
+        },
+      }),
+    ]);
 
     if (!job) {
       return { success: false, error: "Job not found." };
@@ -423,15 +438,14 @@ export async function applyToJob(input: {
       return { success: false, error: "You cannot apply to your own posted job." };
     }
 
-    // Ensure user exists in database
-    let dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: { workerProfile: true },
-    });
+    if (existing) {
+      return { success: false, error: "You have already applied for this job." };
+    }
 
-    if (!dbUser) {
+    let activeUser = dbUser;
+    if (!activeUser) {
       const name = user.user_metadata?.name || user.email?.split("@")[0] || "Worker";
-      dbUser = await prisma.user.create({
+      activeUser = await prisma.user.create({
         data: {
           id: user.id,
           email: user.email!,
@@ -442,20 +456,6 @@ export async function applyToJob(input: {
         },
         include: { workerProfile: true },
       });
-    }
-
-    // Check if already applied
-    const existing = await prisma.application.findUnique({
-      where: {
-        jobId_workerId: {
-          jobId,
-          workerId: user.id,
-        },
-      },
-    });
-
-    if (existing) {
-      return { success: false, error: "You have already applied for this job." };
     }
 
     await prisma.application.create({
@@ -477,8 +477,8 @@ export async function applyToJob(input: {
           type: "JOB_APPLICATION",
           title: "New Job Applicant! 💼",
           titleNe: "नयाँ कामदारको आवेदन! 💼",
-          message: `${dbUser.workerProfile?.name || "A worker"} applied for your job with proposed rate Rs. ${proposedRate || "Negotiable"}.`,
-          messageNe: `${dbUser.workerProfile?.name || "कामदार"} ले तपाईंको कामको लागि रु. ${proposedRate || "सहमति अनुसार"} मा आवेदन दिनुभयो।`,
+          message: `${activeUser?.workerProfile?.name || "A worker"} applied for your job with proposed rate Rs. ${proposedRate || "Negotiable"}.`,
+          messageNe: `${activeUser?.workerProfile?.name || "कामदार"} ले तपाईंको कामको लागि रु. ${proposedRate || "सहमति अनुसार"} मा आवेदन दिनुभयो।`,
           link: "/dashboard",
           isRead: false,
         },
@@ -497,14 +497,18 @@ export async function applyToJob(input: {
 }
 
 /* ── Get Applied Job IDs for Current User ──────────────────── */
-export async function getAppliedJobIds(): Promise<string[]> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function getAppliedJobIds(userId?: string): Promise<string[]> {
+  let targetId = userId;
+  if (!targetId) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    targetId = user.id;
+  }
 
   try {
     const applications = await prisma.application.findMany({
-      where: { workerId: user.id },
+      where: { workerId: targetId },
       select: { jobId: true },
     });
     return applications.map((a) => a.jobId);

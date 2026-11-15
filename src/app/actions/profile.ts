@@ -580,12 +580,6 @@ export async function getPublicWorkers(filters?: {
   availableOnly?: boolean;
   verifiedOnly?: boolean;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return [];
-  }
-
   const where: any = {
     // Only genuine workers should appear in public directory, never admins or platform staff
     user: {

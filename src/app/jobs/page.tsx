@@ -12,10 +12,11 @@ export const metadata = {
 
 export default async function JobsPage() {
   const supabase = await createClient();
-  const [{ data: { user } }, initialJobs, appliedJobIds] = await Promise.all([
-    supabase.auth.getUser(),
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const [initialJobs, appliedJobIds] = await Promise.all([
     getJobs(),
-    getAppliedJobIds(),
+    user ? getAppliedJobIds(user.id) : Promise.resolve([]),
   ]);
 
   return (

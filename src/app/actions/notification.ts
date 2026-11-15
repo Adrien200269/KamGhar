@@ -61,26 +61,89 @@ export async function getUserNotifications(): Promise<{
 
     const items: NotificationItem[] = [];
 
-    // 1. Text Messages received by this user
-    const recentMessages = await prisma.message.findMany({
-      where: { receiverId: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 15,
-      include: {
-        sender: {
+    const isWorkerUser = user.role === "WORKER" || !!user.workerProfile;
+
+    // Fetch all notification sources concurrently in a single round-trip
+    const [recentMessages, applicationsOnMyJobs, myApplications, urgentJobs, stored] =
+      await Promise.all([
+        // 1. Text Messages received by this user
+        prisma.message.findMany({
+          where: { receiverId: user.id },
+          orderBy: { createdAt: "desc" },
+          take: 15,
           include: {
-            workerProfile: true,
-            recruiterProfile: true,
+            sender: {
+              include: {
+                workerProfile: true,
+                recruiterProfile: true,
+              },
+            },
+            conversation: {
+              include: {
+                job: true,
+              },
+            },
           },
-        },
-        conversation: {
+        }),
+
+        // 2. Job Applications (For Recruiters)
+        prisma.application.findMany({
+          where: {
+            job: { recruiterId: user.id },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 12,
           include: {
             job: true,
+            worker: {
+              include: {
+                workerProfile: true,
+              },
+            },
           },
-        },
-      },
-    });
+        }),
 
+        // 3. Application Status Updates (For Workers)
+        isWorkerUser
+          ? prisma.application.findMany({
+              where: {
+                workerId: user.id,
+                status: { not: "APPLIED" },
+              },
+              orderBy: { updatedAt: "desc" },
+              take: 10,
+              include: {
+                job: true,
+              },
+            })
+          : Promise.resolve([]),
+
+        // 4. Urgent Gigs Broadcasted in Nepal
+        isWorkerUser
+          ? prisma.job.findMany({
+              where: {
+                urgency: "URGENT",
+                status: "OPEN",
+                createdAt: {
+                  gte: new Date(Date.now() - 48 * 60 * 60 * 1000),
+                },
+              },
+              orderBy: { createdAt: "desc" },
+              take: 4,
+            })
+          : Promise.resolve([]),
+
+        // 5. Stored Notification records from DB
+        prisma.notification
+          .findMany({
+            where: { userId: user.id },
+            orderBy: { createdAt: "desc" },
+            take: 20,
+          })
+          .catch(() => []),
+      ]);
+
+    // Process 1. Messages
     for (const m of recentMessages) {
       const senderName =
         m.sender.workerProfile?.name ||
@@ -117,23 +180,7 @@ export async function getUserNotifications(): Promise<{
       });
     }
 
-    // 2. Job Applications (For Recruiters)
-    const applicationsOnMyJobs = await prisma.application.findMany({
-      where: {
-        job: { recruiterId: user.id },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 12,
-      include: {
-        job: true,
-        worker: {
-          include: {
-            workerProfile: true,
-          },
-        },
-      },
-    });
-
+    // Process 2. Job Applications
     for (const app of applicationsOnMyJobs) {
       const workerName =
         app.worker.workerProfile?.name ||
@@ -156,94 +203,58 @@ export async function getUserNotifications(): Promise<{
       });
     }
 
-    // 3. Application Status Updates (For Workers)
-    if (user.role === "WORKER" || user.workerProfile) {
-      const myApplications = await prisma.application.findMany({
-        where: {
-          workerId: user.id,
-          status: { not: "APPLIED" },
-        },
-        orderBy: { updatedAt: "desc" },
-        take: 10,
-        include: {
-          job: true,
-        },
+    // Process 3. Application Status Updates
+    for (const app of myApplications) {
+      const isAccepted = app.status === "ACCEPTED";
+      items.push({
+        id: `app-status-${app.id}`,
+        type: "APPLICATION_STATUS",
+        title: isAccepted ? `Application Accepted! 🎉` : `Application Status: ${app.status}`,
+        titleNe: isAccepted ? `आवेदन स्वीकृत भयो! 🎉` : `आवेदन स्थिति: ${app.status}`,
+        message: isAccepted
+          ? `Your proposal for "${app.job.title}" was accepted by recruiter! Tap to coordinate.`
+          : `Your application for "${app.job.title}" has been updated to ${app.status.toLowerCase()}.`,
+        messageNe: isAccepted
+          ? `"${app.job.title}" को लागि तपाईंको आवेदन स्वीकृत भयो! अब कुरा सुरु गर्नुहोस्।`
+          : `"${app.job.title}" को आवेदन स्थिति: ${app.status}`,
+        createdAt: app.updatedAt.toISOString(),
+        isRead: false,
+        jobId: app.jobId,
+        jobTitle: app.job.title,
+        link: "/dashboard",
       });
-
-      for (const app of myApplications) {
-        const isAccepted = app.status === "ACCEPTED";
-        items.push({
-          id: `app-status-${app.id}`,
-          type: "APPLICATION_STATUS",
-          title: isAccepted ? `Application Accepted! 🎉` : `Application Status: ${app.status}`,
-          titleNe: isAccepted ? `आवेदन स्वीकृत भयो! 🎉` : `आवेदन स्थिति: ${app.status}`,
-          message: isAccepted
-            ? `Your proposal for "${app.job.title}" was accepted by recruiter! Tap to coordinate.`
-            : `Your application for "${app.job.title}" has been updated to ${app.status.toLowerCase()}.`,
-          messageNe: isAccepted
-            ? `"${app.job.title}" को लागि तपाईंको आवेदन स्वीकृत भयो! अब कुरा सुरु गर्नुहोस्।`
-            : `"${app.job.title}" को आवेदन स्थिति: ${app.status}`,
-          createdAt: app.updatedAt.toISOString(),
-          isRead: false,
-          jobId: app.jobId,
-          jobTitle: app.job.title,
-          link: "/dashboard",
-        });
-      }
-
-      // 4. Urgent Gigs Broadcasted in Nepal
-      const urgentJobs = await prisma.job.findMany({
-        where: {
-          urgency: "URGENT",
-          status: "OPEN",
-          createdAt: {
-            gte: new Date(Date.now() - 48 * 60 * 60 * 1000),
-          },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 4,
-      });
-
-      for (const job of urgentJobs) {
-        items.push({
-          id: `urgent-${job.id}`,
-          type: "URGENT_BROADCAST",
-          title: `🚨 Urgent Gig: ${job.title}`,
-          titleNe: `🚨 आपतकालीन काम: ${job.title}`,
-          message: `Location: ${job.address} • Budget Rs. ${job.budget || "Negotiable"}`,
-          messageNe: `स्थान: ${job.address} • बजेट रु. ${job.budget || "सहमति अनुसार"}`,
-          createdAt: job.createdAt.toISOString(),
-          isRead: false,
-          jobId: job.id,
-          jobTitle: job.title,
-          link: "/jobs",
-        });
-      }
     }
 
-    // 5. Stored Notification records from DB
-    try {
-      const stored = await prisma.notification.findMany({
-        where: { userId: user.id },
-        orderBy: { createdAt: "desc" },
-        take: 20,
+    // Process 4. Urgent Gigs
+    for (const job of urgentJobs) {
+      items.push({
+        id: `urgent-${job.id}`,
+        type: "URGENT_BROADCAST",
+        title: `🚨 Urgent Gig: ${job.title}`,
+        titleNe: `🚨 आपतकालीन काम: ${job.title}`,
+        message: `Location: ${job.address} • Budget Rs. ${job.budget || "Negotiable"}`,
+        messageNe: `स्थान: ${job.address} • बजेट रु. ${job.budget || "सहमति अनुसार"}`,
+        createdAt: job.createdAt.toISOString(),
+        isRead: false,
+        jobId: job.id,
+        jobTitle: job.title,
+        link: "/jobs",
       });
+    }
 
-      for (const st of stored) {
-        items.push({
-          id: st.id,
-          type: st.type as NotificationType,
-          title: st.title,
-          titleNe: st.titleNe || st.title,
-          message: st.message,
-          messageNe: st.messageNe || st.message,
-          createdAt: st.createdAt.toISOString(),
-          isRead: st.isRead,
-          link: st.link,
-        });
-      }
-    } catch {
-      // Ignore if table temporarily syncing
+    // Process 5. Stored Notification records from DB
+    for (const st of stored) {
+      items.push({
+        id: st.id,
+        type: st.type as NotificationType,
+        title: st.title,
+        titleNe: st.titleNe || st.title,
+        message: st.message,
+        messageNe: st.messageNe || st.message,
+        createdAt: st.createdAt.toISOString(),
+        isRead: st.isRead,
+        link: st.link,
+      });
     }
 
     // Sort all descending by timestamp

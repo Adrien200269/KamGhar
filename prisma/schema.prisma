@@ -173,6 +173,8 @@ model Job {
 
   @@index([category])
   @@index([status])
+  @@index([status, createdAt])
+  @@index([recruiterId, createdAt])
   @@index([latitude, longitude])
   @@index([isBoosted])
   @@map("jobs")
@@ -195,6 +197,8 @@ model Application {
   @@index([jobId])
   @@index([workerId])
   @@index([status])
+  @@index([workerId, status])
+  @@index([workerId, createdAt])
   @@map("applications")
 }
 
@@ -302,5 +306,7 @@ model Notification {
 
   @@index([userId])
   @@index([isRead])
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
   @@map("notifications")
 }
