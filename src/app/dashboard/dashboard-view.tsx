@@ -854,7 +854,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           animate={{ y: 0, opacity: 1 }}
           className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200"
         >
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+          <div className="w-full px-4 sm:px-8 h-16 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               {/* Mobile hamburger trigger for sidebar drawer */}
               <button
@@ -930,7 +930,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           </div>
         </motion.header>
 
-        <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 pb-24 sm:pb-8">
+        <main className="w-full max-w-7xl px-4 sm:px-8 py-6 sm:py-8 space-y-6 pb-24 sm:pb-8">
           {/* Section Breadcrumb Bar when drilled into a specific tab */}
           {dashboardTab !== "overview" && (
             <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800/80">

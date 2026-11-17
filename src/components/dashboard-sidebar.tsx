@@ -104,16 +104,22 @@ export default function DashboardSidebar({
 
   const navItemClass = (tab: DashboardTab) => {
     const isActive = activeTab === tab;
-    return `group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none ${
+    return `group flex items-center transition-all cursor-pointer select-none ${
+      collapsed
+        ? "w-10 h-10 mx-auto justify-center rounded-xl"
+        : "w-full gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold"
+    } ${
       isActive
         ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold shadow-xs border border-orange-500/20"
         : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
-    } ${collapsed ? "justify-center px-2" : ""}`;
+    }`;
   };
 
-  const externalLinkClass = `group flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all cursor-pointer ${
-    collapsed ? "justify-center px-2" : ""
-  }`;
+  const externalLinkClass = `group flex items-center transition-all cursor-pointer ${
+    collapsed
+      ? "w-10 h-10 mx-auto justify-center rounded-xl"
+      : "w-full gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold"
+  } text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60`;
 
   return (
     <>
@@ -136,27 +142,36 @@ export default function DashboardSidebar({
         }`}
       >
         {/* ── Brand Header ── */}
-        <div className="h-16 px-4 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between shrink-0">
+        <div className="h-16 px-3 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between shrink-0">
           <Link
             href="/"
             className={`flex items-center gap-2.5 ${
               collapsed ? "justify-center w-full" : ""
             }`}
           >
-            <div className="dark:bg-white dark:rounded-xl dark:px-2 dark:py-1 transition-all">
-              <Image
-                src="/logo.png"
-                alt="KamGhar"
-                width={100}
-                height={32}
-                priority
-                className={`w-auto object-contain ${collapsed ? "h-6" : "h-7"}`}
-              />
-            </div>
-            {!collapsed && (
-              <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950/70 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
-                {isWorker ? "Worker" : "Client"}
-              </span>
+            {collapsed ? (
+              <div
+                className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-black text-sm shadow-sm shadow-orange-500/25 shrink-0"
+                title="KamGhar"
+              >
+                KG
+              </div>
+            ) : (
+              <>
+                <div className="dark:bg-white dark:rounded-xl dark:px-2 dark:py-1 transition-all">
+                  <Image
+                    src="/logo.png"
+                    alt="KamGhar"
+                    width={100}
+                    height={32}
+                    priority
+                    className="h-7 w-auto object-contain"
+                  />
+                </div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-orange-100 dark:bg-orange-950/70 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                  {isWorker ? "Worker" : "Client"}
+                </span>
+              </>
             )}
           </Link>
 
@@ -171,15 +186,19 @@ export default function DashboardSidebar({
         </div>
 
         {/* ── User Profile Card Snippet ── */}
-        <div className="p-3 border-b border-slate-200/80 dark:border-slate-800/80 shrink-0">
-          <div
-            className={`flex items-center gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800/60 ${
-              collapsed ? "justify-center p-1.5" : ""
-            }`}
-          >
-            {/* Avatar with Status Pulse */}
-            <div className="relative shrink-0">
-              <div className="w-10 h-10 rounded-xl overflow-hidden bg-orange-100 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 flex items-center justify-center text-orange-700 dark:text-orange-300 font-bold text-sm">
+        <div
+          className={`border-b border-slate-200/80 dark:border-slate-800/80 shrink-0 ${
+            collapsed ? "py-3 flex justify-center" : "p-3"
+          }`}
+        >
+          {collapsed ? (
+            <button
+              type="button"
+              onClick={() => handleSelectTab("settings")}
+              className="relative cursor-pointer group focus:outline-none"
+              title={`${displayName} (${user.email}) - Settings`}
+            >
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-orange-100 dark:bg-orange-950/60 border-2 border-orange-200 dark:border-orange-800/80 flex items-center justify-center text-orange-700 dark:text-orange-300 font-bold text-sm shadow-xs transition-transform group-hover:scale-105">
                 {photoUrl ? (
                   <Image
                     src={photoUrl}
@@ -202,10 +221,37 @@ export default function DashboardSidebar({
                   }`}
                 />
               )}
-            </div>
+            </button>
+          ) : (
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800/60">
+              {/* Avatar with Status Pulse */}
+              <div className="relative shrink-0">
+                <div className="w-10 h-10 rounded-xl overflow-hidden bg-orange-100 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 flex items-center justify-center text-orange-700 dark:text-orange-300 font-bold text-sm">
+                  {photoUrl ? (
+                    <Image
+                      src={photoUrl}
+                      alt={displayName}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    displayName.charAt(0).toUpperCase()
+                  )}
+                </div>
+                {isWorker && (
+                  <span
+                    title={isAvailableNow ? "Available Now" : "Off-Duty"}
+                    className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${
+                      isAvailableNow
+                        ? "bg-emerald-500 ring-2 ring-emerald-500/20"
+                        : "bg-slate-400"
+                    }`}
+                  />
+                )}
+              </div>
 
-            {/* Profile Info */}
-            {!collapsed && (
+              {/* Profile Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
@@ -224,10 +270,10 @@ export default function DashboardSidebar({
                   {user.email}
                 </p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Quick Availability Switch for Workers */}
+          {/* Quick Availability Switch for Workers (Expanded only) */}
           {!collapsed && isWorker && onToggleAvailability && (
             <button
               type="button"
@@ -265,7 +311,11 @@ export default function DashboardSidebar({
         </div>
 
         {/* ── Navigation Links ── */}
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-5">
+        <div
+          className={`flex-1 overflow-y-auto scrollbar-none ${
+            collapsed ? "px-2 py-3 space-y-3" : "px-3 py-3 space-y-5"
+          }`}
+        >
           {/* Main Dashboard Section */}
           <div>
             {!collapsed && (
@@ -347,6 +397,10 @@ export default function DashboardSidebar({
               )}
             </nav>
           </div>
+
+          {collapsed && (
+            <div className="w-8 h-px bg-slate-200 dark:bg-slate-800 mx-auto my-1 shrink-0" />
+          )}
 
           {/* Discovery & Actions Section */}
           <div>
@@ -463,6 +517,10 @@ export default function DashboardSidebar({
             </div>
           </div>
 
+          {collapsed && (
+            <div className="w-8 h-px bg-slate-200 dark:bg-slate-800 mx-auto my-1 shrink-0" />
+          )}
+
           {/* Verification & Account Settings */}
           <div>
             {!collapsed && (
@@ -516,45 +574,63 @@ export default function DashboardSidebar({
         </div>
 
         {/* ── Footer Controls ── */}
-        <div className="p-3 border-t border-slate-200/80 dark:border-slate-800/80 shrink-0 space-y-2">
-          {/* Quick Preferences: Theme & Language */}
-          <div
-            className={`flex items-center gap-2 ${
-              collapsed ? "flex-col justify-center" : "justify-between"
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
-              <ThemeToggle />
-              <LanguageToggle />
-            </div>
+        <div
+          className={`border-t border-slate-200/80 dark:border-slate-800/80 shrink-0 ${
+            collapsed ? "py-3 px-2 flex flex-col items-center gap-2" : "p-3 space-y-2"
+          }`}
+        >
+          {collapsed ? (
+            <>
+              {/* Desktop Expand Toggle Button */}
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className="hidden lg:flex w-10 h-10 items-center justify-center rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Expand sidebar"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
 
-            {/* Desktop Collapse / Expand Toggle Button */}
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className="hidden lg:flex items-center justify-center p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? (
-                <ChevronRight className="w-4 h-4" />
-              ) : (
-                <ChevronLeft className="w-4 h-4" />
-              )}
-            </button>
-          </div>
+              {/* Sign Out Button */}
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                title={tx("Sign out", "लग आउट")}
+              >
+                <LogOut className="w-4 h-4 shrink-0" />
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ThemeToggle />
+                  <LanguageToggle />
+                </div>
 
-          {/* Sign Out Button */}
-          <button
-            type="button"
-            onClick={onSignOut}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer ${
-              collapsed ? "justify-center px-1" : ""
-            }`}
-            title={collapsed ? tx("Sign out", "लग आउट") : undefined}
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!collapsed && <span>{tx("Sign out", "लग आउट")}</span>}
-          </button>
+                {/* Desktop Collapse Button */}
+                <button
+                  type="button"
+                  onClick={onToggleCollapse}
+                  className="hidden lg:flex items-center justify-center p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Collapse sidebar"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Sign Out Button */}
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 shrink-0" />
+                <span>{tx("Sign out", "लग आउट")}</span>
+              </button>
+            </>
+          )}
         </div>
       </aside>
     </>
