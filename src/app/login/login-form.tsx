@@ -15,6 +15,7 @@ import {
   Mail,
 } from "lucide-react";
 import { loginUser } from "@/app/actions/auth";
+import GoogleAuthButton from "@/components/google-auth-button";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -23,13 +24,16 @@ export default function LoginForm() {
 
   const redirectParam = searchParams.get("redirect");
   const isWorkersRedirect = redirectParam === "/workers";
+  const errorParam = searchParams.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(
+    errorParam ? decodeURIComponent(errorParam) : null
+  );
   const [successMessage, setSuccessMessage] = useState<string | null>(
     passwordJustReset
       ? "Password updated! Log in with your new password."
@@ -99,6 +103,27 @@ export default function LoginForm() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Google One-Click Log In */}
+        <div className="mb-5">
+          <GoogleAuthButton
+            mode="signin"
+            next={redirectParam || "/dashboard"}
+            onError={(err) => setErrorMessage(err)}
+          />
+        </div>
+
+        {/* Clean Divider */}
+        <div className="relative my-5">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+          </div>
+          <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
+            <span className="bg-white dark:bg-slate-950 px-2.5 text-slate-400 font-semibold">
+              Or continue with email
+            </span>
+          </div>
+        </div>
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">

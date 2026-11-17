@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, startTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -243,6 +243,16 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [updatingAppId, setUpdatingAppId] = useState<string | null>(null);
+
+  // Local state for recruiter posted jobs to allow instant optimistic updates & synchronization
+  const [postedJobs, setPostedJobs] = useState<Job[]>(user.postedJobs ?? []);
+  useEffect(() => {
+    setPostedJobs(user.postedJobs ?? []);
+  }, [user.postedJobs]);
+
+  const [deleteJobModal, setDeleteJobModal] = useState<{ id: string; title: string } | null>(null);
+  const [isDeletingJob, setIsDeletingJob] = useState(false);
+  const [deleteJobError, setDeleteJobError] = useState<string | null>(null);
 
   // Boost and Receipt modals
   const [boostModalData, setBoostModalData] = useState<{
@@ -574,20 +584,54 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const handleStatusChange = async (jobId: string, newStatus: string) => {
     setUpdatingJobId(jobId);
     try {
-      await updateJobStatus(jobId, newStatus);
-      router.refresh();
+      const res = await updateJobStatus(jobId, newStatus);
+      if (res.success) {
+        setPostedJobs((prev) =>
+          prev.map((j) => (j.id === jobId ? { ...j, status: newStatus as any } : j))
+        );
+        startTransition(() => {
+          router.refresh();
+        });
+      } else {
+        alert(res.error || "Failed to update job status");
+      }
+    } catch {
+      alert("An unexpected error occurred while updating the status.");
     } finally {
       setUpdatingJobId(null);
     }
   };
 
   const handleDeleteJob = async (jobId: string) => {
-    if (!confirm("Are you sure you want to delete this job?")) return;
+    setIsDeletingJob(true);
+    setDeleteJobError(null);
     setUpdatingJobId(jobId);
+
+    // Optimistically remove from state
+    const previousJobs = postedJobs;
+    setPostedJobs((prev) => prev.filter((j) => j.id !== jobId));
+
     try {
-      await deleteJob(jobId);
-      router.refresh();
+      const res = await deleteJob(jobId);
+      if (res.success) {
+        setDeleteJobModal(null);
+        startTransition(() => {
+          router.refresh();
+        });
+      } else {
+        // Rollback optimistic update
+        setPostedJobs(previousJobs);
+        const errMsg = res.error || "Failed to delete job";
+        setDeleteJobError(errMsg);
+        alert(errMsg);
+      }
+    } catch (err: any) {
+      setPostedJobs(previousJobs);
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred while deleting the job.";
+      setDeleteJobError(msg);
+      alert(msg);
     } finally {
+      setIsDeletingJob(false);
       setUpdatingJobId(null);
     }
   };
@@ -730,7 +774,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
       )
     : !!(user.recruiterProfile && (user.recruiterProfile.address || user.recruiterProfile.businessName));
 
-  const filteredJobs = user.postedJobs.filter((job) => {
+  const filteredJobs = postedJobs.filter((job) => {
     if (jobFilter === "OPEN") return job.status === "OPEN";
     if (jobFilter === "COMPLETED") return job.status === "COMPLETED";
     return true;
@@ -1105,7 +1149,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                       <span>{tx("Jobs Posted", "पोस्ट गरिएका कामहरू")}</span>
                     </div>
                     <span className="font-bold text-slate-900 dark:text-white">
-                      {user.postedJobs.length}
+                      {postedJobs.length}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1114,7 +1158,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                       <span>{tx("Open Gigs", "खुला कामहरू")}</span>
                     </div>
                     <span className="font-bold text-slate-900 dark:text-white">
-                      {user.postedJobs.filter((j) => j.status === "OPEN").length}
+                      {postedJobs.filter((j) => j.status === "OPEN").length}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1123,7 +1167,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                       <span>Completed</span>
                     </div>
                     <span className="font-bold text-slate-900 dark:text-white">
-                      {user.postedJobs.filter((j) => j.status === "COMPLETED").length}
+                      {postedJobs.filter((j) => j.status === "COMPLETED").length}
                     </span>
                   </div>
                 </div>
@@ -1208,7 +1252,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   icon={<Flame className="w-5 h-5 text-amber-500" />}
                   label={tx("Boost a Job", "काम बुस्ट गर्नुहोस्")}
                   onClick={() => {
-                    const firstOpen = user.postedJobs.find((j) => j.status === "OPEN");
+                    const firstOpen = postedJobs.find((j) => j.status === "OPEN");
                     if (firstOpen) {
                       setBoostModalData({
                         type: "BOOST_JOB",
@@ -2041,12 +2085,17 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                           )}
 
                           <button
+                            type="button"
                             disabled={updatingJobId === job.id}
-                            onClick={() => handleDeleteJob(job.id)}
+                            onClick={() => setDeleteJobModal({ id: job.id, title: job.title })}
                             title="Delete Job"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer disabled:opacity-50"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {updatingJobId === job.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-red-600" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
                       </div>
@@ -3421,6 +3470,70 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           contactPhone={safetyModalData.contactPhone}
         />
       )}
+
+      {/* ── Delete Job Confirmation Modal ────────────────────── */}
+      <AnimatePresence>
+        {deleteJobModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4"
+            >
+              <div className="flex items-center gap-3 text-red-600">
+                <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/50 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    {tx("Delete Job Posting", "कामको विज्ञापन मेटाउनुहोस्")}
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    {tx("This action cannot be undone", "यो कार्य उल्टाउन सकिँदैन")}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                {tx(
+                  `Are you sure you want to permanently delete "${deleteJobModal.title}"? All associated worker applications will also be removed.`,
+                  `के तपाईं "${deleteJobModal.title}" स्थायी रूपमा मेटाउन निश्चित हुनुहुन्छ? यससँग सम्बन्धित सबै आवेदनहरू पनि हटाइनेछ।`
+                )}
+              </p>
+
+              {deleteJobError && (
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-xs text-red-600 font-semibold">
+                  {deleteJobError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  disabled={isDeletingJob}
+                  onClick={() => {
+                    setDeleteJobModal(null);
+                    setDeleteJobError(null);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                >
+                  {tx("Cancel", "रद्द गर्नुहोस्")}
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingJob}
+                  onClick={() => handleDeleteJob(deleteJobModal.id)}
+                  className="px-4 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isDeletingJob && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isDeletingJob ? tx("Deleting...", "मेटाउँदै...") : tx("Delete Job", "काम मेटाउनुहोस्")}</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

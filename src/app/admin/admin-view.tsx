@@ -2822,6 +2822,45 @@ export default function AdminView({
         )}
       </AnimatePresence>
 
+      {/* Delete Job Modal */}
+      <AnimatePresence>
+        {deleteJobTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4"
+            >
+              <h4 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 text-rose-600">
+                <Trash2 className="w-5 h-5" />
+                <span>Delete Job Listing</span>
+              </h4>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                Are you sure you want to permanently delete job posting <span className="font-bold">&ldquo;{deleteJobTarget.title}&rdquo;</span>? This will remove all applications, conversations, and records tied to this job.
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteJobTarget(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteJob}
+                  disabled={isPending}
+                  className="px-4 py-2 text-xs font-bold bg-rose-600 text-white rounded-xl hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+                >
+                  {isPending ? "Deleting..." : "Permanently Delete"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* VAT / PAN Receipt Modal */}
       <AnimatePresence>
         {showVatReceiptModal && (

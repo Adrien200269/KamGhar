@@ -180,20 +180,78 @@ export async function updateJobStatus(
 /* ── Delete a Job ─────────────────────────────────────────── */
 export async function deleteJob(jobId: string): Promise<JobActionResult> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "Unauthorized" };
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { success: false, error: "Unauthorized: Please log in to delete this job." };
+  }
 
   try {
-    const job = await prisma.job.findUnique({ where: { id: jobId } });
-    if (!job) return { success: false, error: "Job not found" };
-    if (job.recruiterId !== user.id) return { success: false, error: "Not authorized to delete this job" };
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      select: { id: true, recruiterId: true, title: true },
+    });
 
-    await prisma.job.delete({ where: { id: jobId } });
+    if (!job) {
+      return { success: false, error: "Job not found or already deleted." };
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, role: true },
+    });
+
+    const isOwner = job.recruiterId === user.id;
+    const isAdmin = dbUser?.role === "ADMIN";
+
+    if (!isOwner && !isAdmin) {
+      return { success: false, error: "Not authorized to delete this job." };
+    }
+
+    // Safely delete or disassociate relations within a transaction
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete associated applications
+      await tx.application.deleteMany({
+        where: { jobId },
+      });
+
+      // 2. Delete associated reviews
+      await tx.review.deleteMany({
+        where: { jobId },
+      });
+
+      // 3. Clear jobId from conversations
+      await tx.conversation.updateMany({
+        where: { jobId },
+        data: { jobId: null },
+      });
+
+      // 4. Clear jobId from transactions
+      await tx.transaction.updateMany({
+        where: { jobId },
+        data: { jobId: null },
+      });
+
+      // 5. Delete the job record
+      await tx.job.delete({
+        where: { id: jobId },
+      });
+    });
 
     revalidatePath("/dashboard");
-    return { success: true };
-  } catch {
-    return { success: false, error: "Failed to delete job" };
+    revalidatePath("/jobs");
+    revalidatePath(`/jobs/${jobId}`);
+    revalidatePath("/admin");
+    revalidatePath("/");
+
+    return { success: true, jobId };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Failed to delete job";
+    console.error("[deleteJob] Database error:", errorMsg, err);
+    return { success: false, error: errorMsg };
   }
 }
 

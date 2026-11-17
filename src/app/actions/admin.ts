@@ -481,12 +481,19 @@ export async function deleteJobByAdmin(jobId: string): Promise<AdminActionResult
       });
     }
 
-    await prisma.job.delete({
-      where: { id: jobId },
+    await prisma.$transaction(async (tx) => {
+      await tx.application.deleteMany({ where: { jobId } });
+      await tx.review.deleteMany({ where: { jobId } });
+      await tx.conversation.updateMany({ where: { jobId }, data: { jobId: null } });
+      await tx.transaction.updateMany({ where: { jobId }, data: { jobId: null } });
+      await tx.job.delete({ where: { id: jobId } });
     });
 
     revalidatePath("/admin");
     revalidatePath("/jobs");
+    revalidatePath(`/jobs/${jobId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/");
     return { success: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to delete job";

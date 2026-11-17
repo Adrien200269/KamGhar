@@ -22,9 +22,10 @@ import {
   ExternalLink,
   MessageCircle,
   Heart,
+  Trash2,
 } from "lucide-react";
 import AppHeader from "@/components/app-header";
-import { applyToJob } from "@/app/actions/job";
+import { applyToJob, deleteJob } from "@/app/actions/job";
 import { VoiceNotePlayer, VoiceNoteRecorder } from "@/components/voice-note";
 import { useLanguage } from "@/components/language-provider";
 import { getApproximateBsDate } from "@/lib/nepali-date";
@@ -52,6 +53,9 @@ export default function JobDetailsView({
   const [hasApplied, setHasApplied] = useState(initialHasApplied);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [showBoostModal, setShowBoostModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -135,6 +139,25 @@ export default function JobDetailsView({
         setApplyError(res.error || "Failed to submit application");
       }
     });
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await deleteJob(job.id);
+      if (res.success) {
+        setShowDeleteModal(false);
+        router.push("/dashboard");
+        router.refresh();
+      } else {
+        setDeleteError(res.error || "Failed to delete job");
+      }
+    } catch (err: any) {
+      setDeleteError(err?.message || "An unexpected error occurred while deleting.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -322,7 +345,7 @@ export default function JobDetailsView({
                   <button
                     type="button"
                     onClick={() => setShowBoostModal(true)}
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md transition"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md transition cursor-pointer"
                   >
                     <Flame className="w-4 h-4" />
                     <span>{tx("Boost Job", "काम बुस्ट गर्नुहोस्")}</span>
@@ -333,6 +356,15 @@ export default function JobDetailsView({
                   >
                     {tx("Manage in Dashboard", "ड्यासबोर्डमा व्यवस्थापन")}
                   </Link>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(true)}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-300 border border-red-200 dark:border-red-800 text-xs font-bold transition cursor-pointer"
+                    title={tx("Delete Gig", "काम मेटाउनुहोस्")}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{tx("Delete", "मेटाउनुहोस्")}</span>
+                  </button>
                 </div>
               </div>
             ) : currentUserId ? (
@@ -477,6 +509,63 @@ export default function JobDetailsView({
         contactName={job.recruiter?.recruiterProfile?.name}
         contactPhone={job.recruiter?.phone}
       />
+
+      {/* Delete Job Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/50 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  {tx("Delete Job Posting", "कामको विज्ञापन मेटाउनुहोस्")}
+                </h4>
+                <p className="text-xs text-slate-500">
+                  {tx("This action cannot be undone", "यो कार्य उल्टाउन सकिँदैन")}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              {tx(
+                `Are you sure you want to permanently delete "${job.title}"? All applicants and applications tied to this job listing will be deleted.`,
+                `के तपाईं "${job.title}" स्थायी रूपमा मेटाउन निश्चित हुनुहुन्छ? यस विज्ञापनसँग सम्बन्धित सबै आवेदनहरू हटाइनेछ।`
+              )}
+            </p>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-xs text-red-600 font-semibold">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteError(null);
+                }}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+              >
+                {tx("Cancel", "रद्द गर्नुहोस्")}
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDelete}
+                className="px-4 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isDeleting ? tx("Deleting...", "मेटाउँदै...") : tx("Delete Job", "काम मेटाउनुहोस्")}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

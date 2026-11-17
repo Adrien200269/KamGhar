@@ -19,6 +19,7 @@ import {
   Phone,
 } from "lucide-react";
 import { registerUser } from "@/app/actions/auth";
+import GoogleAuthButton from "@/components/google-auth-button";
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -148,6 +149,28 @@ export default function RegisterForm() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Google One-Click Sign Up */}
+        <div className="mb-3">
+          <GoogleAuthButton
+            mode="signup"
+            role={role}
+            next="/onboarding"
+            onError={(err) => setErrorMessage(err)}
+          />
+        </div>
+
+        {/* Clean Divider */}
+        <div className="relative my-3">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+          </div>
+          <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
+            <span className="bg-white dark:bg-slate-950 px-2.5 text-slate-400 font-semibold">
+              Or sign up with email
+            </span>
+          </div>
+        </div>
 
         {/* Sign Up Form — 2-Column Grid */}
         <form onSubmit={handleSubmit} className="space-y-3">
