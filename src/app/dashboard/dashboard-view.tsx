@@ -1000,7 +1000,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto w-full max-w-7xl px-4 sm:px-8 py-6 sm:py-8 space-y-6 pb-24 sm:pb-8 scrollbar-thin">
+        <main className="flex-1 overflow-y-auto w-full px-4 sm:px-8 py-6 sm:py-8 space-y-6 pb-24 sm:pb-8 scrollbar-thin">
           {/* Section Breadcrumb Bar when drilled into a specific tab */}
           {dashboardTab !== "overview" && (
             <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800/80">
