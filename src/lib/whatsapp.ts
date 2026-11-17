@@ -58,3 +58,17 @@ export function getJobWhatsAppUrl(params: {
 
   return `https://wa.me/${sanitized}?text=${encodeURIComponent(text)}`;
 }
+
+export function getRecruiterWhatsAppUrl(params: {
+  phone?: string | null;
+  recruiterName: string;
+  businessName?: string | null;
+}): string {
+  const sanitized = sanitizeNepaliPhone(params.phone);
+  if (!sanitized) return "";
+
+  const title = params.businessName ? ` (${params.businessName})` : "";
+  const text = `नमस्ते ${params.recruiterName}${title} जी, मैले कामघर (KamGhar) मा तपाईंको प्रोफाइल देखें। म काम तथा अवसर सम्बन्धी कुरा गर्न चाहन्छु।`;
+
+  return `https://wa.me/${sanitized}?text=${encodeURIComponent(text)}`;
+}

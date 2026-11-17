@@ -54,6 +54,7 @@ import {
   Wallet,
   Banknote,
   Menu,
+  Building2,
 } from "lucide-react";
 import DashboardSidebar, { type DashboardTab } from "@/components/dashboard-sidebar";
 import ThemeToggle from "@/components/theme-toggle";
@@ -1253,13 +1254,22 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => { setSettingsTab("profile"); setShowSettingsModal(true); }}
-                    title="Account Settings"
-                    className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setShowVisitingCardModal(true)}
+                      title={tx("Digital Visiting Card & QR", "डिजिटल भिजिटिङ कार्ड तथा QR")}
+                      className="p-2 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+                    >
+                      <QrCode className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => { setSettingsTab("profile"); setShowSettingsModal(true); }}
+                      title="Account Settings"
+                      className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+                    >
+                      <Settings className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500 dark:text-slate-400">
@@ -1281,6 +1291,16 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 line-clamp-2 leading-relaxed">
                     {user.workerProfile.bio}
                   </p>
+                )}
+
+                {!isWorker && (
+                  <div className="mt-2 text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>
+                      {user.recruiterProfile?.businessName ||
+                        tx("Direct Hirer & Client", "प्रत्यक्ष रोजगारदाता / ग्राहक")}
+                    </span>
+                  </div>
                 )}
 
                 {isWorker && (user.workerProfile?.skills?.length ?? 0) > 0 && (
@@ -3586,24 +3606,41 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
         />
       )}
 
-      {/* ── Worker Visiting Card & QR Modal ───────────────── */}
-      {showVisitingCardModal && isWorker && (
+      {/* ── Digital Visiting Card & QR Modal (Worker & Recruiter) ───────────────── */}
+      {showVisitingCardModal && (
         <WorkerVisitingCardModal
           isOpen={showVisitingCardModal}
           onClose={() => setShowVisitingCardModal(false)}
-          worker={{
-            id: user.id,
-            name: displayName,
-            photo: user.workerProfile?.profilePhotoUrl,
-            phone: user.phone,
-            address: user.workerProfile?.address,
-            primarySkill: user.workerProfile?.skills[0],
-            skills: user.workerProfile?.skills,
-            hourlyRate: user.workerProfile?.hourlyRate,
-            avgRating: user.workerProfile?.rating,
-            reviewCount: user.workerProfile?.reviewCount,
-            verified: user.workerProfile?.kycStatus === "VERIFIED",
-          }}
+          data={
+            isWorker
+              ? {
+                  type: "WORKER",
+                  id: user.id,
+                  name: displayName,
+                  photo: user.workerProfile?.profilePhotoUrl,
+                  phone: user.phone,
+                  email: user.email,
+                  address: user.workerProfile?.address,
+                  primarySkill: user.workerProfile?.skills?.[0],
+                  skills: user.workerProfile?.skills,
+                  hourlyRate: user.workerProfile?.hourlyRate,
+                  avgRating: user.workerProfile?.rating,
+                  reviewCount: user.workerProfile?.reviewCount,
+                  verified: user.workerProfile?.kycStatus === "VERIFIED",
+                }
+              : {
+                  type: "RECRUITER",
+                  id: user.id,
+                  name: displayName,
+                  businessName: user.recruiterProfile?.businessName,
+                  photo: user.recruiterProfile?.profilePhotoUrl,
+                  phone: user.phone,
+                  email: user.email,
+                  address: user.recruiterProfile?.address,
+                  activeJobsCount: postedJobs.filter((j) => j.status === "OPEN").length,
+                  verified: user.recruiterProfile?.kycStatus === "VERIFIED",
+                }
+          }
         />
       )}
 
