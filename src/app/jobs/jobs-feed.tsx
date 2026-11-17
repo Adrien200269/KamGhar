@@ -848,7 +848,7 @@ export default function JobsFeed({
                     <VoiceNoteRecorder
                       onAudioRecorded={setAudioProposalUrl}
                       label={tx(
-                        "Voice Proposal / Audio Pitch (Hold to Record)",
+                        "Voice Proposal / Audio Pitch (Click to Record)",
                         "आवाजमा प्रस्ताव / अडियो रेकर्ड गर्नुहोस्"
                       )}
                     />
