@@ -1526,7 +1526,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               )}
 
               {/* ── Worker Earnings & Monthly Ledger Section ── */}
-              {(dashboardTab === "overview" || dashboardTab === "earnings") && (
+              {dashboardTab === "earnings" && (
                 <motion.div variants={fadeUp} id="earnings" className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
