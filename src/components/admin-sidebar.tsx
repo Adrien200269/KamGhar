@@ -43,6 +43,11 @@ interface AdminSidebarProps {
     id: string;
     email: string;
     role: string;
+    name?: string | null;
+    profilePhotoUrl?: string | null;
+    photoUrl?: string | null;
+    workerProfile?: { name?: string | null; profilePhotoUrl?: string | null } | null;
+    recruiterProfile?: { name?: string | null; profilePhotoUrl?: string | null } | null;
   };
   activeTab: AdminTabType;
   onTabChange: (tab: AdminTabType) => void;
@@ -74,6 +79,19 @@ export default function AdminSidebar({
   onSignOut,
 }: AdminSidebarProps) {
   const { tx } = useLanguage();
+
+  const photoUrl =
+    currentUser.profilePhotoUrl ||
+    currentUser.photoUrl ||
+    currentUser.workerProfile?.profilePhotoUrl ||
+    currentUser.recruiterProfile?.profilePhotoUrl ||
+    null;
+
+  const displayName =
+    currentUser.name ||
+    currentUser.workerProfile?.name ||
+    currentUser.recruiterProfile?.name ||
+    currentUser.email.split("@")[0];
 
   const handleSelectTab = (tab: AdminTabType) => {
     onTabChange(tab);
@@ -176,26 +194,48 @@ export default function AdminSidebar({
         >
           {collapsed ? (
             <div
-              className="relative group"
-              title={`${currentUser.email} (Platform Admin)`}
+              className="relative group cursor-pointer"
+              title={`${displayName} (${currentUser.email})`}
             >
-              <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 border-2 border-orange-200 dark:border-orange-800/80 flex items-center justify-center text-orange-700 dark:text-orange-300 font-black text-sm shadow-xs">
-                A
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-orange-100 dark:bg-orange-950/60 border-2 border-orange-200 dark:border-orange-800/80 flex items-center justify-center text-orange-700 dark:text-orange-300 font-bold text-sm shadow-xs transition-transform group-hover:scale-105">
+                {photoUrl ? (
+                  <Image
+                    src={photoUrl}
+                    alt={displayName}
+                    width={40}
+                    height={40}
+                    unoptimized
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  displayName.charAt(0).toUpperCase()
+                )}
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500 ring-2 ring-emerald-500/20" />
             </div>
           ) : (
             <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800/60">
               <div className="relative shrink-0">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 flex items-center justify-center text-orange-700 dark:text-orange-300 font-black text-sm">
-                  A
+                <div className="w-10 h-10 rounded-xl overflow-hidden bg-orange-100 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800 flex items-center justify-center text-orange-700 dark:text-orange-300 font-bold text-sm">
+                  {photoUrl ? (
+                    <Image
+                      src={photoUrl}
+                      alt={displayName}
+                      width={40}
+                      height={40}
+                      unoptimized
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    displayName.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500 ring-2 ring-emerald-500/20" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    Platform Operator
+                    {displayName}
                   </h4>
                   <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
                     ADMIN

@@ -53,7 +53,9 @@ import {
   Award,
   CheckCheck,
   Menu,
+  LogOut,
 } from "lucide-react";
+import { signOutUser } from "@/app/actions/auth";
 import AdminSidebar, { type AdminTabType } from "@/components/admin-sidebar";
 import ThemeToggle from "@/components/theme-toggle";
 import LanguageToggle from "@/components/language-toggle";
@@ -356,7 +358,16 @@ export default function AdminView({
   analyticsData: initialAnalyticsData,
   auditLogs: initialAuditLogs = [],
 }: {
-  currentUser: { id: string; email: string; role: UserRole };
+  currentUser: {
+    id: string;
+    email: string;
+    role: UserRole;
+    name?: string | null;
+    profilePhotoUrl?: string | null;
+    photoUrl?: string | null;
+    workerProfile?: { name?: string | null; profilePhotoUrl?: string | null } | null;
+    recruiterProfile?: { name?: string | null; profilePhotoUrl?: string | null } | null;
+  };
   stats: AdminStats;
   users: AdminUser[];
   jobs: AdminJob[];
@@ -371,6 +382,12 @@ export default function AdminView({
   const router = useRouter();
   const { tx } = useLanguage();
   const [isPending, startTransition] = useTransition();
+
+  const handleSignOut = async () => {
+    await signOutUser();
+    router.push("/login");
+    router.refresh();
+  };
 
   type TabType = AdminTabType;
 
@@ -864,6 +881,7 @@ export default function AdminView({
         usersCount={initialUsers.length}
         jobsCount={initialJobs.length}
         reviewsCount={initialReviews.length}
+        onSignOut={handleSignOut}
       />
 
       {/* ── Main Viewport Content ── */}
@@ -905,8 +923,31 @@ export default function AdminView({
                 <span className="xs:hidden">{tx("Dashboard", "ड्यासबोर्ड")}</span>
               </Link>
 
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="px-2.5 sm:px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                title={tx("Sign out", "लग आउट")}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">{tx("Sign Out", "लग आउट")}</span>
+              </button>
+
               <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-500 dark:text-slate-400">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {currentUser.profilePhotoUrl ? (
+                  <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-slate-300 dark:border-slate-700">
+                    <Image
+                      src={currentUser.profilePhotoUrl}
+                      alt={currentUser.name || currentUser.email}
+                      width={20}
+                      height={20}
+                      unoptimized
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                )}
                 <span>{currentUser.email}</span>
               </div>
             </div>

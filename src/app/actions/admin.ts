@@ -29,7 +29,37 @@ export async function getAdminCaller() {
     },
   });
 
-  return dbUser;
+  if (!dbUser) return null;
+
+  const metaPhoto =
+    authUser.user_metadata?.avatar_url ||
+    authUser.user_metadata?.picture ||
+    authUser.user_metadata?.photo_url ||
+    authUser.user_metadata?.avatarUrl ||
+    null;
+  const metaName =
+    authUser.user_metadata?.name ||
+    authUser.user_metadata?.full_name ||
+    authUser.user_metadata?.user_name ||
+    null;
+
+  const profilePhotoUrl =
+    dbUser.workerProfile?.profilePhotoUrl ||
+    dbUser.recruiterProfile?.profilePhotoUrl ||
+    metaPhoto ||
+    null;
+
+  const name =
+    dbUser.workerProfile?.name ||
+    dbUser.recruiterProfile?.name ||
+    metaName ||
+    dbUser.email.split("@")[0];
+
+  return {
+    ...dbUser,
+    name,
+    profilePhotoUrl,
+  };
 }
 
 /* ── Allow authenticated user to claim ADMIN role (for dev/first operator) ── */
