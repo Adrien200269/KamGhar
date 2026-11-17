@@ -1691,7 +1691,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               )}
 
               {/* Worker Applications Section */}
-              {(dashboardTab === "overview" || dashboardTab === "applications") && (
+              {dashboardTab === "applications" && (
                 <motion.div variants={fadeUp} id="applications" className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
