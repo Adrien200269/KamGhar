@@ -442,6 +442,61 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const displayName = profile?.name ?? user.email.split("@")[0];
   const location = profile?.address;
 
+  // 7-day activity metrics for the dashboard stats card chart
+  const weeklyStatsChart = useMemo(() => {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const now = new Date();
+    const dayBuckets: { day: string; count: number; isToday: boolean }[] = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const dayName = i === 0 ? "Today" : days[d.getDay()];
+
+      let count = 0;
+      if (isWorker) {
+        count = (user.applications || []).filter((a) => {
+          const appDate = new Date(a.createdAt);
+          return (
+            appDate.getDate() === d.getDate() &&
+            appDate.getMonth() === d.getMonth() &&
+            appDate.getFullYear() === d.getFullYear()
+          );
+        }).length;
+      } else {
+        const jobsCount = (postedJobs || []).filter((j) => {
+          const jDate = new Date(j.createdAt);
+          return (
+            jDate.getDate() === d.getDate() &&
+            jDate.getMonth() === d.getMonth() &&
+            jDate.getFullYear() === d.getFullYear()
+          );
+        }).length;
+
+        const appsCount = (postedJobs || []).reduce((acc, j) => {
+          const matchingApps = (j.applications || []).filter((a) => {
+            const aDate = new Date(a.createdAt);
+            return (
+              aDate.getDate() === d.getDate() &&
+              aDate.getMonth() === d.getMonth() &&
+              aDate.getFullYear() === d.getFullYear()
+            );
+          }).length;
+          return acc + matchingApps;
+        }, 0);
+
+        count = jobsCount + appsCount;
+      }
+
+      dayBuckets.push({ day: dayName, count, isToday: i === 0 });
+    }
+
+    const totalThisWeek = dayBuckets.reduce((sum, b) => sum + b.count, 0);
+    const maxCount = Math.max(...dayBuckets.map((b) => b.count), 2);
+
+    return { dayBuckets, totalThisWeek, maxCount };
+  }, [isWorker, user.applications, postedJobs]);
+
   // Profile Settings Modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"profile" | "documents" | "kyc" | "password">("profile");
@@ -1248,73 +1303,133 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               </div>
             </div>
 
-            {/* Stats card */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-sm">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                {isWorker ? tx("Worker Stats", "कामदार विवरण") : tx("Recruiter Activity", "नियोक्ता गतिविधि")}
-              </p>
+            {/* Stats card with 7-Day Activity Trend Chart */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 flex flex-col justify-between shadow-sm">
+              <div>
+                {/* Header with live activity indicator badge */}
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    {isWorker ? tx("Worker Stats", "कामदार तथ्याङ्क") : tx("Recruiter Activity", "नियोक्ता गतिविधि")}
+                  </p>
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-800/60">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>{tx("Live Activity", "प्रत्यक्ष गतिविधि")}</span>
+                  </span>
+                </div>
 
-              {isWorker ? (
-                <div className="space-y-4 mt-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                      <Briefcase className="w-4 h-4 text-orange-500" />
-                      <span>{tx("Applications Sent", "पठाइएका आवेदनहरू")}</span>
+                {/* 3 Metrics Summary Cards */}
+                {isWorker ? (
+                  <div className="grid grid-cols-3 gap-2 py-1">
+                    <div className="p-2 rounded-xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-900/40 text-center">
+                      <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight">
+                        {user.applications.length}
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {tx("Applied", "आवेदन")}
+                      </div>
                     </div>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {user.applications.length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span>{tx("Accepted Gigs", "स्वीकृत कामहरू")}</span>
+                    <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 text-center">
+                      <div className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 leading-tight">
+                        {user.applications.filter((a) => a.status === "ACCEPTED").length}
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {tx("Accepted", "स्वीकृत")}
+                      </div>
                     </div>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {user.applications.filter((a) => a.status === "ACCEPTED").length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                      <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-                      <span>{tx("Rating", "मूल्याङ्कन")}</span>
+                    <div className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 text-center">
+                      <div className="text-sm sm:text-base font-black text-amber-500 flex items-center justify-center gap-1 leading-tight">
+                        <Star className="w-3.5 h-3.5 fill-amber-400" />
+                        <span>{user.workerProfile?.rating ? user.workerProfile.rating.toFixed(1) : "5.0"}</span>
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {tx("Rating", "मूल्याङ्कन")}
+                      </div>
                     </div>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {user.workerProfile?.rating ? user.workerProfile.rating.toFixed(1) : "5.0"}
-                    </span>
                   </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 py-1">
+                    <div className="p-2 rounded-xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-900/40 text-center">
+                      <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight">
+                        {postedJobs.length}
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {tx("Posted", "पोस्ट")}
+                      </div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 text-center">
+                      <div className="text-sm sm:text-base font-black text-blue-600 dark:text-blue-400 leading-tight">
+                        {postedJobs.filter((j) => j.status === "OPEN").length}
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {tx("Open", "खुला")}
+                      </div>
+                    </div>
+                    <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 text-center">
+                      <div className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 leading-tight">
+                        {postedJobs.filter((j) => j.status === "COMPLETED").length}
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {tx("Done", "सम्पन्न")}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── 7-Day Activity Chart ── */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 mt-2">
+                <div className="flex items-center justify-between text-[11px] mb-2.5">
+                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 text-orange-500" />
+                    <span>{tx("7-Day Trend", "साप्ताहिक ट्रेन्ड")}</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {weeklyStatsChart.totalThisWeek} {tx("this week", "यस हप्ता")}
+                  </span>
                 </div>
-              ) : (
-                <div className="space-y-4 mt-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                      <Briefcase className="w-4 h-4 text-orange-500" />
-                      <span>{tx("Jobs Posted", "पोस्ट गरिएका कामहरू")}</span>
-                    </div>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {postedJobs.length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                      <Clock className="w-4 h-4 text-blue-500" />
-                      <span>{tx("Open Gigs", "खुला कामहरू")}</span>
-                    </div>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {postedJobs.filter((j) => j.status === "OPEN").length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span>Completed</span>
-                    </div>
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {postedJobs.filter((j) => j.status === "COMPLETED").length}
-                    </span>
-                  </div>
+
+                <div className="h-20 flex items-end justify-between gap-1.5 pt-1">
+                  {weeklyStatsChart.dayBuckets.map((bucket, idx) => {
+                    const heightPct = bucket.count > 0
+                      ? Math.max(24, Math.round((bucket.count / weeklyStatsChart.maxCount) * 100))
+                      : 8;
+
+                    return (
+                      <div key={idx} className="flex-1 flex flex-col items-center gap-1.5 group relative">
+                        {/* Interactive hover tooltip */}
+                        <div className="absolute -top-7 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-[10px] font-bold py-0.5 px-2 rounded-lg pointer-events-none whitespace-nowrap z-20 shadow-md">
+                          {bucket.count} {isWorker ? "gigs" : "posts"}
+                        </div>
+
+                        {/* Bar Track */}
+                        <div className="w-full bg-slate-100 dark:bg-slate-800/70 rounded-lg h-14 flex items-end p-0.5 overflow-hidden">
+                          <div
+                            style={{ height: `${heightPct}%` }}
+                            className={`w-full rounded-md transition-all duration-500 ${
+                              bucket.isToday
+                                ? "bg-gradient-to-t from-orange-600 via-orange-500 to-amber-400 shadow-xs shadow-orange-500/30"
+                                : bucket.count > 0
+                                ? "bg-gradient-to-t from-orange-500/90 to-amber-400/90"
+                                : "bg-slate-200/70 dark:bg-slate-700/40"
+                            }`}
+                          />
+                        </div>
+
+                        {/* Day label */}
+                        <span
+                          className={`text-[9px] font-bold ${
+                            bucket.isToday
+                              ? "text-orange-600 dark:text-orange-400 font-black"
+                              : "text-slate-400 dark:text-slate-500"
+                          }`}
+                        >
+                          {bucket.day}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
             </div>
           </motion.div>
           </>
