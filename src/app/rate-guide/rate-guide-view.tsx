@@ -22,7 +22,6 @@ import {
   MapPin,
   AlertTriangle,
 } from "lucide-react";
-import AppHeader from "@/components/app-header";
 import { useLanguage } from "@/components/language-provider";
 import {
   NEPAL_RATE_CATEGORIES,
@@ -100,8 +99,7 @@ export default function RateGuideView() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
-      <AppHeader badgeText="कति पर्ला? Rate Guide" badgeTextNe="कति पर्ला? दर निर्देशिका" />
+    <div className="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
 
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-b from-orange-500/10 via-amber-500/5 to-transparent pt-12 pb-8 px-4 sm:px-6 lg:px-8 border-b border-slate-200/60 dark:border-slate-800/60">

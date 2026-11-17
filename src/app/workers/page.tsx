@@ -1,10 +1,8 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { getPublicWorkers } from "@/app/actions/profile";
-import { createClient } from "@/lib/supabase/server";
+import { getPublicWorkers, getCurrentUserProfile } from "@/app/actions/profile";
 import WorkersFeed from "./workers-feed";
-import AppHeader from "@/components/app-header";
+import JobsLayout from "@/app/jobs/jobs-layout";
 
 export const metadata = {
   title: "Find Skilled Workers & Technicians in Nepal - KamGhar",
@@ -12,23 +10,28 @@ export const metadata = {
 };
 
 export default async function WorkersPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [dbUser, initialWorkers] = await Promise.all([
+    getCurrentUserProfile(),
+    getPublicWorkers(),
+  ]);
 
-  if (!user) {
-    redirect("/login?redirect=/workers");
-  }
+  const profile = dbUser?.role === "WORKER"
+    ? dbUser.workerProfile
+    : dbUser?.recruiterProfile;
 
-  const initialWorkers = await getPublicWorkers();
+  const layoutUser = dbUser
+    ? {
+        id: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
+        name: profile?.name ?? null,
+        photoUrl: profile?.profilePhotoUrl ?? null,
+      }
+    : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      <AppHeader badgeText="Worker Directory" badgeTextNe="कामदार सूची" isLoggedIn={true} />
-
-      {/* ── Main Content ───────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+    <JobsLayout user={layoutUser} breadcrumb="Worker Directory">
+      <div className="px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         <Suspense
           fallback={
             <div className="h-96 flex flex-col items-center justify-center gap-3 text-slate-400">
@@ -39,7 +42,7 @@ export default async function WorkersPage() {
         >
           <WorkersFeed initialWorkers={initialWorkers as any} />
         </Suspense>
-      </main>
-    </div>
+      </div>
+    </JobsLayout>
   );
 }

@@ -19,9 +19,12 @@ interface JobsLayoutProps {
     photoUrl?: string | null;
   } | null;
   children: React.ReactNode;
+  badgeText?: string;
+  badgeTextNe?: string;
+  breadcrumb?: string;
 }
 
-export default function JobsLayout({ user, children }: JobsLayoutProps) {
+export default function JobsLayout({ user, children, badgeText, badgeTextNe, breadcrumb }: JobsLayoutProps) {
   const { tx } = useLanguage();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
@@ -70,7 +73,7 @@ export default function JobsLayout({ user, children }: JobsLayoutProps) {
                 </span>
                 <span className="text-slate-300 dark:text-slate-700 hidden sm:block">/</span>
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
-                  {tx("Find Jobs & Gigs", "काम र गिग खोज्नुहोस्")}
+                  {breadcrumb ?? tx("Find Jobs & Gigs", "काम र गिग खोज्नुहोस्")}
                 </span>
               </div>
             </div>

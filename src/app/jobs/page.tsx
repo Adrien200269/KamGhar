@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { getJobs, getAppliedJobIds } from "@/app/actions/job";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUserProfile } from "@/app/actions/profile";
 import JobsFeed from "./jobs-feed";
 import JobsLayout from "./jobs-layout";
 
@@ -11,47 +11,26 @@ export const metadata = {
 };
 
 export default async function JobsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // Fetch worker/recruiter profile name & photo if logged in
-  let profileName: string | null = null;
-  let profilePhoto: string | null = null;
-  let userRole = "WORKER";
-
-  if (user) {
-    const { data: dbUser } = await supabase
-      .from("User")
-      .select(`
-        role,
-        workerProfile:WorkerProfile(name, profilePhotoUrl),
-        recruiterProfile:RecruiterProfile(name, profilePhotoUrl)
-      `)
-      .eq("id", user.id)
-      .single();
-
-    if (dbUser) {
-      userRole = dbUser.role;
-      const wp = Array.isArray(dbUser.workerProfile) ? dbUser.workerProfile[0] : dbUser.workerProfile;
-      const rp = Array.isArray(dbUser.recruiterProfile) ? dbUser.recruiterProfile[0] : dbUser.recruiterProfile;
-      const profile = dbUser.role === "WORKER" ? wp : rp;
-      profileName = profile?.name ?? null;
-      profilePhoto = profile?.profilePhotoUrl ?? null;
-    }
-  }
-
-  const [initialJobs, appliedJobIds] = await Promise.all([
+  const [dbUser, initialJobs] = await Promise.all([
+    getCurrentUserProfile(),
     getJobs(),
-    user ? getAppliedJobIds(user.id) : Promise.resolve([]),
   ]);
 
-  const layoutUser = user
+  const appliedJobIds = dbUser
+    ? await getAppliedJobIds(dbUser.id)
+    : [];
+
+  const profile = dbUser?.role === "WORKER"
+    ? dbUser.workerProfile
+    : dbUser?.recruiterProfile;
+
+  const layoutUser = dbUser
     ? {
-        id: user.id,
-        email: user.email ?? "",
-        role: userRole,
-        name: profileName,
-        photoUrl: profilePhoto,
+        id: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
+        name: profile?.name ?? null,
+        photoUrl: profile?.profilePhotoUrl ?? null,
       }
     : null;
 
@@ -69,7 +48,7 @@ export default async function JobsPage() {
           <JobsFeed
             initialJobs={initialJobs}
             appliedJobIds={appliedJobIds}
-            isLoggedIn={!!user}
+            isLoggedIn={!!dbUser}
           />
         </Suspense>
       </div>

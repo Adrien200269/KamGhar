@@ -1,5 +1,7 @@
 import { Metadata } from "next";
+import { getCurrentUserProfile } from "@/app/actions/profile";
 import RateGuideView from "./rate-guide-view";
+import JobsLayout from "@/app/jobs/jobs-layout";
 
 export const metadata: Metadata = {
   title: "कति पर्ला? Rate Guide - KamGhar",
@@ -11,6 +13,26 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RateGuidePage() {
-  return <RateGuideView />;
+export default async function RateGuidePage() {
+  const dbUser = await getCurrentUserProfile();
+
+  const profile = dbUser?.role === "WORKER"
+    ? dbUser.workerProfile
+    : dbUser?.recruiterProfile;
+
+  const layoutUser = dbUser
+    ? {
+        id: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
+        name: profile?.name ?? null,
+        photoUrl: profile?.profilePhotoUrl ?? null,
+      }
+    : null;
+
+  return (
+    <JobsLayout user={layoutUser} breadcrumb="कति पर्ला? Rate Guide">
+      <RateGuideView />
+    </JobsLayout>
+  );
 }
