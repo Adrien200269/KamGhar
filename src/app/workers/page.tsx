@@ -35,7 +35,7 @@ export default async function WorkersPage() {
         <Suspense
           fallback={
             <div className="h-96 flex items-center justify-center">
-              <LoadingAnimation compact showLogo={false} label="Loading verified workers in Nepal..." />
+              <LoadingAnimation compact />
             </div>
           }
         >

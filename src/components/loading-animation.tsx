@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Image from "next/image";
 
 interface LoadingAnimationProps {
   label?: string;
@@ -11,15 +10,18 @@ interface LoadingAnimationProps {
   showLogo?: boolean;
 }
 
-// 6 Peacock-style harmonic spectrum dots mapped to Nepal's trade & gig categories:
-// Amber (Electrician), Orange (KamGhar Primary), Crimson (Masonry), Violet (Tech), Azure (Plumbing), Emerald (Trades)
-const ARC_DOTS = [
-  { color: "#FAB915", baseY: 4.5, glow: "rgba(250, 185, 21, 0.7)" },
-  { color: "#F97316", baseY: 1.5, glow: "rgba(249, 115, 22, 0.7)" },
-  { color: "#EF4444", baseY: 0,   glow: "rgba(239, 68, 68, 0.7)" },
-  { color: "#8B5CF6", baseY: 0,   glow: "rgba(139, 92, 246, 0.7)" },
-  { color: "#0284C7", baseY: 1.5, glow: "rgba(2, 132, 199, 0.7)" },
-  { color: "#10B981", baseY: 4.5, glow: "rgba(16, 185, 129, 0.7)" },
+// 10-bead ring with trailing snake opacity gradient from Mobbin Genie reference
+const BEADS = [
+  { opacity: 1.0, scale: 1.0 },
+  { opacity: 0.9, scale: 0.96 },
+  { opacity: 0.8, scale: 0.92 },
+  { opacity: 0.7, scale: 0.88 },
+  { opacity: 0.6, scale: 0.84 },
+  { opacity: 0.5, scale: 0.8 },
+  { opacity: 0.4, scale: 0.76 },
+  { opacity: 0.3, scale: 0.72 },
+  { opacity: 0.18, scale: 0.68 },
+  { opacity: 0.05, scale: 0.6 },
 ];
 
 export default function LoadingAnimation({
@@ -27,74 +29,60 @@ export default function LoadingAnimation({
   sublabel,
   fullscreen = false,
   compact = false,
-  showLogo = true,
 }: LoadingAnimationProps) {
+  const radius = compact ? 15 : 19;
+  const beadSize = compact ? 6.5 : 8;
+  const containerSize = (radius + beadSize) * 2;
+
   const content = (
     <div className="relative flex flex-col items-center justify-center select-none">
-      {/* Optional Minimalist Brand Logo with subtle breathing */}
-      {showLogo && (
-        <motion.div
-          animate={{ opacity: [0.85, 1, 0.85] }}
-          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-          className={compact ? "mb-4" : "mb-6"}
-        >
-          <div className="bg-white rounded-xl px-3 py-1 shadow-md shadow-black/20 flex items-center justify-center">
-            <Image
-              src="/logo.png"
-              alt="KamGhar"
-              width={100}
-              height={28}
-              priority
-              className={`${compact ? "h-5" : "h-6 sm:h-7"} w-auto object-contain`}
+      {/* ── Mobbin Genie Reference: 10-Bead Rotating Ring Spinner ── */}
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{
+          duration: 0.85,
+          repeat: Infinity,
+          ease: "linear",
+        }}
+        className="relative flex items-center justify-center"
+        style={{ width: containerSize, height: containerSize }}
+      >
+        {BEADS.map((bead, i) => {
+          const angle = (i * 360) / BEADS.length;
+          const rad = (angle * Math.PI) / 180;
+          const x = radius * Math.cos(rad);
+          const y = radius * Math.sin(rad);
+
+          return (
+            <span
+              key={i}
+              className="absolute rounded-full bg-black dark:bg-white transition-colors"
+              style={{
+                width: beadSize,
+                height: beadSize,
+                left: `calc(50% + ${x}px - ${beadSize / 2}px)`,
+                top: `calc(50% + ${y}px - ${beadSize / 2}px)`,
+                opacity: bead.opacity,
+                transform: `scale(${bead.scale})`,
+              }}
             />
-          </div>
-        </motion.div>
-      )}
+          );
+        })}
+      </motion.div>
 
-      {/* ── Mobbin Reference: 6 Harmonic Dots in an Arched Upward Plumage ── */}
-      <div className="relative flex items-center justify-center gap-2.5 sm:gap-3 py-2 px-4">
-        {ARC_DOTS.map((dot, idx) => (
-          <motion.span
-            key={idx}
-            initial={{ y: dot.baseY, opacity: 0.7, scale: 1 }}
-            animate={{
-              y: [dot.baseY, dot.baseY - 9, dot.baseY],
-              scale: [1, 1.28, 1],
-              opacity: [0.65, 1, 0.65],
-            }}
-            transition={{
-              duration: 1.25,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: idx * 0.13,
-            }}
-            className="rounded-full flex-shrink-0"
-            style={{
-              width: compact ? "8px" : "10px",
-              height: compact ? "8px" : "10px",
-              backgroundColor: dot.color,
-              boxShadow: `0 0 10px ${dot.glow}, 0 0 4px ${dot.color}`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Optional Minimal Label */}
+      {/* Optional Minimal Typography (only if explicitly provided) */}
       {label && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.6, 0.9, 0.6] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className={`mt-4 text-center font-medium tracking-wider text-slate-300 dark:text-slate-400 ${
+        <p
+          className={`mt-4 text-center font-medium tracking-tight text-slate-500 dark:text-slate-400 ${
             compact ? "text-[11px]" : "text-xs"
           }`}
         >
           {label}
-        </motion.p>
+        </p>
       )}
 
       {sublabel && (
-        <p className="mt-1 text-center text-[10px] text-slate-500 tracking-wide">
+        <p className="mt-0.5 text-center text-[10px] text-slate-400 dark:text-slate-500 tracking-wide">
           {sublabel}
         </p>
       )}
@@ -103,7 +91,7 @@ export default function LoadingAnimation({
 
   if (fullscreen) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black select-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-black select-none">
         {content}
       </div>
     );

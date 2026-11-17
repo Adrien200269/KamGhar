@@ -40,7 +40,7 @@ export default async function JobsPage() {
         <Suspense
           fallback={
             <div className="h-96 flex items-center justify-center">
-              <LoadingAnimation compact showLogo={false} label="Loading nearby gigs across Nepal..." />
+              <LoadingAnimation compact />
             </div>
           }
         >
