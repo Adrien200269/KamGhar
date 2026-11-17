@@ -142,19 +142,24 @@ export default function DashboardSidebar({
         }`}
       >
         {/* ── Brand Header ── */}
-        <div className="h-16 px-3 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between shrink-0">
+        <div className="h-16 px-2.5 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between shrink-0">
           <Link
             href="/"
             className={`flex items-center gap-2.5 ${
               collapsed ? "justify-center w-full" : ""
             }`}
+            title="KamGhar"
           >
             {collapsed ? (
-              <div
-                className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white font-black text-sm shadow-sm shadow-orange-500/25 shrink-0"
-                title="KamGhar"
-              >
-                KG
+              <div className="dark:bg-white dark:rounded-xl dark:px-1.5 dark:py-1 transition-all flex items-center justify-center">
+                <Image
+                  src="/logo.png"
+                  alt="KamGhar"
+                  width={100}
+                  height={32}
+                  priority
+                  className="h-6 w-auto max-w-[50px] object-contain"
+                />
               </div>
             ) : (
               <>
