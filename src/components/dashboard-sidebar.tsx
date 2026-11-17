@@ -67,6 +67,7 @@ interface DashboardSidebarProps {
   openJobsCount?: number;
   onOpenVisitingCard?: () => void;
   onOpenSafetyModal?: () => void;
+  onOpenFeatureModal?: () => void;
   onSignOut: () => void;
 }
 
@@ -85,6 +86,7 @@ export default function DashboardSidebar({
   openJobsCount = 0,
   onOpenVisitingCard,
   onOpenSafetyModal,
+  onOpenFeatureModal,
   onSignOut,
 }: DashboardSidebarProps) {
   const { tx } = useLanguage();
@@ -362,36 +364,96 @@ export default function DashboardSidebar({
                     onClick={() => handleSelectTab("earnings")}
                     className={navItemClass("earnings")}
                     title={
-                      collapsed ? tx("Earnings & Ledger", "आम्दानी") : undefined
+                      collapsed ? tx("Earnings & Ledger", "आम्दानी लेजर") : undefined
                     }
                   >
-                    <Wallet className="w-4 h-4 shrink-0" />
+                    <Wallet className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                     {!collapsed && (
-                      <span>{tx("Earnings & Ledger", "आम्दानी र खाता")}</span>
+                      <div className="flex-1 flex items-center justify-between">
+                        <span>{tx("Earnings & Ledger", "आम्दानी लेजर")}</span>
+                      </div>
                     )}
                   </button>
+
+                  {onOpenFeatureModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenFeatureModal();
+                        onCloseMobile();
+                      }}
+                      className={externalLinkClass}
+                      title={
+                        collapsed
+                          ? tx("Feature Profile", "प्रोफाइल फिचर्ड गर्नुहोस्")
+                          : undefined
+                      }
+                    >
+                      <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
+                      {!collapsed && (
+                        <div className="flex-1 flex items-center justify-between">
+                          <span className="font-semibold text-amber-600 dark:text-amber-400">
+                            {tx("Feature Profile", "प्रोफाइल फिचर्ड")}
+                          </span>
+                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                            Boost
+                          </span>
+                        </div>
+                      )}
+                    </button>
+                  )}
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => handleSelectTab("jobs")}
-                  className={navItemClass("jobs")}
-                  title={
-                    collapsed ? tx("My Postings", "पोस्ट गरिएका काम") : undefined
-                  }
-                >
-                  <Briefcase className="w-4 h-4 shrink-0" />
-                  {!collapsed && (
-                    <div className="flex-1 flex items-center justify-between">
-                      <span>{tx("My Job Postings", "पोस्ट गरिएका कामहरू")}</span>
-                      {openJobsCount > 0 && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
-                          {openJobsCount}
-                        </span>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTab("jobs")}
+                    className={navItemClass("jobs")}
+                    title={
+                      collapsed ? tx("My Postings", "पोस्ट गरिएका काम") : undefined
+                    }
+                  >
+                    <Briefcase className="w-4 h-4 shrink-0" />
+                    {!collapsed && (
+                      <div className="flex-1 flex items-center justify-between">
+                        <span>{tx("My Job Postings", "पोस्ट गरिएका कामहरू")}</span>
+                        {openJobsCount > 0 && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+                            {openJobsCount}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+
+                  {onOpenFeatureModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenFeatureModal();
+                        onCloseMobile();
+                      }}
+                      className={externalLinkClass}
+                      title={
+                        collapsed
+                          ? tx("Boost Job Listing", "काम बुस्ट गर्नुहोस्")
+                          : undefined
+                      }
+                    >
+                      <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
+                      {!collapsed && (
+                        <div className="flex-1 flex items-center justify-between">
+                          <span className="font-semibold text-amber-600 dark:text-amber-400">
+                            {tx("Boost Job Listing", "काम बुस्ट गर्नुहोस्")}
+                          </span>
+                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                            Boost
+                          </span>
+                        </div>
                       )}
-                    </div>
+                    </button>
                   )}
-                </button>
+                </>
               )}
             </nav>
           </div>

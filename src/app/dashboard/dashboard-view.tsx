@@ -843,6 +843,25 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
             location: (profile?.address as string) || "Nepal",
           })
         }
+        onOpenFeatureModal={() => {
+          if (isWorker) {
+            setBoostModalData({
+              type: "FEATURE_PROFILE",
+              itemTitle: user.workerProfile?.name || user.email.split("@")[0],
+            });
+          } else {
+            const firstOpen = postedJobs.find((j) => j.status === "OPEN");
+            if (firstOpen) {
+              setBoostModalData({
+                type: "BOOST_JOB",
+                jobId: firstOpen.id,
+                itemTitle: firstOpen.title,
+              });
+            } else {
+              router.push("/jobs/new");
+            }
+          }
+        }}
         onSignOut={handleSignOut}
       />
 
@@ -1297,130 +1316,6 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 </div>
               )}
             </div>
-          </motion.div>
-
-          {/* ── Role-Tailored Quick Shortcuts ──────────────── */}
-          <motion.div variants={fadeUp}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                {tx("Quick Shortcuts", "द्रुत सर्टकटहरू")}
-              </h3>
-            </div>
-
-            {isWorker ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                <QuickAction
-                  icon={<QrCode className="w-5 h-5 text-orange-600" />}
-                  label={tx("My Visiting Card & QR", "भिजिटिङ कार्ड")}
-                  onClick={() => setShowVisitingCardModal(true)}
-                  color="orange"
-                />
-                <QuickAction
-                  icon={<ShieldAlert className="w-5 h-5 text-red-600" />}
-                  label={tx("Safety & SOS", "सुरक्षा SOS")}
-                  onClick={() =>
-                    setSafetyModalData({
-                      jobTitle: "Worker Active Session",
-                      location: user.workerProfile?.address || "Nepal",
-                    })
-                  }
-                  color="purple"
-                />
-                <QuickAction
-                  icon={<Wallet className="w-5 h-5 text-emerald-600" />}
-                  label={tx("Earnings & Ledger", "आम्दानी लेजर")}
-                  onClick={() => setDashboardTab("earnings")}
-                  color="emerald"
-                />
-                <QuickAction
-                  icon={<Sparkles className="w-5 h-5 text-amber-500" />}
-                  label={tx("Feature Profile", "प्रोफाइल फिचर्ड")}
-                  onClick={() => {
-                    setBoostModalData({
-                      type: "FEATURE_PROFILE",
-                      itemTitle: user.workerProfile?.name || user.email.split("@")[0],
-                    });
-                  }}
-                  color="purple"
-                />
-                <QuickAction
-                  icon={<Search className="w-5 h-5" />}
-                  label={tx("Find a Job", "काम खोज्नुहोस्")}
-                  href="/jobs"
-                  color="orange"
-                />
-                <QuickAction
-                  icon={<User className="w-5 h-5" />}
-                  label={tx("Profile & Photo", "प्रोफाइल र फोटो")}
-                  onClick={() => {
-                    setSettingsTab("profile");
-                    setShowSettingsModal(true);
-                  }}
-                  color="blue"
-                />
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                <QuickAction
-                  icon={<ShieldAlert className="w-5 h-5 text-red-600" />}
-                  label={tx("Safety & SOS", "सुरक्षा SOS")}
-                  onClick={() =>
-                    setSafetyModalData({
-                      jobTitle: "Household Active Gig",
-                      location: user.recruiterProfile?.address || "Nepal",
-                    })
-                  }
-                  color="purple"
-                />
-                <QuickAction
-                  icon={<Flame className="w-5 h-5 text-amber-500" />}
-                  label={tx("Boost a Job", "काम बुस्ट गर्नुहोस्")}
-                  onClick={() => {
-                    const firstOpen = postedJobs.find((j) => j.status === "OPEN");
-                    if (firstOpen) {
-                      setBoostModalData({
-                        type: "BOOST_JOB",
-                        jobId: firstOpen.id,
-                        itemTitle: firstOpen.title,
-                      });
-                    } else {
-                      router.push("/jobs/new");
-                    }
-                  }}
-                  color="orange"
-                />
-                <QuickAction
-                  icon={<Plus className="w-5 h-5" />}
-                  label={tx("Post a Job", "काम पोस्ट गर्नुहोस्")}
-                  href="/jobs/new"
-                  color="orange"
-                />
-                <QuickAction
-                  icon={<Users className="w-5 h-5" />}
-                  label={tx("Find Workers", "कामदार खोज्नुहोस्")}
-                  href="/workers"
-                  color="blue"
-                />
-                <QuickAction
-                  icon={<User className="w-5 h-5" />}
-                  label={tx("Profile & Details", "प्रोफाइल विवरण")}
-                  onClick={() => {
-                    setSettingsTab("profile");
-                    setShowSettingsModal(true);
-                  }}
-                  color="emerald"
-                />
-                <QuickAction
-                  icon={<KeyRound className="w-5 h-5" />}
-                  label={tx("Change Password", "पासवर्ड परिवर्तन")}
-                  onClick={() => {
-                    setSettingsTab("password");
-                    setShowSettingsModal(true);
-                  }}
-                  color="purple"
-                />
-              </div>
-            )}
           </motion.div>
           </>
           )}
