@@ -52,7 +52,9 @@ import {
   TrendingUp,
   Award,
   CheckCheck,
+  Menu,
 } from "lucide-react";
+import AdminSidebar, { type AdminTabType } from "@/components/admin-sidebar";
 import ThemeToggle from "@/components/theme-toggle";
 import LanguageToggle from "@/components/language-toggle";
 import { useLanguage } from "@/components/language-provider";
@@ -370,22 +372,26 @@ export default function AdminView({
   const { tx } = useLanguage();
   const [isPending, startTransition] = useTransition();
 
-  // Navigation Tabs: Grouped for clarity
-  type TabType =
-    | "kyc"
-    | "users"
-    | "jobs"
-    | "disputes"
-    | "heatmap"
-    | "broadcast"
-    | "reviews"
-    | "categories"
-    | "analytics"
-    | "monetization"
-    | "reconciliation"
-    | "audit";
+  type TabType = AdminTabType;
 
   const [activeTab, setActiveTab] = useState<TabType>("kyc");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
+
+  const tabTitles: Record<AdminTabType, { en: string; ne: string }> = {
+    kyc: { en: "KYC Submissions", ne: "केवाइसी समीक्षा" },
+    disputes: { en: "Dispute Center", ne: "विवाद समाधान" },
+    reviews: { en: "Platform Reviews", ne: "समीक्षाहरू" },
+    users: { en: "User Directory", ne: "उपभोक्ता खाताहरू" },
+    jobs: { en: "Job Postings", ne: "कामका विज्ञापनहरू" },
+    categories: { en: "Service Categories", ne: "सेवा विधाहरू" },
+    monetization: { en: "Featured Revenue", ne: "फिचर्ड भुक्तानी" },
+    reconciliation: { en: "CSV & Invoicing", ne: "हिसाब मिलान" },
+    heatmap: { en: "Supply Heatmap", ne: "माग तथा नक्सा" },
+    broadcast: { en: "Emergency Broadcasts", ne: "आपतकालीन सूचना" },
+    analytics: { en: "Funnel Analytics", ne: "फनेल विश्लेषण" },
+    audit: { en: "Audit Logs", ne: "अडिट लग" },
+  };
 
   // Notifications / Feedback Toast
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -843,51 +849,72 @@ export default function AdminView({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
-      {/* ── Top Navigation Bar ─────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Link href="/" className="flex items-center">
-              <div className="dark:bg-white dark:rounded-xl dark:px-2.5 dark:py-1 transition-all">
-                <Image
-                  src="/logo.png"
-                  alt="KamGhar"
-                  width={120}
-                  height={40}
-                  priority
-                  className="h-8 w-auto object-contain"
-                />
+    <div className="h-screen h-[100dvh] overflow-hidden flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      {/* ── Admin Sidebar (Fixed, Unscrollable, Collapsible) ── */}
+      <AdminSidebar
+        currentUser={currentUser}
+        activeTab={activeTab}
+        onTabChange={(tab) => setActiveTab(tab)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+        mobileOpen={sidebarMobileOpen}
+        onCloseMobile={() => setSidebarMobileOpen(false)}
+        pendingKycCount={initialStats.kyc.pendingTotal}
+        disputesCount={initialDisputes.length}
+        usersCount={initialUsers.length}
+        jobsCount={initialJobs.length}
+        reviewsCount={initialReviews.length}
+      />
+
+      {/* ── Main Viewport Content ── */}
+      <div className="flex-1 min-w-0 flex flex-col h-screen h-[100dvh] overflow-hidden">
+        {/* ── Top Navigation Bar (Fixed, Non-scrolling) ── */}
+        <header className="shrink-0 h-16 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200">
+          <div className="w-full px-4 sm:px-8 h-16 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              {/* Mobile hamburger trigger for admin sidebar drawer */}
+              <button
+                type="button"
+                onClick={() => setSidebarMobileOpen(true)}
+                className="lg:hidden p-2 -ml-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Open admin sidebar drawer"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
+                  {tx("Admin Console", "प्रशासक कन्सोल")}
+                </span>
+                <span className="hidden sm:inline text-slate-300 dark:text-slate-700">/</span>
+                <h1 className="hidden sm:inline text-xs font-bold text-slate-700 dark:text-slate-200">
+                  {tx(tabTitles[activeTab]?.en || "Overview", tabTitles[activeTab]?.ne || "अवलोकन")}
+                </h1>
               </div>
-            </Link>
-            <span className="hidden xs:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/60 shadow-xs">
-              <ShieldCheck className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-              <span>{tx("Admin Console", "प्रशासक कन्सोल")}</span>
-            </span>
-          </div>
+            </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-3">
-            <ThemeToggle />
-            <LanguageToggle />
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              <ThemeToggle />
+              <LanguageToggle />
 
-            <Link
-              href="/dashboard"
-              className="px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-            >
-              <span className="hidden xs:inline">{tx("User Dashboard", "प्रयोगकर्ता ड्यासबोर्ड")}</span>
-              <span className="xs:hidden">{tx("Dashboard", "ड्यासबोर्ड")}</span>
-            </Link>
+              <Link
+                href="/dashboard"
+                className="px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              >
+                <span className="hidden xs:inline">{tx("User Dashboard", "प्रयोगकर्ता ड्यासबोर्ड")}</span>
+                <span className="xs:hidden">{tx("Dashboard", "ड्यासबोर्ड")}</span>
+              </Link>
 
-            <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-500 dark:text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{currentUser.email}</span>
+              <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>{currentUser.email}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* ── Main Container ────────────────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        {/* ── Main Container (Scrollable) ── */}
+        <main className="flex-1 overflow-y-auto w-full px-4 sm:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 pb-24 sm:pb-8 scrollbar-thin">
         {/* Toast Alert */}
         <AnimatePresence>
           {toastMessage && (
@@ -2935,6 +2962,7 @@ export default function AdminView({
           </div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
