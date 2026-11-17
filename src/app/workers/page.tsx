@@ -35,11 +35,7 @@ export default async function WorkersPage() {
         <Suspense
           fallback={
             <div className="h-96 flex items-center justify-center">
-              <LoadingAnimation
-                compact
-                label="खोज्दैछ • Loading verified workers in Nepal..."
-                sublabel="Connecting with certified electricians, plumbers & trades"
-              />
+              <LoadingAnimation compact showLogo={false} label="Loading verified workers in Nepal..." />
             </div>
           }
         >
