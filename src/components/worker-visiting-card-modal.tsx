@@ -122,15 +122,15 @@ export default function WorkerVisitingCardModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm print:p-0 print:bg-white">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-sm print:p-0 print:bg-white overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden print:border-none print:shadow-none"
+          className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden print:border-none print:shadow-none my-auto max-h-[90dvh] flex flex-col"
         >
           {/* Header */}
-          <div className="p-4 px-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between print:hidden">
+          <div className="p-4 px-5 sm:px-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between print:hidden shrink-0">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-orange-500" />
               <h3 className="font-bold text-sm text-slate-900 dark:text-white">
@@ -146,10 +146,10 @@ export default function WorkerVisitingCardModal({
           </div>
 
           {/* Business Card Canvas (Standard 3.5x2 aspect style) */}
-          <div className="p-6">
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1">
             <div
               id="printable-card"
-              className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-6 shadow-xl border border-white/10 space-y-5"
+              className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 text-white p-4 sm:p-6 shadow-xl border border-white/10 space-y-5"
             >
               {/* Background watermark seal */}
               <div className="pointer-events-none absolute -right-12 -bottom-12 w-48 h-48 bg-orange-500/10 rounded-full blur-2xl" />

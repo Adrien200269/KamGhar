@@ -171,7 +171,7 @@ export default function AppHeader({
 
       {/* Mobile Drawer Menu (< sm) */}
       {mobileMenuOpen && (
-        <div className="sm:hidden border-t border-slate-200 dark:border-slate-800 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl px-4 py-4 space-y-4 shadow-xl">
+        <div className="sm:hidden border-t border-slate-200 dark:border-slate-800 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl px-4 py-4 space-y-4 shadow-xl max-h-[calc(100dvh-4rem)] overflow-y-auto">
           {/* User status or Auth Buttons */}
           {isLoggedIn ? (
             <div className="flex items-center justify-between p-3 rounded-2xl bg-orange-50/70 dark:bg-orange-950/40 border border-orange-200/80 dark:border-orange-800/60">

@@ -633,7 +633,7 @@ export default function HomeView() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-900 dark:bg-black text-slate-400 py-10 text-sm border-t border-slate-800">
+      <footer className="bg-slate-900 dark:bg-black text-slate-400 pt-10 pb-24 sm:pb-10 text-sm border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex flex-col gap-1">
             <span className="font-bold text-white text-base">

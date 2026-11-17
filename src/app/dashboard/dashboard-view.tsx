@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   ChevronUp,
   User,
@@ -52,7 +53,9 @@ import {
   TrendingUp,
   Wallet,
   Banknote,
+  Menu,
 } from "lucide-react";
+import DashboardSidebar, { type DashboardTab } from "@/components/dashboard-sidebar";
 import ThemeToggle from "@/components/theme-toggle";
 import LanguageToggle from "@/components/language-toggle";
 import NotificationDropdown from "@/components/notification-dropdown";
@@ -239,6 +242,43 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const [showPostedBanner, setShowPostedBanner] = useState(justPosted);
   const [showRestrictedBanner, setShowRestrictedBanner] = useState(workerPostRestricted);
   const [profileBannerDismissed, setProfileBannerDismissed] = useState(false);
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>("overview");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab") as DashboardTab | null;
+    if (tabParam) {
+      if (tabParam === "kyc") {
+        setSettingsTab("kyc");
+        setShowSettingsModal(true);
+      } else if (tabParam === "settings") {
+        setSettingsTab("profile");
+        setShowSettingsModal(true);
+      } else if (
+        ["overview", "applications", "jobs", "earnings", "saved"].includes(
+          tabParam
+        )
+      ) {
+        setDashboardTab(tabParam);
+      }
+    }
+  }, [searchParams]);
+
+  const handleTabSelect = (tab: DashboardTab) => {
+    if (tab === "kyc") {
+      setSettingsTab("kyc");
+      setShowSettingsModal(true);
+      return;
+    }
+    if (tab === "settings") {
+      setSettingsTab("profile");
+      setShowSettingsModal(true);
+      return;
+    }
+    setDashboardTab(tab);
+  };
+
   const [jobFilter, setJobFilter] = useState<"ALL" | "OPEN" | "COMPLETED">("ALL");
   const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
@@ -781,56 +821,142 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      {/* ── Navbar ─────────────────────────────────────────── */}
-      <motion.header
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200"
-      >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <div className="dark:bg-white dark:rounded-xl dark:px-2.5 dark:py-1 transition-all duration-200">
-              <Image src="/logo.png" alt="KamGhar" width={120} height={40} priority className="h-8 w-auto object-contain" />
+    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      {/* ── Persistent & Collapsible Dashboard Sidebar ── */}
+      <DashboardSidebar
+        user={user}
+        activeTab={dashboardTab}
+        onTabChange={handleTabSelect}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        mobileOpen={sidebarMobileOpen}
+        onCloseMobile={() => setSidebarMobileOpen(false)}
+        isAvailableNow={isAvailableNow}
+        togglingAvailability={togglingAvailability}
+        onToggleAvailability={handleToggleAvailability}
+        applicationsCount={user.applications?.length || 0}
+        openJobsCount={postedJobs.filter((j) => j.status === "OPEN").length}
+        onOpenVisitingCard={() => setShowVisitingCardModal(true)}
+        onOpenSafetyModal={() =>
+          setSafetyModalData({
+            jobTitle: isWorker ? "Worker Session" : "Client Session",
+            location: (profile?.address as string) || "Nepal",
+          })
+        }
+        onSignOut={handleSignOut}
+      />
+
+      {/* ── Main Viewport Content ── */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* ── Navbar ─────────────────────────────────────────── */}
+        <motion.header
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200"
+        >
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              {/* Mobile hamburger trigger for sidebar drawer */}
+              <button
+                type="button"
+                onClick={() => setSidebarMobileOpen(true)}
+                className="lg:hidden p-2 -ml-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Open sidebar drawer"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300">
+                  {isWorker
+                    ? tx("Worker Portal", "कामदार पोर्टल")
+                    : tx("Recruiter Portal", "रोजगारदाता पोर्टल")}
+                </span>
+                <span className="hidden sm:inline text-slate-300 dark:text-slate-700">
+                  /
+                </span>
+                <h1 className="hidden sm:inline text-xs font-bold text-slate-700 dark:text-slate-200 capitalize">
+                  {dashboardTab === "overview"
+                    ? tx("Dashboard Overview", "अवलोकन")
+                    : dashboardTab === "applications"
+                    ? tx("My Applications", "मेरा आवेदनहरू")
+                    : dashboardTab === "earnings"
+                    ? tx("Earnings Ledger", "आम्दानी लेजर")
+                    : tx("Posted Requirements", "कामका विवरणहरू")}
+                </h1>
+              </div>
             </div>
-          </Link>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            {isWorker ? (
-              <Link
-                href="/jobs"
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
+            <div className="flex items-center gap-2 sm:gap-3">
+              {isWorker ? (
+                <Link
+                  href="/jobs"
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">
+                    {tx("Find Jobs", "काम खोज्नुहोस्")}
+                  </span>
+                </Link>
+              ) : (
+                <Link
+                  href="/jobs/new"
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">
+                    {tx("Post a Job", "काम पोस्ट गर्नुहोस्")}
+                  </span>
+                </Link>
+              )}
+
+              <NotificationDropdown
+                onOpenChat={(chat) => setActiveChat(chat)}
+              />
+              <ThemeToggle />
+              <LanguageToggle />
+
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors cursor-pointer"
+                title={tx("Sign out", "लग आउट")}
               >
-                <Search className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline">{tx("Find Jobs", "काम खोज्नुहोस्")}</span>
-              </Link>
-            ) : (
-              <Link
-                href="/jobs/new"
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline">{tx("Post a Job", "काम पोस्ट गर्नुहोस्")}</span>
-              </Link>
-            )}
-
-            <NotificationDropdown onOpenChat={(chat) => setActiveChat(chat)} />
-            <ThemeToggle />
-            <LanguageToggle />
-
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors cursor-pointer"
-              title={tx("Sign out", "लग आउट")}
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{tx("Sign out", "लग आउट")}</span>
-            </button>
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  {tx("Sign out", "लग आउट")}
+                </span>
+              </button>
+            </div>
           </div>
-        </div>
-      </motion.header>
+        </motion.header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 pb-20 sm:pb-8">
+        <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 pb-24 sm:pb-8">
+          {/* Section Breadcrumb Bar when drilled into a specific tab */}
+          {dashboardTab !== "overview" && (
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => setDashboardTab("overview")}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>{tx("Back to Overview", "अवलोकनमा फर्कनुहोस्")}</span>
+              </button>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {dashboardTab === "applications"
+                  ? `${user.applications?.length || 0} ${tx(
+                      "Applications",
+                      "आवेदनहरू"
+                    )}`
+                  : dashboardTab === "earnings"
+                  ? tx("Financial Ledger", "आर्थिक लेजर")
+                  : `${postedJobs.length} ${tx(
+                      "Posted Requirements",
+                      "कामका विवरणहरू"
+                    )}`}
+              </span>
+            </div>
+          )}
         {/* Recruiter Success Banner when newly posted */}
         <AnimatePresence>
           {showPostedBanner && !isWorker && (
@@ -894,7 +1020,9 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
         </AnimatePresence>
 
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
-          {/* ── Profile incomplete banner ─────────────────── */}
+          {dashboardTab === "overview" && (
+            <>
+              {/* ── Profile incomplete banner ─────────────────── */}
           {!profileComplete && !profileBannerDismissed && (
             <motion.div variants={fadeUp}>
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/50">
@@ -1205,7 +1333,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 <QuickAction
                   icon={<Wallet className="w-5 h-5 text-emerald-600" />}
                   label={tx("Earnings & Ledger", "आम्दानी लेजर")}
-                  href="#earnings"
+                  onClick={() => setDashboardTab("earnings")}
                   color="emerald"
                 />
                 <QuickAction
@@ -1298,95 +1426,102 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               </div>
             )}
           </motion.div>
+          </>
+          )}
 
           {/* ── WORKER VIEW: Discovery & Applications ───────── */}
           {isWorker ? (
             <div className="space-y-6">
-              {/* Find Work Banner */}
-              <motion.div variants={fadeUp}>
-                <div className="p-6 rounded-3xl bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-extrabold flex items-center gap-2">
-                      <Briefcase className="w-5 h-5" />
-                      <span>Ready to take on new work?</span>
-                    </h3>
-                    <p className="text-xs text-orange-100 max-w-lg leading-relaxed">
-                      Clients in Kathmandu and across Nepal are posting daily repair, trade, and freelance gigs. Browse and apply now.
-                    </p>
-                  </div>
-                  <Link
-                    href="/jobs"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-orange-600 rounded-xl text-xs font-bold shadow-md hover:bg-orange-50 transition-all whitespace-nowrap cursor-pointer"
-                  >
-                    <Search className="w-4 h-4" />
-                    <span>Explore Open Gigs</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              </motion.div>
-
-              {/* Public Profile Visibility Preview */}
-              <motion.div variants={fadeUp}>
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      <Eye className="w-4 h-4 text-orange-500" />
-                      <span>How Recruiters See Your Post in the Worker Directory</span>
-                    </div>
-                    <Link
-                      href="/workers"
-                      className="text-xs font-semibold text-orange-600 dark:text-orange-400 hover:underline"
-                    >
-                      View All Workers →
-                    </Link>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-white text-sm">{displayName}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                          Available for Hire
-                        </span>
+              {dashboardTab === "overview" && (
+                <>
+                  {/* Find Work Banner */}
+                  <motion.div variants={fadeUp}>
+                    <div className="p-6 rounded-3xl bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-extrabold flex items-center gap-2">
+                          <Briefcase className="w-5 h-5" />
+                          <span>Ready to take on new work?</span>
+                        </h3>
+                        <p className="text-xs text-orange-100 max-w-lg leading-relaxed">
+                          Clients in Kathmandu and across Nepal are posting daily repair, trade, and freelance gigs. Browse and apply now.
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-orange-500" />
-                        {location ? `${location}, Nepal` : "Nepal"}
-                        {user.workerProfile?.hourlyRate && (
-                          <>
-                            <span>•</span>
-                            <strong className="text-slate-700 dark:text-slate-300">
-                              Rs. {user.workerProfile.hourlyRate}/hr
-                            </strong>
-                          </>
-                        )}
-                      </p>
-                      {user.workerProfile?.skills && user.workerProfile.skills.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {user.workerProfile.skills.map((s) => (
-                            <span
-                              key={s}
-                              className="text-[10px] font-semibold px-2 py-0.5 bg-orange-100/70 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 rounded-md"
-                            >
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      <Link
+                        href="/jobs"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-orange-600 rounded-xl text-xs font-bold shadow-md hover:bg-orange-50 transition-all whitespace-nowrap cursor-pointer"
+                      >
+                        <Search className="w-4 h-4" />
+                        <span>Explore Open Gigs</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
                     </div>
+                  </motion.div>
 
-                    <Link
-                      href="/onboarding"
-                      className="px-3.5 py-1.5 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
-                    >
-                      Edit Listing
-                    </Link>
-                  </div>
-                </div>
-              </motion.div>
+                  {/* Public Profile Visibility Preview */}
+                  <motion.div variants={fadeUp}>
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          <Eye className="w-4 h-4 text-orange-500" />
+                          <span>How Recruiters See Your Post in the Worker Directory</span>
+                        </div>
+                        <Link
+                          href="/workers"
+                          className="text-xs font-semibold text-orange-600 dark:text-orange-400 hover:underline"
+                        >
+                          View All Workers →
+                        </Link>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 dark:text-white text-sm">{displayName}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              Available for Hire
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <MapPin className="w-3 text-orange-500" />
+                            {location ? `${location}, Nepal` : "Nepal"}
+                            {user.workerProfile?.hourlyRate && (
+                              <>
+                                <span>•</span>
+                                <strong className="text-slate-700 dark:text-slate-300">
+                                  Rs. {user.workerProfile.hourlyRate}/hr
+                                </strong>
+                              </>
+                            )}
+                          </p>
+                          {user.workerProfile?.skills && user.workerProfile.skills.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {user.workerProfile.skills.map((s) => (
+                                <span
+                                  key={s}
+                                  className="text-[10px] font-semibold px-2 py-0.5 bg-orange-100/70 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 rounded-md"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <Link
+                          href="/onboarding"
+                          className="px-3.5 py-1.5 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors whitespace-nowrap"
+                        >
+                          Edit Listing
+                        </Link>
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
 
               {/* ── Worker Earnings & Monthly Ledger Section ── */}
-              <motion.div variants={fadeUp} id="earnings" className="space-y-4">
+              {(dashboardTab === "overview" || dashboardTab === "earnings") && (
+                <motion.div variants={fadeUp} id="earnings" className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Wallet className="w-5 h-5 text-emerald-600" />
@@ -1547,9 +1682,11 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   )}
                 </div>
               </motion.div>
+              )}
 
               {/* Worker Applications Section */}
-              <motion.div variants={fadeUp} id="applications" className="space-y-4">
+              {(dashboardTab === "overview" || dashboardTab === "applications") && (
+                <motion.div variants={fadeUp} id="applications" className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
                     Your Job Applications
@@ -1911,10 +2048,13 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   </div>
                 )}
               </motion.div>
+              )}
             </div>
           ) : (
-            /* ── RECRUITER VIEW: Posted Requirements Hub ─────── */
-            <motion.div variants={fadeUp} id="jobs" className="space-y-4">
+            <>
+              {/* ── RECRUITER VIEW: Posted Requirements Hub ─────── */}
+              {(dashboardTab === "overview" || dashboardTab === "jobs") && (
+                <motion.div variants={fadeUp} id="jobs" className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
@@ -2519,7 +2659,9 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               )}
             </motion.div>
           )}
-        </motion.div>
+        </>
+      )}
+    </motion.div>
       </main>
 
       {/* ── Direct Communication / Chat Modal ─────────────────── */}
@@ -3534,6 +3676,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
           </div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

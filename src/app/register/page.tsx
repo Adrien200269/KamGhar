@@ -15,7 +15,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-slate-950 transition-colors duration-200">
       {/* ── Left panel: Form ── */}
-      <div className="flex-1 flex flex-col justify-between px-6 py-6 sm:px-10 lg:px-12 xl:px-16 max-w-2xl min-h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col justify-between px-4 py-5 sm:px-10 lg:px-12 xl:px-16 max-w-2xl min-h-screen overflow-y-auto">
         {/* Top nav */}
         <div className="flex items-center justify-between mb-4 sm:mb-6">
           <Link

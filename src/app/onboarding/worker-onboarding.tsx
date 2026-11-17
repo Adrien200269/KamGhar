@@ -482,7 +482,7 @@ export default function WorkerOnboarding({
                   animate="center"
                   exit="exit"
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="p-6 sm:p-8"
+                  className="p-4 sm:p-8"
                 >
                   <div className="text-center mb-6">
                     <h2 className="text-2xl font-black text-slate-900 dark:text-white">
@@ -594,7 +594,7 @@ export default function WorkerOnboarding({
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                         Years of Experience
                       </label>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {["< 1 year", "1-3 years", "3-5 years", "5+ years"].map((lvl) => (
                           <button
                             key={lvl}
@@ -649,7 +649,7 @@ export default function WorkerOnboarding({
                   animate="center"
                   exit="exit"
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="p-6 sm:p-8"
+                  className="p-4 sm:p-8"
                 >
                   <div className="text-center mb-5">
                     <h2 className="text-2xl font-black text-slate-900 dark:text-white">
@@ -712,7 +712,7 @@ export default function WorkerOnboarding({
                           <Navigation className="w-3.5 h-3.5 text-orange-500" /> Maximum Travel Radius
                         </span>
                       </label>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {["Within 5 km", "Within 10 km", "Within 25 km", "Anywhere"].map((r) => (
                           <button
                             key={r}
@@ -795,7 +795,7 @@ export default function WorkerOnboarding({
                   animate="center"
                   exit="exit"
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="p-6 sm:p-8"
+                  className="p-4 sm:p-8"
                 >
                   <div className="text-center mb-5">
                     <h2 className="text-2xl font-black text-slate-900 dark:text-white">
@@ -890,7 +890,7 @@ export default function WorkerOnboarding({
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                         Working Availability
                       </label>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {["Available Now", "Part-Time", "Weekends Only", "Emergency Call"].map(
                           (status) => (
                             <button
@@ -942,7 +942,7 @@ export default function WorkerOnboarding({
                   animate="center"
                   exit="exit"
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="p-6 sm:p-8"
+                  className="p-4 sm:p-8"
                 >
                   <div className="text-center mb-5">
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 text-xs font-bold mb-2">

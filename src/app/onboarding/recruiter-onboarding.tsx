@@ -481,7 +481,7 @@ export default function RecruiterOnboarding({
                   animate="center"
                   exit="exit"
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="p-6 sm:p-8"
+                  className="p-4 sm:p-8"
                 >
                   <div className="text-center mb-6">
                     <h2 className="text-2xl font-black text-slate-900 dark:text-white">
@@ -638,7 +638,7 @@ export default function RecruiterOnboarding({
                   animate="center"
                   exit="exit"
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="p-6 sm:p-8"
+                  className="p-4 sm:p-8"
                 >
                   <div className="text-center mb-5">
                     <h2 className="text-2xl font-black text-slate-900 dark:text-white">
@@ -759,7 +759,7 @@ export default function RecruiterOnboarding({
                   animate="center"
                   exit="exit"
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="p-6 sm:p-8"
+                  className="p-4 sm:p-8"
                 >
                   <div className="text-center mb-5">
                     <h2 className="text-2xl font-black text-slate-900 dark:text-white">
@@ -812,7 +812,7 @@ export default function RecruiterOnboarding({
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                         Typical Hiring Urgency
                       </label>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {["Immediate Tasks", "Scheduled Maintenance", "Long-Term Projects"].map(
                           (urg) => (
                             <button
@@ -837,7 +837,7 @@ export default function RecruiterOnboarding({
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                         Preferred Settlement Method
                       </label>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {["Cash on Completion", "eSewa / Khalti", "Bank Transfer"].map((m) => (
                           <button
                             key={m}
@@ -887,7 +887,7 @@ export default function RecruiterOnboarding({
                   animate="center"
                   exit="exit"
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="p-6 sm:p-8"
+                  className="p-4 sm:p-8"
                 >
                   <div className="text-center mb-5">
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 text-xs font-bold mb-2">

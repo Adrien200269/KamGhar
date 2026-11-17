@@ -2422,7 +2422,8 @@ export default function AdminView({
             </div>
 
             <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
-              <table className="w-full text-left text-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[640px]">
                 <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200/80 dark:border-slate-800">
                   <tr>
                     <th className="py-3 px-4">Timestamp</th>
@@ -2452,6 +2453,7 @@ export default function AdminView({
               </table>
             </div>
           </div>
+        </div>
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -2498,7 +2500,8 @@ export default function AdminView({
             </div>
 
             <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
-              <table className="w-full text-left text-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[640px]">
                 <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200/80 dark:border-slate-800">
                   <tr>
                     <th className="py-3.5 px-4">{tx("User / Identity", "उपभोक्ता / पहिचान")}</th>
@@ -2612,6 +2615,7 @@ export default function AdminView({
               </table>
             </div>
           </div>
+        </div>
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}

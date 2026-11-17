@@ -15,7 +15,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-slate-950 transition-colors duration-200">
       {/* ── Left panel: Form ── */}
-      <div className="flex-1 flex flex-col px-6 py-8 sm:px-10 lg:px-16 xl:px-24 max-w-xl">
+      <div className="flex-1 flex flex-col px-4 py-6 sm:px-10 lg:px-16 xl:px-24 max-w-xl">
         {/* Top nav */}
         <div className="flex items-center justify-between mb-8 sm:mb-10">
           <Link

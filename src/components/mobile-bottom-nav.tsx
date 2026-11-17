@@ -29,12 +29,14 @@ export default function MobileBottomNav() {
     };
   }, []);
 
-  // Hide on auth & full-screen admin flows
+  // Hide on auth, onboarding & full-screen admin flows
   if (
     pathname?.startsWith("/login") ||
     pathname?.startsWith("/register") ||
+    pathname?.startsWith("/signup") ||
     pathname?.startsWith("/forgot-password") ||
     pathname?.startsWith("/reset-password") ||
+    pathname?.startsWith("/onboarding") ||
     pathname?.startsWith("/admin")
   ) {
     return null;

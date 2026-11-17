@@ -64,12 +64,12 @@ export default function JobCompletionReceiptModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto print:p-0 print:bg-white">
-      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden print:border-none print:shadow-none print:max-w-full">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto print:p-0 print:bg-white">
+      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden print:border-none print:shadow-none print:max-w-full my-auto max-h-[92dvh] flex flex-col">
         {/* Top Control Bar (Hidden on print) */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between print:hidden">
+        <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 print:hidden shrink-0">
           <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-orange-600" />
+            <FileText className="w-5 h-5 text-orange-600 shrink-0" />
             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
               {tx("Work Completion Tax Invoice / Receipt", "काम सम्पन्न कर बिल / रसिद")}
             </span>
@@ -100,9 +100,9 @@ export default function JobCompletionReceiptModal({
         </div>
 
         {/* Printable Receipt Body */}
-        <div ref={receiptRef} className="p-8 sm:p-10 space-y-8 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 print:text-black print:bg-white">
+        <div ref={receiptRef} className="p-4 sm:p-10 space-y-6 sm:space-y-8 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 print:text-black print:bg-white overflow-y-auto flex-1">
           {/* Receipt Header */}
-          <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-6 print:border-slate-300">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6 print:border-slate-300">
             <div>
               <div className="flex items-center gap-2">
                 <Image src="/logo.png" alt="KamGhar" width={110} height={36} priority className="h-7 w-auto object-contain dark:bg-white dark:p-1 dark:rounded-md" />
@@ -118,7 +118,7 @@ export default function JobCompletionReceiptModal({
               </p>
             </div>
 
-            <div className="text-right">
+            <div className="sm:text-right">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                 Invoice Number
               </span>
@@ -133,7 +133,7 @@ export default function JobCompletionReceiptModal({
           </div>
 
           {/* Party Details: Recruiter & Worker */}
-          <div className="grid grid-cols-2 gap-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 print:border-slate-300 print:bg-slate-50">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 print:border-slate-300 print:bg-slate-50">
             <div>
               <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
                 Hired By (Client / Recruiter)
