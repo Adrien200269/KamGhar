@@ -6,6 +6,7 @@ import { Flame, TrendingUp, Zap, ShieldCheck, ArrowRight, Sparkles, Check } from
 import { useLanguage } from "@/components/language-provider";
 import BoostPaymentModal from "@/components/boost-payment-modal";
 import { BOOST_PACKAGES } from "@/lib/constants";
+import { getRemainingBoostInfo } from "@/lib/boost";
 
 interface BoostPromoCardProps {
   jobId: string;
@@ -24,20 +25,13 @@ export default function BoostPromoCard({
   className = "",
   onBoostSuccess,
 }: BoostPromoCardProps) {
-  const { tx } = useLanguage();
+  const { lang, tx } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [selectedDays, setSelectedDays] = useState(7);
   const [selectedGateway, setSelectedGateway] = useState<"ESEWA" | "KHALTI">("ESEWA");
 
   const popularPkg = BOOST_PACKAGES.find((p) => p.days === selectedDays) || BOOST_PACKAGES[1];
-
-  const formattedExpiry = boostedUntil
-    ? new Date(boostedUntil).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    : null;
+  const boostInfo = getRemainingBoostInfo(boostedUntil, lang);
 
   return (
     <>
@@ -59,9 +53,9 @@ export default function BoostPromoCard({
                   {tx("Boost Job Listing", "काम बुस्ट गर्नुहोस्")}
                 </h3>
                 {isBoosted && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
-                    <Sparkles className="w-3 h-3 text-amber-600 fill-amber-500" />
-                    <span>Active</span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs">
+                    <Sparkles className="w-3 h-3 text-white fill-white" />
+                    <span>Active{boostInfo?.isActive ? ` (${boostInfo.shortFormatted})` : ""}</span>
                   </span>
                 )}
               </div>
@@ -71,13 +65,13 @@ export default function BoostPromoCard({
             </div>
           </div>
 
-          {isBoosted && formattedExpiry && (
+          {isBoosted && boostInfo?.isActive && (
             <div className="text-right hidden sm:block">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                {tx("Boosted Until", "सक्रिय अवधि")}
+                {tx("Boost Remaining", "बाँकी समय")}
               </span>
               <span className="text-xs font-black text-amber-600 dark:text-amber-400">
-                {formattedExpiry}
+                {boostInfo.formatted}
               </span>
             </div>
           )}
