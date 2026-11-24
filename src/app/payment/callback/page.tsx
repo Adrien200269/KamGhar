@@ -33,22 +33,32 @@ function CallbackContent() {
   const esewaGatewayParam = searchParams.get("gateway");
 
   useEffect(() => {
+    // Resolve eSewa data payload robustly from searchParams or window URL
+    let resolvedEsewaData = esewaDataEncoded;
+    if (!resolvedEsewaData && typeof window !== "undefined") {
+      const match = window.location.href.match(/[?&]data=([^&]+)/);
+      if (match) {
+        resolvedEsewaData = decodeURIComponent(match[1]);
+      }
+    }
+
     // ── 1. eSewa Callback Flow ─────────────────────────
-    if (esewaGatewayParam === "esewa" || esewaDataEncoded) {
+    if (esewaGatewayParam === "esewa" || resolvedEsewaData) {
       if (searchParams.get("status") === "failed" || searchParams.get("status") === "canceled") {
         setState("FAILED");
         setErrorMessage("Payment was canceled or failed on eSewa.");
         return;
       }
 
-      if (!esewaDataEncoded) {
+      if (!resolvedEsewaData) {
         setState("FAILED");
         setErrorMessage("Missing eSewa callback payload.");
         return;
       }
 
       try {
-        const decodedStr = atob(esewaDataEncoded);
+        const normalized = resolvedEsewaData.replace(/-/g, "+").replace(/_/g, "/");
+        const decodedStr = atob(normalized);
         const parsed = JSON.parse(decodedStr);
 
         if (parsed.status !== "COMPLETE") {

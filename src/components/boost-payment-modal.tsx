@@ -7,24 +7,17 @@ import {
   Zap,
   Sparkles,
   Flame,
-  CheckCircle2,
   ShieldCheck,
   Loader2,
-  ArrowRight,
-  ArrowLeft,
   TrendingUp,
-  CreditCard,
-  Lock,
-  Smartphone,
-  KeyRound,
-  Eye,
-  EyeOff,
   ExternalLink,
+  ArrowRight,
+  AlertCircle,
+  ArrowLeft,
 } from "lucide-react";
 import {
   initiateBoostPayment,
   initiateFeaturePayment,
-  verifyAndCompletePayment,
   PaymentResult,
 } from "@/app/actions/payment";
 import { BOOST_PACKAGES, FEATURE_PACKAGES } from "@/lib/constants";
@@ -39,7 +32,7 @@ interface BoostPaymentModalProps {
   onSuccess?: () => void;
 }
 
-type ModalStep = "SELECT" | "GATEWAY_LOGIN" | "OTP" | "PAYING" | "SUCCESS";
+type ModalStep = "SELECT" | "REDIRECTING";
 
 export default function BoostPaymentModal({
   isOpen,
@@ -47,7 +40,6 @@ export default function BoostPaymentModal({
   type,
   jobId,
   itemTitle,
-  onSuccess,
 }: BoostPaymentModalProps) {
   const { lang, tx } = useLanguage();
   const [isPending, startTransition] = useTransition();
@@ -59,12 +51,6 @@ export default function BoostPaymentModal({
   const [step, setStep] = useState<ModalStep>("SELECT");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // User input fields
-  const [mobileNumber, setMobileNumber] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [otp, setOtp] = useState("");
-
   // Stored transaction result from initiation
   const [paymentTx, setPaymentTx] = useState<PaymentResult | null>(null);
 
@@ -75,16 +61,35 @@ export default function BoostPaymentModal({
     if (isPending) return;
     setErrorMsg(null);
     setStep("SELECT");
-    setMobileNumber("");
-    setPassword("");
-    setOtp("");
     setPaymentTx(null);
     onClose();
   };
 
-  // Step 1: Initiate Transaction and proceed to Login Credentials Form
-  const handleProceedToCredentials = () => {
+  // Helper function to launch external gateway portal
+  const launchExternalPortal = (txData: PaymentResult, selectedGateway: "ESEWA" | "KHALTI") => {
+    if (selectedGateway === "ESEWA" && txData.esewaConfig) {
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = txData.esewaConfig.actionUrl;
+      Object.entries(txData.esewaConfig.fields).forEach(([key, val]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = val;
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
+      form.submit();
+    } else if (selectedGateway === "KHALTI" && txData.paymentUrl) {
+      window.location.href = txData.paymentUrl;
+    }
+  };
+
+  // Initiate Transaction and automatically launch external gateway portal
+  const handleProceedToPayment = () => {
     setErrorMsg(null);
+    setStep("REDIRECTING");
+
     startTransition(async () => {
       try {
         let res: PaymentResult;
@@ -104,108 +109,19 @@ export default function BoostPaymentModal({
 
         if (!res.success || !res.transactionId) {
           setErrorMsg(res.error || "Payment initiation failed.");
+          setStep("SELECT");
           return;
         }
 
         setPaymentTx(res);
-        setStep("GATEWAY_LOGIN");
+
+        // Automatically launch external gateway portal!
+        launchExternalPortal(res, gateway);
       } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : "Unexpected error");
+        setErrorMsg(err instanceof Error ? err.message : "Unexpected error launching gateway");
+        setStep("SELECT");
       }
     });
-  };
-
-  // Step 2: Validate Credentials & proceed to OTP
-  const handleProceedToOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-
-    const cleanMobile = mobileNumber.trim();
-    if (!cleanMobile) {
-      setErrorMsg(tx("Please enter your mobile number / ID.", "कृपया मोबाइल नम्बर वा आईडी भर्नुहोस्।"));
-      return;
-    }
-    if (cleanMobile.length < 9) {
-      setErrorMsg(tx("Mobile number must be at least 10 digits.", "१० अङ्कको मोबाइल नम्बर हुनुपर्छ।"));
-      return;
-    }
-    if (!password.trim()) {
-      setErrorMsg(tx("Please enter your password / MPIN.", "कृपया पासवर्ड वा एमपिन भर्नुहोस्।"));
-      return;
-    }
-
-    setStep("OTP");
-  };
-
-  // Step 3: Verify OTP and finalize payment
-  const handleFinalizePayment = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-
-    const cleanOtp = otp.trim();
-    if (!cleanOtp || cleanOtp.length < 4) {
-      setErrorMsg(tx("Please enter the 6-digit verification OTP.", "कृपया ६ अङ्कको ओटिपी भर्नुहोस्।"));
-      return;
-    }
-
-    if (!paymentTx?.transactionId) {
-      setErrorMsg("Transaction reference missing.");
-      setStep("SELECT");
-      return;
-    }
-
-    setStep("PAYING");
-    startTransition(async () => {
-      try {
-        const verifyRes = await verifyAndCompletePayment({
-          transactionId: paymentTx.transactionId!,
-          gatewayRef: `${gateway}-${mobileNumber.trim().slice(-4)}-${Date.now().toString(36).toUpperCase()}`,
-          isSimulator: true,
-        });
-
-        if (verifyRes.success) {
-          setStep("SUCCESS");
-          if (onSuccess) onSuccess();
-        } else {
-          setErrorMsg(verifyRes.error || "Payment verification failed");
-          setStep("OTP");
-        }
-      } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : "Unexpected verification error");
-        setStep("OTP");
-      }
-    });
-  };
-
-  // Quick fill helper for sandbox testing
-  const handleFillSandboxCredentials = () => {
-    if (gateway === "ESEWA") {
-      setMobileNumber("9806800001");
-      setPassword("Nepal@123");
-    } else {
-      setMobileNumber("9800000001");
-      setPassword("1122");
-    }
-  };
-
-  // Optional: Launch external gateway checkout
-  const handleLaunchExternal = () => {
-    if (gateway === "ESEWA" && paymentTx?.esewaConfig) {
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = paymentTx.esewaConfig.actionUrl;
-      Object.entries(paymentTx.esewaConfig.fields).forEach(([key, val]) => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = val;
-        form.appendChild(input);
-      });
-      document.body.appendChild(form);
-      form.submit();
-    } else if (gateway === "KHALTI" && paymentTx?.paymentUrl) {
-      window.location.href = paymentTx.paymentUrl;
-    }
   };
 
   if (!isOpen) return null;
@@ -224,7 +140,8 @@ export default function BoostPaymentModal({
             <button
               onClick={handleClose}
               disabled={isPending}
-              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer disabled:opacity-40"
+              aria-label="Close"
             >
               <X className="w-5 h-5" />
             </button>
@@ -318,73 +235,89 @@ export default function BoostPaymentModal({
                 {/* Gateway Selection */}
                 <div>
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-2.5">
-                    {tx("Pay With Local Gateway", "भुक्तानी माध्यम")}
+                    {tx("Pay With Local Gateway", "भुक्तानी माध्यम छान्नुहोस्")}
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setGateway("ESEWA")}
-                      className={`flex items-center justify-center gap-2 p-3 rounded-2xl border-2 font-bold text-xs transition cursor-pointer ${
+                      className={`flex items-center justify-center gap-2.5 p-3.5 rounded-2xl border-2 font-bold text-xs transition cursor-pointer ${
                         gateway === "ESEWA"
                           ? "border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 shadow-sm"
                           : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300"
                       }`}
                     >
-                      <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                      <div className="w-3.5 h-3.5 rounded-full bg-emerald-500" />
                       <span>eSewa ePay</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setGateway("KHALTI")}
-                      className={`flex items-center justify-center gap-2 p-3 rounded-2xl border-2 font-bold text-xs transition cursor-pointer ${
+                      className={`flex items-center justify-center gap-2.5 p-3.5 rounded-2xl border-2 font-bold text-xs transition cursor-pointer ${
                         gateway === "KHALTI"
                           ? "border-purple-500 bg-purple-50/60 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 shadow-sm"
                           : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300"
                       }`}
                     >
-                      <div className="w-3 h-3 rounded-full bg-purple-600" />
+                      <div className="w-3.5 h-3.5 rounded-full bg-purple-600" />
                       <span>Khalti Digital</span>
                     </button>
                   </div>
                 </div>
 
                 {errorMsg && (
-                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400 font-medium">
-                    {errorMsg}
+                  <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{errorMsg}</span>
                   </div>
                 )}
 
-                {/* Continue to Login Button */}
+                {/* Launch External Gateway Portal Button */}
                 <button
                   type="button"
-                  onClick={handleProceedToCredentials}
+                  onClick={handleProceedToPayment}
                   disabled={isPending}
                   className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold text-sm shadow-xl shadow-orange-500/25 active:scale-98 transition disabled:opacity-50 cursor-pointer"
                 >
                   {isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>{tx("Preparing Gateway...", "सम्पर्क हुँदैछ...")}</span>
+                      <span>
+                        {gateway === "ESEWA"
+                          ? tx("Launching eSewa Portal...", "इ-सेवा पोर्टल खोल्दै...")
+                          : tx("Launching Khalti Portal...", "खल्ती पोर्टल खोल्दै...")}
+                      </span>
                     </>
                   ) : (
                     <>
                       <span>
-                        {tx("Proceed to", "अघि बढ्नुहोस्")} {gateway === "ESEWA" ? "eSewa" : "Khalti"} (Rs. {selectedPkg.price})
+                        {tx("Pay Rs.", "भुक्तानी गर्नुहोस् रु.")} {selectedPkg.price}{" "}
+                        {tx("via", "मार्फत")} {gateway === "ESEWA" ? "eSewa" : "Khalti"}
                       </span>
-                      <ArrowRight className="w-4 h-4" />
+                      <ExternalLink className="w-4 h-4" />
                     </>
                   )}
                 </button>
+
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 pt-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>
+                    {tx(
+                      "Secure official portal redirection. You will return here after completion.",
+                      "आधिकारिक पोर्टलमा सुरक्षित रिडिरेक्सन। भुक्तानीपछि यहीँ फर्किनुहुनेछ।"
+                    )}
+                  </span>
+                </div>
               </>
             )}
 
-            {/* ── STEP 2: Gateway Credentials Form ─────────────────────── */}
-            {step === "GATEWAY_LOGIN" && (
-              <form onSubmit={handleProceedToOtp} className="space-y-4 animate-in fade-in duration-200">
+            {/* ── STEP 2: Automatic Redirection to Official Portal ──────── */}
+            {step === "REDIRECTING" && (
+              <div className="py-8 text-center space-y-6 animate-in fade-in duration-200">
                 {/* Gateway Branding Header */}
                 <div
-                  className={`p-4 rounded-2xl border flex items-center justify-between ${
+                  className={`p-4 rounded-2xl border flex items-center justify-between mx-auto max-w-sm ${
                     gateway === "ESEWA"
                       ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300"
                       : "bg-purple-500/10 border-purple-500/30 text-purple-800 dark:text-purple-300"
@@ -392,15 +325,15 @@ export default function BoostPaymentModal({
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-xs shadow-md ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md ${
                         gateway === "ESEWA" ? "bg-emerald-600" : "bg-purple-600"
                       }`}
                     >
                       {gateway === "ESEWA" ? "eS" : "KH"}
                     </div>
-                    <div>
+                    <div className="text-left">
                       <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                        {gateway === "ESEWA" ? "eSewa ePay Gateway" : "Khalti Digital Wallet"}
+                        {gateway === "ESEWA" ? "eSewa ePay Portal" : "Khalti Payment Portal"}
                       </h4>
                       <p className="text-[11px] opacity-75">
                         {selectedPkg.label} • Rs. {selectedPkg.price}
@@ -409,256 +342,68 @@ export default function BoostPaymentModal({
                   </div>
                   <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                     <ShieldCheck className="w-4 h-4" />
-                    <span>Secure</span>
+                    <span>Official</span>
                   </div>
                 </div>
 
-                {/* Quick Autofill Helper */}
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    {tx("Enter Wallet Credentials", "वालेट विवरण भर्नुहोस्")}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleFillSandboxCredentials}
-                    className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>{tx("Fill Test Credentials", "परीक्षण विवरण भर्नुहोस्")}</span>
-                  </button>
-                </div>
+                {/* Animated Redirect State */}
+                <div className="space-y-3">
+                  <div className={`w-16 h-16 rounded-3xl mx-auto flex items-center justify-center shadow-lg transition-transform animate-pulse ${
+                    gateway === "ESEWA"
+                      ? "bg-emerald-500 text-white shadow-emerald-500/30"
+                      : "bg-purple-600 text-white shadow-purple-600/30"
+                  }`}>
+                    <Loader2 className="w-8 h-8 animate-spin" />
+                  </div>
 
-                {/* Mobile / ID Input */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
-                    {gateway === "ESEWA" ? "eSewa ID / Mobile Number" : "Khalti Registered Mobile"}
-                  </label>
-                  <div className="relative">
-                    <Smartphone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="tel"
-                      value={mobileNumber}
-                      onChange={(e) => setMobileNumber(e.target.value)}
-                      placeholder={gateway === "ESEWA" ? "e.g. 9806800001" : "e.g. 9800000001"}
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white font-medium text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition"
-                      autoFocus
-                    />
+                  <div className="space-y-1">
+                    <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+                      {gateway === "ESEWA"
+                        ? tx("Launching eSewa Portal...", "इ-सेवा पोर्टल खुल्दैछ...")
+                        : tx("Launching Khalti Portal...", "खल्ती पोर्टल खुल्दैछ...")}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                      {tx(
+                        "Connecting to the official payment gateway. Please complete your transaction on the portal.",
+                        "आधिकारिक भुक्तानी पोर्टलमा जोडिँदैछ। कृपया पोर्टलमा गएर भुक्तानी सम्पन्न गर्नुहोस्।"
+                      )}
+                    </p>
                   </div>
                 </div>
 
-                {/* Password / MPIN Input */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
-                    {gateway === "ESEWA" ? "Password / MPIN" : "Khalti MPIN / Password"}
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={gateway === "ESEWA" ? "e.g. Nepal@123" : "e.g. 1122"}
-                      className="w-full pl-10 pr-11 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white font-medium text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition"
-                    />
+                {/* Reassurance Info */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto flex items-center justify-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{tx("Secured with 256-bit official encryption", "२५६-बिट आधिकारिक इन्क्रिप्सनबाट सुरक्षित")}</span>
+                </div>
+
+                {/* Fallback Launch Link & Cancel Button */}
+                <div className="space-y-3 pt-2">
+                  {paymentTx && (
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                      onClick={() => launchExternalPortal(paymentTx, gateway)}
+                      className="text-xs font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400 hover:underline inline-flex items-center gap-1.5 cursor-pointer"
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      <span>{tx("Click here if not redirected automatically", "स्वत: रिडिरेक्ट नभए यहाँ थिच्नुहोस्")}</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
                     </button>
-                  </div>
-                </div>
-
-                {errorMsg && (
-                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400 font-medium">
-                    {errorMsg}
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex gap-2.5 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setErrorMsg(null);
-                      setStep("SELECT");
-                    }}
-                    className="py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>{tx("Back", "फिर्ता")}</span>
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="flex-1 py-3.5 px-6 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold text-sm shadow-xl shadow-orange-500/25 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>{tx("Verify & Continue", "सत्यापन गरी अघि बढ्नुहोस्")}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* External Portal Option */}
-                {(paymentTx?.esewaConfig || paymentTx?.paymentUrl) && (
-                  <div className="pt-2 text-center">
-                    <button
-                      type="button"
-                      onClick={handleLaunchExternal}
-                      className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 inline-flex items-center gap-1 underline transition cursor-pointer"
-                    >
-                      <span>{tx("Or launch official external gateway portal", "वा आधिकारिक बाह्य पोर्टल खोल्नुहोस्")}</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-              </form>
-            )}
-
-            {/* ── STEP 3: OTP Verification ────────────────────────────── */}
-            {step === "OTP" && (
-              <form onSubmit={handleFinalizePayment} className="space-y-4 animate-in fade-in duration-200">
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1">
-                  <div className="font-bold flex items-center gap-1.5">
-                    <KeyRound className="w-4 h-4 text-amber-600" />
-                    <span>{tx("Two-Factor Authentication", "सुरक्षा कोड (OTP)")}</span>
-                  </div>
-                  <p className="text-[11px] opacity-80">
-                    {tx("Enter the 6-digit confirmation token sent to", "यस नम्बरमा पठाइएको कोड हाल्नुहोस्:")}{" "}
-                    <strong className="text-slate-900 dark:text-white font-mono">{mobileNumber}</strong>
-                  </p>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                      {tx("6-Digit Token / OTP", "६ अङ्कको ओटिपी कोड")}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setOtp("123456")}
-                      className="text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
-                    >
-                      {tx("Use Test OTP (123456)", "परीक्षण कोड: 123456")}
-                    </button>
-                  </div>
-
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                    placeholder="123456"
-                    className="w-full py-3.5 px-4 text-center tracking-[0.5em] font-mono text-xl font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500 transition"
-                    autoFocus
-                  />
-                </div>
-
-                {errorMsg && (
-                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400 font-medium">
-                    {errorMsg}
-                  </div>
-                )}
-
-                <div className="flex gap-2.5 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setErrorMsg(null);
-                      setStep("GATEWAY_LOGIN");
-                    }}
-                    className="py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>{tx("Back", "फिर्ता")}</span>
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={isPending}
-                    className="flex-1 py-3.5 px-6 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-extrabold text-sm shadow-xl shadow-orange-500/25 active:scale-98 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>{tx("Authorizing...", "पुष्टि हुँदैछ...")}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>
-                          {tx("Confirm & Pay Rs.", "भुक्तानी गर्नुहोस् रु.")} {selectedPkg.price}
-                        </span>
-                        <CheckCircle2 className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* ── STEP 4: Authorizing / Processing ────────────────────── */}
-            {step === "PAYING" && (
-              <div className="py-12 text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-600 mx-auto flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                </div>
-                <div>
-                  <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
-                    {tx("Authorizing Payment...", "भुक्तानी पुष्टि हुँदैछ...")}
-                  </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    {tx("Connecting with", "सम्पर्क हुँदैछ")} {gateway === "ESEWA" ? "eSewa" : "Khalti"} &{" "}
-                    {tx("activating your boost...", "सक्रिय गरिँदैछ...")}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* ── STEP 5: Success & Boost Activated ───────────────────── */}
-            {step === "SUCCESS" && (
-              <div className="py-6 text-center space-y-4 animate-in fade-in duration-200">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 mx-auto flex items-center justify-center">
-                  <CheckCircle2 className="w-10 h-10" />
-                </div>
-                <div>
-                  <h4 className="text-lg font-extrabold text-slate-900 dark:text-white">
-                    {tx("Payment Verified & Boost Activated!", "भुक्तानी सफल भयो! बुस्ट सक्रिय गरियो!")}
-                  </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-                    {type === "BOOST_JOB"
-                      ? tx("Your gig listing is now highlighted at the top of search results.", "तपाईंको काम अब शीर्ष स्थानमा देखिनेछ।")
-                      : tx("Your worker profile is featured on the directory page.", "तपाईंको प्रोफाइल अब फिचर्ड भयो।")}
-                  </p>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-left text-xs space-y-1.5">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Method</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
-                      {gateway === "ESEWA" ? "eSewa ePay" : "Khalti Digital Wallet"}
-                    </span>
-                  </div>
-                  {mobileNumber && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Account ID</span>
-                      <span className="font-mono text-slate-700 dark:text-slate-300">{mobileNumber}</span>
-                    </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Amount Paid</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                      Rs. {selectedPkg.price}
-                    </span>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg(null);
+                        setStep("SELECT");
+                      }}
+                      className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>{tx("Cancel & Change Package", "रद्द गरी अर्को छान्नुहोस्")}</span>
+                    </button>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="w-full py-3 px-6 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:opacity-90 transition cursor-pointer"
-                >
-                  {tx("Done & View Changes", "सकियो")}
-                </button>
               </div>
             )}
           </div>

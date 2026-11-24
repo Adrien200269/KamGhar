@@ -102,9 +102,11 @@ export async function initiateBoostPayment(input: {
           });
         } else if (khaltiRes.error) {
           console.warn("Khalti boost payment initiation notice:", khaltiRes.error);
+          return { success: false, error: khaltiRes.error };
         }
       } catch (khaltiErr) {
         console.error("Khalti initiation exception:", khaltiErr);
+        return { success: false, error: "Failed to connect to Khalti gateway." };
       }
     } else if (input.gateway === "ESEWA" && isEsewaConfigured()) {
       try {
@@ -112,7 +114,7 @@ export async function initiateBoostPayment(input: {
         const payload = createEsewaPaymentPayload({
           amount: pkg.price,
           transactionUuid: transaction.id,
-          successUrl: `${siteUrl}/payment/callback?gateway=esewa`,
+          successUrl: `${siteUrl}/payment/callback`,
           failureUrl: `${siteUrl}/payment/callback?gateway=esewa&status=failed&purchase_order_id=${transaction.id}`,
         });
 
@@ -122,7 +124,15 @@ export async function initiateBoostPayment(input: {
         };
       } catch (esewaErr) {
         console.error("eSewa boost payment initiation exception:", esewaErr);
+        return { success: false, error: "Failed to prepare eSewa checkout." };
       }
+    }
+
+    if (input.gateway === "KHALTI" && !paymentUrl) {
+      return { success: false, error: "Khalti gateway is not configured or failed to return a checkout URL." };
+    }
+    if (input.gateway === "ESEWA" && !esewaConfig) {
+      return { success: false, error: "eSewa gateway is not configured." };
     }
 
     return {
@@ -212,9 +222,11 @@ export async function initiateFeaturePayment(input: {
           });
         } else if (khaltiRes.error) {
           console.warn("Khalti feature payment initiation notice:", khaltiRes.error);
+          return { success: false, error: khaltiRes.error };
         }
       } catch (khaltiErr) {
         console.error("Khalti initiation exception:", khaltiErr);
+        return { success: false, error: "Failed to connect to Khalti gateway." };
       }
     } else if (input.gateway === "ESEWA" && isEsewaConfigured()) {
       try {
@@ -222,7 +234,7 @@ export async function initiateFeaturePayment(input: {
         const payload = createEsewaPaymentPayload({
           amount: pkg.price,
           transactionUuid: transaction.id,
-          successUrl: `${siteUrl}/payment/callback?gateway=esewa`,
+          successUrl: `${siteUrl}/payment/callback`,
           failureUrl: `${siteUrl}/payment/callback?gateway=esewa&status=failed&purchase_order_id=${transaction.id}`,
         });
 
@@ -232,7 +244,15 @@ export async function initiateFeaturePayment(input: {
         };
       } catch (esewaErr) {
         console.error("eSewa feature payment initiation exception:", esewaErr);
+        return { success: false, error: "Failed to prepare eSewa checkout." };
       }
+    }
+
+    if (input.gateway === "KHALTI" && !paymentUrl) {
+      return { success: false, error: "Khalti gateway is not configured or failed to return a checkout URL." };
+    }
+    if (input.gateway === "ESEWA" && !esewaConfig) {
+      return { success: false, error: "eSewa gateway is not configured." };
     }
 
     return {
@@ -313,10 +333,18 @@ export async function verifyAndCompletePayment(input: {
 
     const meta = (transaction.metadata as { packageDays?: number; jobTitle?: string }) || {};
     const days = meta.packageDays || 7;
-    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const additionalMs = days * 24 * 60 * 60 * 1000;
     const ref = verifiedRef || input.gatewayRef || `SIM-${Date.now().toString(36).toUpperCase()}`;
 
     if (transaction.type === TransactionType.BOOST_JOB && transaction.jobId) {
+      const currentJob = await prisma.job.findUnique({
+        where: { id: transaction.jobId },
+        select: { boostedUntil: true, title: true },
+      });
+      const currentExpiry = currentJob?.boostedUntil ? new Date(currentJob.boostedUntil).getTime() : 0;
+      const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
+      const expiresAt = new Date(baseTime + additionalMs);
+
       await prisma.$transaction([
         prisma.job.update({
           where: { id: transaction.jobId },
@@ -341,12 +369,20 @@ export async function verifyAndCompletePayment(input: {
           type: "SYSTEM",
           title: "🚀 Job Boost Activated!",
           titleNe: "🚀 काम बुस्ट सक्रिय भयो!",
-          message: `Your job "${transaction.job?.title || "listing"}" is now boosted at the top for ${days} days!`,
-          messageNe: `तपाईंको काम "${transaction.job?.title || "काम"}" अब ${days} दिनको लागि शीर्ष स्थानमा बुस्ट गरिएको छ!`,
+          message: `Your job "${transaction.job?.title || currentJob?.title || "listing"}" is now boosted at the top for ${days} days!`,
+          messageNe: `तपाईंको काम "${transaction.job?.title || currentJob?.title || "काम"}" अब ${days} दिनको लागि शीर्ष स्थानमा बुस्ट गरिएको छ!`,
           link: "/jobs",
         },
       });
     } else if (transaction.type === TransactionType.FEATURE_PROFILE) {
+      const currentWorker = await prisma.workerProfile.findUnique({
+        where: { userId: user.id },
+        select: { featuredUntil: true },
+      });
+      const currentExpiry = currentWorker?.featuredUntil ? new Date(currentWorker.featuredUntil).getTime() : 0;
+      const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
+      const expiresAt = new Date(baseTime + additionalMs);
+
       await prisma.$transaction([
         prisma.workerProfile.update({
           where: { userId: user.id },
