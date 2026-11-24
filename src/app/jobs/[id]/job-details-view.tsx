@@ -30,8 +30,10 @@ import { VoiceNotePlayer, VoiceNoteRecorder } from "@/components/voice-note";
 import { useLanguage } from "@/components/language-provider";
 import { getApproximateBsDate } from "@/lib/nepali-date";
 import BoostPaymentModal from "@/components/boost-payment-modal";
+import BoostPromoCard from "@/components/boost-promo-card";
 import SafetyToolkitModal from "@/components/safety-toolkit-modal";
 import { getJobWhatsAppUrl } from "@/lib/whatsapp";
+import { getRemainingBoostInfo } from "@/lib/boost";
 import dynamic from "next/dynamic";
 
 const MapPicker = dynamic(() => import("@/components/map-picker"), { ssr: false });
@@ -49,6 +51,8 @@ export default function JobDetailsView({
   const { job, hasApplied: initialHasApplied, isOwner, currentUserId } = data;
   const { lang, tx } = useLanguage();
   const router = useRouter();
+
+  const jobBoost = getRemainingBoostInfo(job?.boostedUntil, lang);
 
   const [hasApplied, setHasApplied] = useState(initialHasApplied);
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -185,9 +189,15 @@ export default function JobDetailsView({
                 </span>
 
                 {job.isBoosted && (
-                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 flex items-center gap-1">
+                  <span
+                    title={jobBoost?.expiryDateFormatted ? `Boosted until ${jobBoost.expiryDateFormatted}` : undefined}
+                    className="text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80 flex items-center gap-1.5 shadow-xs"
+                  >
                     <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500 animate-pulse" />
-                    <span>Boosted Priority</span>
+                    <span>
+                      {tx("Boosted Priority", "प्राथमिकता बुस्ट")}
+                      {jobBoost?.isActive && ` • ${jobBoost.shortFormatted}`}
+                    </span>
                   </span>
                 )}
 
@@ -345,10 +355,18 @@ export default function JobDetailsView({
                   <button
                     type="button"
                     onClick={() => setShowBoostModal(true)}
-                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md transition cursor-pointer"
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold shadow-md transition cursor-pointer ${
+                      jobBoost?.isActive
+                        ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white ring-2 ring-amber-400/30"
+                        : "bg-amber-500 hover:bg-amber-600 text-white"
+                    }`}
                   >
                     <Flame className="w-4 h-4" />
-                    <span>{tx("Boost Job", "काम बुस्ट गर्नुहोस्")}</span>
+                    <span>
+                      {jobBoost?.isActive
+                        ? tx(`Boost: ${jobBoost.badgeLabel} • Extend`, `बुस्ट: ${jobBoost.badgeLabel} • थप्नुहोस्`)
+                        : tx("Boost Job", "काम बुस्ट गर्नुहोस्")}
+                    </span>
                   </button>
                   <Link
                     href="/dashboard"
@@ -400,6 +418,17 @@ export default function JobDetailsView({
             )}
           </div>
         </div>
+
+        {/* Owner Gig Boost Showcase Card */}
+        {isOwner && (
+          <BoostPromoCard
+            jobId={job.id}
+            jobTitle={job.title}
+            isBoosted={job.isBoosted}
+            boostedUntil={job.boostedUntil}
+            onBoostSuccess={() => router.refresh()}
+          />
+        )}
 
         {/* Embedded Map Section */}
         {job.latitude && job.longitude && (

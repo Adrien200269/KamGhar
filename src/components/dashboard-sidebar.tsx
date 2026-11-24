@@ -26,6 +26,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
+import { getRemainingBoostInfo } from "@/lib/boost";
 
 export type DashboardTab =
   | "overview"
@@ -46,6 +47,7 @@ interface DashboardSidebarProps {
       kycStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
       isAvailableNow?: boolean;
       skills?: string[];
+      featuredUntil?: Date | string | null;
     } | null;
     recruiterProfile?: {
       name: string;
@@ -96,6 +98,7 @@ export default function DashboardSidebar({
   const photoUrl = profile?.profilePhotoUrl;
   const kycStatus = profile?.kycStatus || "UNVERIFIED";
   const isKycVerified = kycStatus === "VERIFIED";
+  const workerBoost = getRemainingBoostInfo(user.workerProfile?.featuredUntil);
 
   const handleSelectTab = (tab: DashboardTab) => {
     onTabChange(tab);
@@ -400,8 +403,12 @@ export default function DashboardSidebar({
                           <span className="font-semibold text-amber-600 dark:text-amber-400">
                             {tx("Feature Profile", "प्रोफाइल फिचर्ड")}
                           </span>
-                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                            Boost
+                          <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full border ${
+                            workerBoost?.isActive
+                              ? "bg-amber-500 text-white border-amber-600 animate-pulse"
+                              : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                          }`}>
+                            {workerBoost?.isActive ? workerBoost.badgeLabel : "Boost"}
                           </span>
                         </div>
                       )}

@@ -36,6 +36,7 @@ import BoostPaymentModal from "@/components/boost-payment-modal";
 import WorkerVisitingCardModal from "@/components/worker-visiting-card-modal";
 import SafetyToolkitModal from "@/components/safety-toolkit-modal";
 import { getWorkerWhatsAppUrl } from "@/lib/whatsapp";
+import { getRemainingBoostInfo } from "@/lib/boost";
 import dynamic from "next/dynamic";
 
 const MapPicker = dynamic(() => import("@/components/map-picker"), { ssr: false });
@@ -55,6 +56,8 @@ export default function WorkerProfileView({
   const profile = worker.workerProfile;
   const { lang, tx } = useLanguage();
   const router = useRouter();
+
+  const boostInfo = getRemainingBoostInfo(profile?.featuredUntil, lang);
 
   const [copied, setCopied] = useState(false);
   const [showDirectHireModal, setShowDirectHireModal] = useState(false);
@@ -158,6 +161,47 @@ export default function WorkerProfileView({
           <span>{tx("Back to Workers Directory", "कामदारहरूको सूचीमा फर्कनुहोस्")}</span>
         </Link>
 
+        {/* ── Boost Status Spotlight Banner ── */}
+        {boostInfo?.isActive && (
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border-2 border-amber-400/40 dark:border-amber-500/30 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md shadow-orange-500/20 shrink-0 mt-0.5 sm:mt-0">
+                <Sparkles className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                    {tx("Profile Boost is Active", "प्रोफाइल बुस्ट सक्रिय छ")}
+                  </span>
+                  <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500 text-white shadow-xs">
+                    {boostInfo.formatted}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  {tx(
+                    "Featured at the top of worker searches for recruiters across Nepal.",
+                    "कामदार खोजी सूचीमा ५ गुणा बढी प्राथमिकताका साथ शीर्ष स्थानमा फिचर्ड छ।"
+                  )}{" "}
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    ({tx("Valid until", "सकिने मिति:")} {boostInfo.expiryDateFormatted})
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => setShowFeatureModal(true)}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md transition shrink-0 cursor-pointer flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{tx("Extend Boost", "समय थप्नुहोस्")}</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Worker Hero Profile Card */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-8 shadow-sm space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
@@ -197,6 +241,16 @@ export default function WorkerProfileView({
                     <Award className="w-3.5 h-3.5" />
                     <span>{lang === "ne" ? tier.labelNe : tier.label}</span>
                   </span>
+
+                  {boostInfo?.isActive && (
+                    <span
+                      title={`${tx("Featured until", "सकिने मिति:")} ${boostInfo.expiryDateFormatted}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80 shadow-xs"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-500 fill-amber-500 animate-pulse" />
+                      <span>{tx("Featured:", "फिचर्ड:")} {boostInfo.shortFormatted}</span>
+                    </span>
+                  )}
                 </div>
 
                 <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
@@ -253,10 +307,18 @@ export default function WorkerProfileView({
                   <button
                     type="button"
                     onClick={() => setShowFeatureModal(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md transition"
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold shadow-md transition cursor-pointer ${
+                      boostInfo?.isActive
+                        ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white ring-2 ring-amber-400/30"
+                        : "bg-amber-500 hover:bg-amber-600 text-white"
+                    }`}
                   >
                     <Sparkles className="w-4 h-4" />
-                    <span>{tx("Feature Profile", "फिचर्ड")}</span>
+                    <span>
+                      {boostInfo?.isActive
+                        ? tx(`Boost: ${boostInfo.badgeLabel} • Extend`, `बुस्ट: ${boostInfo.badgeLabel} • थप्नुहोस्`)
+                        : tx("Feature Profile", "फिचर्ड")}
+                    </span>
                   </button>
                   <Link
                     href="/dashboard"

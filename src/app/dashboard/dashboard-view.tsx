@@ -69,6 +69,7 @@ import JobCompletionReceiptModal from "@/components/job-completion-receipt-modal
 import WorkerVisitingCardModal from "@/components/worker-visiting-card-modal";
 import SafetyToolkitModal from "@/components/safety-toolkit-modal";
 import { getJobWhatsAppUrl, getWorkerWhatsAppUrl } from "@/lib/whatsapp";
+import { getRemainingBoostInfo } from "@/lib/boost";
 import { getApproximateBsDate } from "@/lib/nepali-date";
 import { signOutUser } from "@/app/actions/auth";
 import { updateJobStatus, deleteJob, updateApplicationStatus } from "@/app/actions/job";
@@ -122,6 +123,8 @@ type Job = {
   urgency?: string;
   budget?: number | null;
   audioUrl?: string | null;
+  isBoosted?: boolean;
+  boostedUntil?: Date | string | null;
   createdAt: Date;
   applications?: JobApplicant[];
 };
@@ -145,6 +148,8 @@ type Application = {
     budget?: number | null;
     category?: string;
     urgency?: string;
+    isBoosted?: boolean;
+    boostedUntil?: Date | string | null;
     recruiter?: {
       id: string;
       email: string;
@@ -178,6 +183,8 @@ type UserWithProfile = {
     latitude?: number | null;
     longitude?: number | null;
     isAvailableNow?: boolean;
+    isFeatured?: boolean;
+    featuredUntil?: Date | string | null;
     kycStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
     kycDocumentType?: "CITIZENSHIP" | "NATIONAL_ID" | "PAN_OR_LICENSE" | null;
     kycDocumentNumber?: string | null;
@@ -442,6 +449,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
   const profile = isWorker ? user.workerProfile : user.recruiterProfile;
   const displayName = profile?.name ?? user.email.split("@")[0];
   const location = profile?.address;
+  const workerBoostInfo = isWorker ? getRemainingBoostInfo(user.workerProfile?.featuredUntil, lang) : null;
 
   // 7-day activity metrics for the dashboard stats card chart
   const weeklyStatsChart = useMemo(() => {
@@ -1501,11 +1509,17 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
 
                       <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-900 dark:text-white text-sm">{displayName}</span>
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                               Available for Hire
                             </span>
+                            {workerBoostInfo?.isActive && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs">
+                                <Sparkles className="w-2.5 h-2.5" />
+                                <span>Featured ({workerBoostInfo.shortFormatted})</span>
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                             <MapPin className="w-3 text-orange-500" />
@@ -1540,6 +1554,63 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                           Edit Listing
                         </Link>
                       </div>
+
+                      {/* Featured Boost Spotlight Card */}
+                      {workerBoostInfo?.isActive ? (
+                        <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-400/40 dark:border-amber-600/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                              <Sparkles className="w-4 h-4 animate-pulse" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-slate-900 dark:text-white">
+                                  {tx("Profile Boost is Active", "प्रोफाइल बुस्ट सक्रिय छ")}
+                                </span>
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-white">
+                                  {workerBoostInfo.shortFormatted}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {tx("Top Placement Active", "शीर्ष स्थान सक्रिय")} • {tx("Expires:", "म्याद:")} {workerBoostInfo.expiryDateFormatted}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setBoostModalData({
+                                type: "FEATURE_PROFILE",
+                                itemTitle: user.workerProfile?.name || user.email.split("@")[0],
+                              })
+                            }
+                            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-50 transition cursor-pointer shrink-0"
+                          >
+                            {tx("Extend Boost", "समय थप्नुहोस्")}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <Sparkles className="w-4 h-4 text-slate-400" />
+                            <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                              {tx("Want 5x more gig requests? Boost your profile to the top.", "५ गुणा बढी काम पाउन आफ्नो प्रोफाइल बुस्ट गर्नुहोस्।")}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setBoostModalData({
+                                type: "FEATURE_PROFILE",
+                                itemTitle: user.workerProfile?.name || user.email.split("@")[0],
+                              })
+                            }
+                            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition cursor-pointer shrink-0"
+                          >
+                            {tx("Boost Profile", "बुस्ट गर्नुहोस्")}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 </>
@@ -2147,11 +2218,20 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50">
                               {job.category}
                             </span>
                             <StatusBadge status={job.status} />
+                            {job.isBoosted && (() => {
+                              const jb = getRemainingBoostInfo(job.boostedUntil, lang);
+                              return (
+                                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 flex items-center gap-1">
+                                  <Flame className="w-2.5 h-2.5 fill-amber-500 text-amber-500 animate-pulse" />
+                                  <span>Boosted{jb?.isActive ? ` (${jb.shortFormatted})` : ""}</span>
+                                </span>
+                              );
+                            })()}
                           </div>
                           <h4 className="text-base font-bold text-slate-900 dark:text-white">
                             {job.title}
@@ -2166,22 +2246,30 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </Link>
-                          {job.status === "OPEN" && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setBoostModalData({
-                                  type: "BOOST_JOB",
-                                  jobId: job.id,
-                                  itemTitle: job.title,
-                                })
-                              }
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition cursor-pointer"
-                            >
-                              <Flame className="w-3 h-3 text-amber-600" />
-                              <span>Boost</span>
-                            </button>
-                          )}
+                          {job.status === "OPEN" && (() => {
+                            const jBoost = getRemainingBoostInfo(job.boostedUntil, lang);
+                            return (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setBoostModalData({
+                                    type: "BOOST_JOB",
+                                    jobId: job.id,
+                                    itemTitle: job.title,
+                                  })
+                                }
+                                title={jBoost?.expiryDateFormatted ? `Boosted until ${jBoost.expiryDateFormatted}` : undefined}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg transition cursor-pointer ${
+                                  jBoost?.isActive
+                                    ? "bg-amber-500 text-white shadow-xs hover:bg-amber-600"
+                                    : "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100"
+                                }`}
+                              >
+                                <Flame className={`w-3 h-3 ${jBoost?.isActive ? "text-white fill-current animate-pulse" : "text-amber-600"}`} />
+                                <span>{jBoost?.isActive ? `${jBoost.badgeLabel} • Extend` : "Boost"}</span>
+                              </button>
+                            );
+                          })()}
                           {job.status === "COMPLETED" && (
                             <button
                               type="button"

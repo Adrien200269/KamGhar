@@ -35,6 +35,7 @@ import ChatModal from "@/components/chat-modal";
 import { getOrCreateConversation, type MessageItem } from "@/app/actions/chat";
 import { useLanguage } from "@/components/language-provider";
 import { calculateHaversineDistanceKm, formatDistance } from "@/lib/geo";
+import { getRemainingBoostInfo } from "@/lib/boost";
 import dynamic from "next/dynamic";
 
 const InteractiveMapView = dynamic(() => import("@/components/interactive-map-view"), { ssr: false });
@@ -68,6 +69,7 @@ export type WorkerItem = {
   longitude?: number | null;
   profilePhotoUrl: string | null;
   isFeatured: boolean;
+  featuredUntil?: string | Date | null;
   isAvailableNow?: boolean;
   kycStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
   user: {
@@ -582,12 +584,18 @@ export default function WorkersFeed({
                           <CheckCircle2 className="w-3 h-3 text-blue-500" />
                           <span>{worksDone} {worksDone === 1 ? "Work Done" : "Works Done"}</span>
                         </span>
-                        {worker.isFeatured && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-                            <Sparkles className="w-2.5 h-2.5 text-amber-500" />
-                            Featured
-                          </span>
-                        )}
+                        {worker.isFeatured && (() => {
+                          const bInfo = getRemainingBoostInfo(worker.featuredUntil, lang);
+                          return (
+                            <span
+                              title={bInfo?.expiryDateFormatted ? `Featured until ${bInfo.expiryDateFormatted}` : undefined}
+                              className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60"
+                            >
+                              <Sparkles className="w-2.5 h-2.5 text-amber-500" />
+                              <span>Featured{bInfo?.isActive ? ` (${bInfo.shortFormatted})` : ""}</span>
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
