@@ -138,10 +138,18 @@ export async function getUserNotifications(): Promise<{
           .findMany({
             where: { userId: user.id },
             orderBy: { createdAt: "desc" },
-            take: 20,
+            take: 100,
           })
           .catch(() => []),
       ]);
+
+    // Build quick lookup of read notifications & read markers
+    const readMarkerIds = new Set<string>();
+    for (const st of stored) {
+      if (st.isRead) {
+        readMarkerIds.add(st.id);
+      }
+    }
 
     // Process 1. Messages
     for (const m of recentMessages) {
@@ -187,6 +195,8 @@ export async function getUserNotifications(): Promise<{
         app.worker.email.split("@")[0] ||
         "Skilled Worker";
 
+      const isRead = app.status !== "APPLIED" || readMarkerIds.has(`app-${app.id}`);
+
       items.push({
         id: `app-${app.id}`,
         type: "JOB_APPLICATION",
@@ -195,7 +205,7 @@ export async function getUserNotifications(): Promise<{
         message: `${workerName} applied with proposed rate Rs. ${app.proposedRate || app.job.budget || "Negotiable"}.`,
         messageNe: `${workerName} ले रु. ${app.proposedRate || app.job.budget || "सहमति अनुसार"} मा आवेदन दिनुभयो।`,
         createdAt: app.createdAt.toISOString(),
-        isRead: app.status !== "APPLIED",
+        isRead,
         jobId: app.jobId,
         jobTitle: app.job.title,
         proposedRate: app.proposedRate,
@@ -206,6 +216,8 @@ export async function getUserNotifications(): Promise<{
     // Process 3. Application Status Updates
     for (const app of myApplications) {
       const isAccepted = app.status === "ACCEPTED";
+      const isRead = readMarkerIds.has(`app-status-${app.id}`);
+
       items.push({
         id: `app-status-${app.id}`,
         type: "APPLICATION_STATUS",
@@ -218,7 +230,7 @@ export async function getUserNotifications(): Promise<{
           ? `"${app.job.title}" को लागि तपाईंको आवेदन स्वीकृत भयो! अब कुरा सुरु गर्नुहोस्।`
           : `"${app.job.title}" को आवेदन स्थिति: ${app.status}`,
         createdAt: app.updatedAt.toISOString(),
-        isRead: false,
+        isRead,
         jobId: app.jobId,
         jobTitle: app.job.title,
         link: "/dashboard",
@@ -227,6 +239,8 @@ export async function getUserNotifications(): Promise<{
 
     // Process 4. Urgent Gigs
     for (const job of urgentJobs) {
+      const isRead = readMarkerIds.has(`urgent-${job.id}`);
+
       items.push({
         id: `urgent-${job.id}`,
         type: "URGENT_BROADCAST",
@@ -235,15 +249,40 @@ export async function getUserNotifications(): Promise<{
         message: `Location: ${job.address} • Budget Rs. ${job.budget || "Negotiable"}`,
         messageNe: `स्थान: ${job.address} • बजेट रु. ${job.budget || "सहमति अनुसार"}`,
         createdAt: job.createdAt.toISOString(),
-        isRead: false,
+        isRead,
         jobId: job.id,
         jobTitle: job.title,
         link: "/jobs",
       });
     }
 
-    // Process 5. Stored Notification records from DB
+    // Process 5. Stored Notification records from DB (excluding markers & duplicate generic alerts)
     for (const st of stored) {
+      // 1. Skip virtual read tracking markers
+      if (st.id.startsWith("app-") || st.id.startsWith("urgent-")) {
+        continue;
+      }
+
+      // 2. Skip stored chat message alerts (recentMessages covers this with full sender details and read state)
+      if (st.type === "MESSAGE") {
+        continue;
+      }
+
+      // 3. Skip generic duplicate job application alerts if recruiter has applications query covering it
+      if (st.type === "JOB_APPLICATION" && (st.title === "New Job Applicant! 💼" || st.titleNe === "नयाँ कामदारको आवेदन! 💼")) {
+        continue;
+      }
+
+      // 4. Skip generic duplicate application status alerts if worker has status query covering it
+      if (st.type === "APPLICATION_STATUS" && (st.title === "Application Accepted! 🎉" || st.title === "Application Update")) {
+        continue;
+      }
+
+      // 5. Skip generic duplicate urgent alerts if worker has urgentJobs query covering it
+      if (st.type === "URGENT_BROADCAST" && st.title.includes("Urgent Gig Alert")) {
+        continue;
+      }
+
       items.push({
         id: st.id,
         type: st.type as NotificationType,
@@ -293,11 +332,79 @@ export async function markNotificationAsRead(id: string, type: string) {
 
     if (id.startsWith("msg-")) {
       const messageId = id.replace("msg-", "");
+      const msg = await prisma.message
+        .findUnique({
+          where: { id: messageId },
+          select: { conversationId: true },
+        })
+        .catch(() => null);
+
       await prisma.message.updateMany({
         where: { id: messageId, receiverId: user.id },
         data: { isRead: true },
       });
-    } else if (!id.startsWith("app-") && !id.startsWith("urgent-")) {
+
+      // Also mark stored MESSAGE alerts for this user/chat as read
+      if (msg?.conversationId) {
+        await prisma.notification
+          .updateMany({
+            where: {
+              userId: user.id,
+              type: "MESSAGE",
+              link: { contains: msg.conversationId },
+              isRead: false,
+            },
+            data: { isRead: true },
+          })
+          .catch(() => {});
+      }
+    } else if (id.startsWith("app-") || id.startsWith("urgent-")) {
+      // Persist read status marker in database for dynamic notifications
+      const notifType: NotificationType = id.startsWith("urgent-")
+        ? "URGENT_BROADCAST"
+        : id.startsWith("app-status-")
+        ? "APPLICATION_STATUS"
+        : "JOB_APPLICATION";
+
+      await prisma.notification.upsert({
+        where: { id },
+        create: {
+          id,
+          userId: user.id,
+          type: notifType,
+          title: "Notification Read Marker",
+          message: "Marked as read",
+          isRead: true,
+        },
+        update: {
+          isRead: true,
+        },
+      });
+
+      // If recruiter marked a job application as read, also mark any matching stored JOB_APPLICATION notification
+      if (id.startsWith("app-") && !id.startsWith("app-status-")) {
+        const appId = id.replace("app-", "");
+        const app = await prisma.application
+          .findUnique({
+            where: { id: appId },
+            select: { job: { select: { title: true } } },
+          })
+          .catch(() => null);
+
+        if (app?.job?.title) {
+          await prisma.notification
+            .updateMany({
+              where: {
+                userId: user.id,
+                type: "JOB_APPLICATION",
+                isRead: false,
+              },
+              data: { isRead: true },
+            })
+            .catch(() => {});
+        }
+      }
+    } else {
       await prisma.notification.updateMany({
         where: { id, userId: user.id },
         data: { isRead: true },
@@ -313,7 +420,7 @@ export async function markNotificationAsRead(id: string, type: string) {
 }
 
 /* ── Mark all notifications as read ─────────────────────────── */
-export async function markAllNotificationsAsRead() {
+export async function markAllNotificationsAsRead(ids?: string[]) {
   try {
     const supabase = await createClient();
     const {
@@ -322,13 +429,13 @@ export async function markAllNotificationsAsRead() {
 
     if (!user) return { success: false, error: "Not authenticated" };
 
-    // Mark all received messages as read
+    // 1. Mark all received messages as read
     await prisma.message.updateMany({
       where: { receiverId: user.id, isRead: false },
       data: { isRead: true },
     });
 
-    // Mark all stored notifications as read
+    // 2. Mark all stored notifications as read
     try {
       await prisma.notification.updateMany({
         where: { userId: user.id, isRead: false },
@@ -336,6 +443,72 @@ export async function markAllNotificationsAsRead() {
       });
     } catch {
       // Non-blocking
+    }
+
+    // 3. Collect virtual IDs to mark as read
+    const virtualIds = new Set<string>();
+
+    if (ids && Array.isArray(ids)) {
+      for (const id of ids) {
+        if (id.startsWith("app-") || id.startsWith("urgent-")) {
+          virtualIds.add(id);
+        }
+      }
+    }
+
+    // Automatically discover any dynamic notifications for current user
+    const [appsOnJobs, myApps, urgentGigs] = await Promise.all([
+      prisma.application.findMany({
+        where: { job: { recruiterId: user.id } },
+        select: { id: true },
+        take: 20,
+      }).catch(() => []),
+      prisma.application.findMany({
+        where: { workerId: user.id },
+        select: { id: true },
+        take: 20,
+      }).catch(() => []),
+      prisma.job.findMany({
+        where: {
+          urgency: "URGENT",
+          status: "OPEN",
+          createdAt: { gte: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+        },
+        select: { id: true },
+        take: 10,
+      }).catch(() => []),
+    ]);
+
+    for (const a of appsOnJobs) virtualIds.add(`app-${a.id}`);
+    for (const a of myApps) virtualIds.add(`app-status-${a.id}`);
+    for (const j of urgentGigs) virtualIds.add(`urgent-${j.id}`);
+
+    // Persist read markers for all virtual notification items
+    if (virtualIds.size > 0) {
+      await Promise.all(
+        Array.from(virtualIds).map((vId) => {
+          const notifType: NotificationType = vId.startsWith("urgent-")
+            ? "URGENT_BROADCAST"
+            : vId.startsWith("app-status-")
+            ? "APPLICATION_STATUS"
+            : "JOB_APPLICATION";
+
+          return prisma.notification.upsert({
+            where: { id: vId },
+            create: {
+              id: vId,
+              userId: user.id,
+              type: notifType,
+              title: "Read Marker",
+              message: "Marked as read",
+              isRead: true,
+            },
+            update: {
+              isRead: true,
+            },
+          });
+        })
+      ).catch(() => {});
     }
 
     revalidatePath("/dashboard");

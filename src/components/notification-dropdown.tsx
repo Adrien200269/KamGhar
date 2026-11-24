@@ -90,7 +90,7 @@ export default function NotificationDropdown({ onOpenChat }: NotificationDropdow
   const handleMarkAllRead = async () => {
     setLoading(true);
     try {
-      await markAllNotificationsAsRead();
+      await markAllNotificationsAsRead(notifications.map((n) => n.id));
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } finally {
