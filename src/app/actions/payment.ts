@@ -274,7 +274,17 @@ export async function verifyAndCompletePayment(input: {
   transactionId: string;
   gatewayRef?: string;
   isSimulator?: boolean;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{
+  success: boolean;
+  error?: string;
+  details?: {
+    type: TransactionType;
+    itemTitle?: string;
+    days?: number;
+    amount?: number;
+    gatewayRef?: string;
+  };
+}> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -292,8 +302,24 @@ export async function verifyAndCompletePayment(input: {
       return { success: false, error: "Transaction not found." };
     }
 
+    const meta = (transaction.metadata as { packageDays?: number; jobTitle?: string }) || {};
+    const days = meta.packageDays || 7;
+    const itemTitle =
+      transaction.type === TransactionType.BOOST_JOB
+        ? transaction.job?.title || meta.jobTitle || "Job Boost"
+        : "Worker Profile Spotlight";
+
     if (transaction.status === PaymentStatus.COMPLETED) {
-      return { success: true };
+      return {
+        success: true,
+        details: {
+          type: transaction.type,
+          itemTitle,
+          days,
+          amount: transaction.amount,
+          gatewayRef: transaction.gatewayRef || input.gatewayRef,
+        },
+      };
     }
 
     let verifiedRef = input.gatewayRef;
@@ -331,8 +357,6 @@ export async function verifyAndCompletePayment(input: {
       verifiedRef = verifyRes.data.ref_id || input.gatewayRef || `ESEWA-${transaction.id}`;
     }
 
-    const meta = (transaction.metadata as { packageDays?: number; jobTitle?: string }) || {};
-    const days = meta.packageDays || 7;
     const additionalMs = days * 24 * 60 * 60 * 1000;
     const ref = verifiedRef || input.gatewayRef || `SIM-${Date.now().toString(36).toUpperCase()}`;
 
@@ -419,7 +443,16 @@ export async function verifyAndCompletePayment(input: {
     revalidatePath("/workers");
     revalidatePath("/admin");
 
-    return { success: true };
+    return {
+      success: true,
+      details: {
+        type: transaction.type,
+        itemTitle,
+        days,
+        amount: transaction.amount,
+        gatewayRef: ref,
+      },
+    };
   } catch (err) {
     console.error("Verify payment error:", err);
     return { success: false, error: "Failed to finalize payment." };
