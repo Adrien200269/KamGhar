@@ -5,6 +5,57 @@ import crypto from "crypto";
  * Works with both eSewa Sandbox (UAT / EPAYTEST) and Production
  */
 
+/**
+ * Strips surrounding quotes (single or double) and trailing/leading whitespace or newlines.
+ * Essential for hosting environments like Vercel where users might copy-paste values from .env files with quotes.
+ */
+export function cleanEnvVal(val?: string | null): string {
+  if (!val) return "";
+  let cleaned = val.trim();
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
+
+export function getEsewaProductCode(): string {
+  return cleanEnvVal(process.env.ESEWA_PRODUCT_CODE) || "EPAYTEST";
+}
+
+export function getEsewaSecretKey(): string {
+  return cleanEnvVal(process.env.ESEWA_SECRET_KEY) || "8gBm/:&EnhH.1/q";
+}
+
+export function isEsewaConfigured(): boolean {
+  // Always true: defaults to standard sandbox EPAYTEST credentials if not customized in env
+  return true;
+}
+
+export function getEsewaGatewayUrl(): string {
+  const configured = cleanEnvVal(process.env.ESEWA_GATEWAY_URL);
+  if (configured) return configured;
+
+  const productCode = getEsewaProductCode();
+  if (productCode === "EPAYTEST") {
+    return "https://rc-epay.esewa.com.np/api/epay/main/v2/form";
+  }
+  return "https://epay.esewa.com.np/api/epay/main/v2/form";
+}
+
+export function getEsewaStatusUrl(): string {
+  const configured = cleanEnvVal(process.env.ESEWA_STATUS_URL);
+  if (configured) return configured;
+
+  const productCode = getEsewaProductCode();
+  if (productCode === "EPAYTEST") {
+    return "https://rc.esewa.com.np/api/epay/transaction/status/";
+  }
+  return "https://epay.esewa.com.np/api/epay/transaction/status/";
+}
+
 export interface EsewaPaymentPayload {
   amount: string;
   tax_amount: string;
@@ -37,27 +88,6 @@ export interface EsewaStatusResponse {
   ref_id: string | null;
 }
 
-export function isEsewaConfigured(): boolean {
-  return (
-    !!process.env.ESEWA_PRODUCT_CODE?.trim() &&
-    !!process.env.ESEWA_SECRET_KEY?.trim()
-  );
-}
-
-export function getEsewaGatewayUrl(): string {
-  return (
-    process.env.ESEWA_GATEWAY_URL?.trim() ||
-    "https://rc-epay.esewa.com.np/api/epay/main/v2/form"
-  );
-}
-
-export function getEsewaStatusUrl(): string {
-  return (
-    process.env.ESEWA_STATUS_URL?.trim() ||
-    "https://rc.esewa.com.np/api/epay/transaction/status/"
-  );
-}
-
 /**
  * Generates an HMAC-SHA256 signature in Base64 format as required by eSewa v2.
  * String template: total_amount={VAL},transaction_uuid={VAL},product_code={VAL}
@@ -66,7 +96,7 @@ export function generateEsewaSignature(
   message: string,
   secretKey?: string
 ): string {
-  const key = secretKey || process.env.ESEWA_SECRET_KEY?.trim() || "8gBm/:&EnhH.1/q";
+  const key = cleanEnvVal(secretKey) || getEsewaSecretKey();
   return crypto.createHmac("sha256", key).update(message).digest("base64");
 }
 
@@ -81,14 +111,8 @@ export function createEsewaPaymentPayload(params: {
   productCode?: string;
   secretKey?: string;
 }): EsewaPaymentPayload {
-  const productCode =
-    params.productCode ||
-    process.env.ESEWA_PRODUCT_CODE?.trim() ||
-    "EPAYTEST";
-  const secretKey =
-    params.secretKey ||
-    process.env.ESEWA_SECRET_KEY?.trim() ||
-    "8gBm/:&EnhH.1/q";
+  const productCode = cleanEnvVal(params.productCode) || getEsewaProductCode();
+  const secretKey = cleanEnvVal(params.secretKey) || getEsewaSecretKey();
 
   const totalAmountStr = params.amount.toString();
   const signedFieldNames = "total_amount,transaction_uuid,product_code";
@@ -148,9 +172,8 @@ export async function verifyEsewaTransaction(params: {
   transactionUuid: string;
 }): Promise<{ success: boolean; data?: EsewaStatusResponse; error?: string }> {
   const productCode =
-    params.productCode ||
-    process.env.ESEWA_PRODUCT_CODE?.trim() ||
-    "EPAYTEST";
+    cleanEnvVal(params.productCode) ||
+    getEsewaProductCode();
 
   const baseUrl = getEsewaStatusUrl();
   const amountStr = typeof params.totalAmount === "number"

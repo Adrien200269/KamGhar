@@ -33,13 +33,26 @@ export interface KhaltiLookupResponse {
   refunded: boolean;
 }
 
+function cleanEnvVal(val?: string | null): string {
+  if (!val) return "";
+  let cleaned = val.trim();
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
+
 export function isKhaltiConfigured(): boolean {
-  return !!process.env.KHALTI_SECRET_KEY && process.env.KHALTI_SECRET_KEY.trim().length > 0;
+  return cleanEnvVal(process.env.KHALTI_SECRET_KEY).length > 0;
 }
 
 export function getKhaltiBaseUrl(): string {
-  if (process.env.KHALTI_GATEWAY_URL?.trim()) {
-    return process.env.KHALTI_GATEWAY_URL.trim().replace(/\/+$/, "");
+  const configured = cleanEnvVal(process.env.KHALTI_GATEWAY_URL);
+  if (configured) {
+    return configured.replace(/\/+$/, "");
   }
   // Default to dev / sandbox for testing
   return "https://dev.khalti.com/api/v2";
@@ -51,7 +64,7 @@ export function getKhaltiBaseUrl(): string {
 export async function initiateKhaltiPayment(
   params: KhaltiInitiateParams
 ): Promise<{ success: boolean; data?: KhaltiInitiateResponse; error?: string }> {
-  const secretKey = process.env.KHALTI_SECRET_KEY?.trim();
+  const secretKey = cleanEnvVal(process.env.KHALTI_SECRET_KEY);
   if (!secretKey) {
     return { success: false, error: "KHALTI_SECRET_KEY is not configured." };
   }
@@ -129,7 +142,7 @@ export async function initiateKhaltiPayment(
 export async function verifyKhaltiPayment(
   pidx: string
 ): Promise<{ success: boolean; data?: KhaltiLookupResponse; error?: string }> {
-  const secretKey = process.env.KHALTI_SECRET_KEY?.trim();
+  const secretKey = cleanEnvVal(process.env.KHALTI_SECRET_KEY);
   if (!secretKey) {
     return { success: false, error: "KHALTI_SECRET_KEY is not configured." };
   }
