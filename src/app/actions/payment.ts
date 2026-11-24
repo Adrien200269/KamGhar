@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { PaymentGateway, PaymentStatus, TransactionType } from "@prisma/client";
 import { BOOST_PACKAGES, FEATURE_PACKAGES } from "@/lib/constants";
+import { getSiteUrl } from "@/lib/site-url";
+import { initiateKhaltiPayment, verifyKhaltiPayment, isKhaltiConfigured } from "@/lib/khalti";
 
 export type PaymentResult = {
   success: boolean;
@@ -58,11 +60,49 @@ export async function initiateBoostPayment(input: {
       },
     });
 
+    let paymentUrl: string | undefined;
+
+    if (input.gateway === "KHALTI" && isKhaltiConfigured()) {
+      try {
+        const siteUrl = await getSiteUrl();
+        const khaltiRes = await initiateKhaltiPayment({
+          returnUrl: `${siteUrl}/payment/callback`,
+          websiteUrl: siteUrl,
+          amount: Math.round(pkg.price * 100),
+          purchaseOrderId: transaction.id,
+          purchaseOrderName: `KamGhar Boost: ${job.title}`,
+          customerInfo: {
+            name: user.user_metadata?.full_name || user.email || "KamGhar User",
+            email: user.email,
+          },
+        });
+
+        if (khaltiRes.success && khaltiRes.data?.payment_url) {
+          paymentUrl = khaltiRes.data.payment_url;
+          await prisma.transaction.update({
+            where: { id: transaction.id },
+            data: {
+              gatewayRef: khaltiRes.data.pidx,
+              metadata: {
+                ...((transaction.metadata as object) || {}),
+                pidx: khaltiRes.data.pidx,
+              },
+            },
+          });
+        } else if (khaltiRes.error) {
+          console.warn("Khalti boost payment initiation notice:", khaltiRes.error);
+        }
+      } catch (khaltiErr) {
+        console.error("Khalti initiation exception:", khaltiErr);
+      }
+    }
+
     return {
       success: true,
       transactionId: transaction.id,
       amount: pkg.price,
       gateway: transaction.gateway,
+      paymentUrl,
     };
   } catch (err) {
     console.error("Initiate boost payment error:", err);
@@ -111,11 +151,49 @@ export async function initiateFeaturePayment(input: {
       },
     });
 
+    let paymentUrl: string | undefined;
+
+    if (input.gateway === "KHALTI" && isKhaltiConfigured()) {
+      try {
+        const siteUrl = await getSiteUrl();
+        const khaltiRes = await initiateKhaltiPayment({
+          returnUrl: `${siteUrl}/payment/callback`,
+          websiteUrl: siteUrl,
+          amount: Math.round(pkg.price * 100),
+          purchaseOrderId: transaction.id,
+          purchaseOrderName: `KamGhar Featured: ${worker.name}`,
+          customerInfo: {
+            name: worker.name || user.user_metadata?.full_name || user.email || "KamGhar Worker",
+            email: user.email,
+          },
+        });
+
+        if (khaltiRes.success && khaltiRes.data?.payment_url) {
+          paymentUrl = khaltiRes.data.payment_url;
+          await prisma.transaction.update({
+            where: { id: transaction.id },
+            data: {
+              gatewayRef: khaltiRes.data.pidx,
+              metadata: {
+                ...((transaction.metadata as object) || {}),
+                pidx: khaltiRes.data.pidx,
+              },
+            },
+          });
+        } else if (khaltiRes.error) {
+          console.warn("Khalti feature payment initiation notice:", khaltiRes.error);
+        }
+      } catch (khaltiErr) {
+        console.error("Khalti initiation exception:", khaltiErr);
+      }
+    }
+
     return {
       success: true,
       transactionId: transaction.id,
       amount: pkg.price,
       gateway: transaction.gateway,
+      paymentUrl,
     };
   } catch (err) {
     console.error("Initiate feature payment error:", err);
@@ -150,10 +228,29 @@ export async function verifyAndCompletePayment(input: {
       return { success: true };
     }
 
+    let verifiedRef = input.gatewayRef;
+
+    // Verify Khalti transaction status via lookup API if not simulated
+    if (transaction.gateway === PaymentGateway.KHALTI && !input.isSimulator && isKhaltiConfigured()) {
+      const metaObj = (transaction.metadata as { pidx?: string }) || {};
+      const pidxToVerify = input.gatewayRef || metaObj.pidx;
+
+      if (pidxToVerify) {
+        const verifyRes = await verifyKhaltiPayment(pidxToVerify);
+        if (!verifyRes.success || verifyRes.data?.status !== "Completed") {
+          return {
+            success: false,
+            error: verifyRes.error || `Khalti payment status: ${verifyRes.data?.status || "Incomplete"}`,
+          };
+        }
+        verifiedRef = verifyRes.data.transaction_id || pidxToVerify;
+      }
+    }
+
     const meta = (transaction.metadata as { packageDays?: number; jobTitle?: string }) || {};
     const days = meta.packageDays || 7;
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-    const ref = input.gatewayRef || `SIM-${Date.now().toString(36).toUpperCase()}`;
+    const ref = verifiedRef || input.gatewayRef || `SIM-${Date.now().toString(36).toUpperCase()}`;
 
     if (transaction.type === TransactionType.BOOST_JOB && transaction.jobId) {
       await prisma.$transaction([

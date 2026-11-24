@@ -76,6 +76,12 @@ export default function BoostPaymentModal({
           return;
         }
 
+        // If a gateway payment URL is returned (Khalti ePayment) and not in simulator mode, redirect to checkout
+        if (res.paymentUrl && !isSimulator) {
+          window.location.href = res.paymentUrl;
+          return;
+        }
+
         setStep("PAYING");
 
         // Simulate gateway handshake (or sandbox completion)
@@ -238,6 +244,17 @@ export default function BoostPaymentModal({
                       <div className="w-3 h-3 rounded-full bg-purple-600" />
                       <span>Khalti Digital</span>
                     </button>
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <label className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={isSimulator}
+                        onChange={(e) => setIsSimulator(e.target.checked)}
+                        className="w-3.5 h-3.5 accent-orange-600 rounded border-slate-300 dark:border-slate-700 cursor-pointer"
+                      />
+                      <span>{tx("Simulate Instant Approval (Test / Demo)", "द्रुत परीक्षण मोड (सिमुलेटर)")}</span>
+                    </label>
                   </div>
                 </div>
 
