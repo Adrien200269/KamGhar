@@ -26,7 +26,18 @@ export function getEsewaProductCode(): string {
 }
 
 export function getEsewaSecretKey(): string {
-  return cleanEnvVal(process.env.ESEWA_SECRET_KEY) || "8gBm/:&EnhH.1/q";
+  const productCode = getEsewaProductCode();
+  const configured = cleanEnvVal(process.env.ESEWA_SECRET_KEY);
+
+  // When testing with official sandbox code EPAYTEST, ensure the official test key is used
+  // (guards against truncation like "8gBm/:" when '&' was treated as a separator in shell or Vercel UI)
+  if (productCode === "EPAYTEST") {
+    if (!configured || configured.startsWith("8gBm/:") || configured !== "8gBm/:&EnhH.1/q") {
+      return "8gBm/:&EnhH.1/q";
+    }
+  }
+
+  return configured || "8gBm/:&EnhH.1/q";
 }
 
 export function isEsewaConfigured(): boolean {
