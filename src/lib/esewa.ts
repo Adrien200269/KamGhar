@@ -118,7 +118,20 @@ export function decodeEsewaCallbackData(
   encodedData: string
 ): EsewaCallbackData | null {
   try {
-    const jsonStr = Buffer.from(encodedData, "base64").toString("utf-8");
+    let clean = encodedData.trim();
+    if (clean.includes("%")) {
+      try {
+        clean = decodeURIComponent(clean);
+      } catch {
+        // ignore
+      }
+    }
+    clean = clean.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = clean.length % 4;
+    if (pad === 2) clean += "==";
+    else if (pad === 3) clean += "=";
+
+    const jsonStr = Buffer.from(clean, "base64").toString("utf-8");
     return JSON.parse(jsonStr) as EsewaCallbackData;
   } catch (err) {
     console.error("Failed to decode eSewa callback payload:", err);

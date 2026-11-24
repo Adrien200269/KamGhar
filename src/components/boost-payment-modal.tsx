@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -247,7 +248,15 @@ export default function BoostPaymentModal({
                           : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300"
                       }`}
                     >
-                      <div className="w-3.5 h-3.5 rounded-full bg-emerald-500" />
+                      <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                        <Image
+                          src="/esewa-logo.png"
+                          alt="eSewa"
+                          width={20}
+                          height={20}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
                       <span>eSewa ePay</span>
                     </button>
 
@@ -260,7 +269,15 @@ export default function BoostPaymentModal({
                           : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300"
                       }`}
                     >
-                      <div className="w-3.5 h-3.5 rounded-full bg-purple-600" />
+                      <div className="w-5 h-5 overflow-hidden flex items-center justify-center shrink-0">
+                        <Image
+                          src="/khalti-logo.png"
+                          alt="Khalti"
+                          width={20}
+                          height={20}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
                       <span>Khalti Digital</span>
                     </button>
                   </div>
@@ -325,11 +342,17 @@ export default function BoostPaymentModal({
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md ${
-                        gateway === "ESEWA" ? "bg-emerald-600" : "bg-purple-600"
+                      className={`w-11 h-11 rounded-2xl flex items-center justify-center p-2 shadow-sm bg-white dark:bg-slate-800 border ${
+                        gateway === "ESEWA" ? "border-emerald-200 dark:border-emerald-800/60" : "border-purple-200 dark:border-purple-800/60"
                       }`}
                     >
-                      {gateway === "ESEWA" ? "eS" : "KH"}
+                      <Image
+                        src={gateway === "ESEWA" ? "/esewa-logo.png" : "/khalti-logo.png"}
+                        alt={gateway === "ESEWA" ? "eSewa" : "Khalti"}
+                        width={28}
+                        height={28}
+                        className="w-full h-full object-contain"
+                      />
                     </div>
                     <div className="text-left">
                       <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
@@ -347,21 +370,40 @@ export default function BoostPaymentModal({
                 </div>
 
                 {/* Animated Redirect State */}
-                <div className="space-y-3">
-                  <div className={`w-16 h-16 rounded-3xl mx-auto flex items-center justify-center shadow-lg transition-transform animate-pulse ${
-                    gateway === "ESEWA"
-                      ? "bg-emerald-500 text-white shadow-emerald-500/30"
-                      : "bg-purple-600 text-white shadow-purple-600/30"
-                  }`}>
-                    <Loader2 className="w-8 h-8 animate-spin" />
+                <div className="space-y-4">
+                  <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+                    <div
+                      className={`absolute inset-0 rounded-3xl animate-ping opacity-25 ${
+                        gateway === "ESEWA" ? "bg-emerald-500" : "bg-purple-600"
+                      }`}
+                    />
+                    <div
+                      className={`relative w-20 h-20 rounded-3xl flex items-center justify-center p-3.5 bg-white dark:bg-slate-900 border-2 shadow-xl ${
+                        gateway === "ESEWA"
+                          ? "border-emerald-500 shadow-emerald-500/20"
+                          : "border-purple-600 shadow-purple-600/20"
+                      }`}
+                    >
+                      <Image
+                        src={gateway === "ESEWA" ? "/esewa-logo.png" : "/khalti-logo.png"}
+                        alt={gateway === "ESEWA" ? "eSewa" : "Khalti"}
+                        width={52}
+                        height={52}
+                        className="w-12 h-12 object-contain"
+                        priority
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1">
-                    <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
-                      {gateway === "ESEWA"
-                        ? tx("Launching eSewa Portal...", "इ-सेवा पोर्टल खुल्दैछ...")
-                        : tx("Launching Khalti Portal...", "खल्ती पोर्टल खुल्दैछ...")}
-                    </h4>
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className={`w-4 h-4 animate-spin ${gateway === "ESEWA" ? "text-emerald-600" : "text-purple-600"}`} />
+                      <h4 className="text-base font-extrabold text-slate-900 dark:text-white">
+                        {gateway === "ESEWA"
+                          ? tx("Launching eSewa Portal...", "इ-सेवा पोर्टल खुल्दैछ...")
+                          : tx("Launching Khalti Portal...", "खल्ती पोर्टल खुल्दैछ...")}
+                      </h4>
+                    </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                       {tx(
                         "Connecting to the official payment gateway. Please complete your transaction on the portal.",

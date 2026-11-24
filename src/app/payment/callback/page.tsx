@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle2, XCircle, Loader2, ArrowRight, Home, Briefcase } from "lucide-react";
 import { verifyAndCompletePayment } from "@/app/actions/payment";
@@ -13,6 +14,37 @@ interface CallbackSummary {
   amount?: number;
 }
 
+function safeDecodeEsewaPayload(encodedData: string): {
+  transaction_code: string;
+  status: "COMPLETE" | "PENDING" | "CANCELED" | "NOT_FOUND";
+  total_amount: string | number;
+  transaction_uuid: string;
+  product_code: string;
+} | null {
+  try {
+    let clean = encodedData.trim();
+    if (clean.includes("%")) {
+      try {
+        clean = decodeURIComponent(clean);
+      } catch {
+        // ignore decode failure
+      }
+    }
+    // Replace URL-safe base64 characters
+    clean = clean.replace(/-/g, "+").replace(/_/g, "/");
+    // Pad base64 if needed
+    const pad = clean.length % 4;
+    if (pad === 2) clean += "==";
+    else if (pad === 3) clean += "=";
+
+    const decoded = atob(clean);
+    return JSON.parse(decoded);
+  } catch (err) {
+    console.error("Failed to decode eSewa callback payload:", err);
+    return null;
+  }
+}
+
 function CallbackContent() {
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
@@ -21,132 +53,171 @@ function CallbackContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [summary, setSummary] = useState<CallbackSummary | null>(null);
 
-  // Khalti parameters
-  const pidx = searchParams.get("pidx");
-  const khaltiStatus = searchParams.get("status");
-  const khaltiOrderId = searchParams.get("purchase_order_id");
-  const khaltiTxnId = searchParams.get("transaction_id") || searchParams.get("txnId");
-  const khaltiAmountPaisa = searchParams.get("amount");
-
-  // eSewa parameters
-  const esewaDataEncoded = searchParams.get("data");
-  const esewaGatewayParam = searchParams.get("gateway");
-
   useEffect(() => {
-    // Resolve eSewa data payload robustly from searchParams or window URL
-    let resolvedEsewaData = esewaDataEncoded;
-    if (!resolvedEsewaData && typeof window !== "undefined") {
-      const match = window.location.href.match(/[?&]data=([^&]+)/);
-      if (match) {
-        resolvedEsewaData = decodeURIComponent(match[1]);
+    // Robust parameter extractor that handles standard searchParams, double '?', and URL-encoded queries
+    const getParam = (name: string): string | null => {
+      const fromSearch = searchParams.get(name);
+      if (fromSearch) return fromSearch;
+
+      if (typeof window !== "undefined") {
+        const fullUrl = window.location.href;
+        const regex = new RegExp(`[?&]${name}=([^&#]*)`, "i");
+        const match = fullUrl.match(regex);
+        if (match && match[1]) {
+          try {
+            return decodeURIComponent(match[1]);
+          } catch {
+            return match[1];
+          }
+        }
+      }
+      return null;
+    };
+
+    // ── 1. eSewa Parameters Detection ─────────────────
+    let esewaData = getParam("data");
+    let esewaGateway = getParam("gateway");
+    const esewaStatus = getParam("status");
+
+    // Handle malformed URL cases like ?gateway=esewa?data=XYZ
+    if (esewaGateway && esewaGateway.includes("?data=")) {
+      const parts = esewaGateway.split("?data=");
+      esewaGateway = parts[0];
+      if (!esewaData && parts[1]) {
+        esewaData = parts[1];
+      }
+    } else if (esewaGateway && esewaGateway.includes("&data=")) {
+      const parts = esewaGateway.split("&data=");
+      esewaGateway = parts[0];
+      if (!esewaData && parts[1]) {
+        esewaData = parts[1];
       }
     }
 
-    // ── 1. eSewa Callback Flow ─────────────────────────
-    if (esewaGatewayParam === "esewa" || resolvedEsewaData) {
-      if (searchParams.get("status") === "failed" || searchParams.get("status") === "canceled") {
+    const isEsewa = Boolean(
+      esewaData ||
+      (esewaGateway && esewaGateway.toLowerCase().startsWith("esewa"))
+    );
+
+    // ── 2. Khalti Parameters Detection ────────────────
+    const pidx = getParam("pidx");
+    const khaltiStatus = getParam("status");
+    const khaltiOrderId = getParam("purchase_order_id");
+    const khaltiTxnId = getParam("transaction_id") || getParam("txnId");
+    const khaltiAmountPaisa = getParam("amount");
+
+    const isKhalti = Boolean(pidx || (khaltiOrderId && !isEsewa));
+
+    // ── Process eSewa Flow ────────────────────────────
+    if (isEsewa) {
+      if (esewaStatus === "failed" || esewaStatus === "canceled") {
         setState("FAILED");
         setErrorMessage("Payment was canceled or failed on eSewa.");
         return;
       }
 
-      if (!resolvedEsewaData) {
+      if (!esewaData) {
         setState("FAILED");
         setErrorMessage("Missing eSewa callback payload.");
         return;
       }
 
-      try {
-        const normalized = resolvedEsewaData.replace(/-/g, "+").replace(/_/g, "/");
-        const decodedStr = atob(normalized);
-        const parsed = JSON.parse(decodedStr);
+      const parsed = safeDecodeEsewaPayload(esewaData);
+      if (!parsed) {
+        setState("FAILED");
+        setErrorMessage("Invalid eSewa response payload format.");
+        return;
+      }
 
-        if (parsed.status !== "COMPLETE") {
-          setState("FAILED");
-          setErrorMessage(`eSewa returned payment status: ${parsed.status || "Unknown"}`);
-          return;
-        }
+      if (parsed.status !== "COMPLETE") {
+        setState("FAILED");
+        setErrorMessage(`eSewa returned payment status: ${parsed.status || "Unknown"}`);
+        return;
+      }
 
-        const transactionUuid = parsed.transaction_uuid;
-        const refId = parsed.transaction_code;
-        const totalAmountNum = parsed.total_amount
-          ? Math.round(Number(parsed.total_amount.toString().replace(/,/g, "")))
-          : undefined;
+      const transactionUuid = parsed.transaction_uuid;
+      const refId = parsed.transaction_code;
+      const totalAmountNum = parsed.total_amount
+        ? Math.round(Number(parsed.total_amount.toString().replace(/,/g, "")))
+        : undefined;
 
-        setSummary({
-          gateway: "eSewa",
-          transactionId: transactionUuid,
-          refCode: refId,
-          amount: totalAmountNum,
-        });
+      setSummary({
+        gateway: "eSewa",
+        transactionId: transactionUuid,
+        refCode: refId,
+        amount: totalAmountNum,
+      });
 
-        startTransition(async () => {
-          try {
-            const res = await verifyAndCompletePayment({
-              transactionId: transactionUuid,
-              gatewayRef: refId,
-              isSimulator: false,
-            });
+      startTransition(async () => {
+        try {
+          const res = await verifyAndCompletePayment({
+            transactionId: transactionUuid,
+            gatewayRef: refId,
+            isSimulator: false,
+          });
 
-            if (res.success) {
-              setState("SUCCESS");
-            } else {
-              setState("FAILED");
-              setErrorMessage(res.error || "eSewa payment verification could not be confirmed.");
-            }
-          } catch (err) {
+          if (res.success) {
+            setState("SUCCESS");
+          } else {
             setState("FAILED");
-            setErrorMessage(err instanceof Error ? err.message : "Unexpected eSewa verification error");
+            setErrorMessage(res.error || "eSewa payment verification could not be confirmed.");
           }
-        });
-      } catch (decodeErr) {
-        setState("FAILED");
-        setErrorMessage("Invalid eSewa response payload.");
-      }
-      return;
-    }
-
-    // ── 2. Khalti Callback Flow ────────────────────────
-    if (khaltiStatus === "User canceled" || khaltiStatus === "Canceled") {
-      setState("FAILED");
-      setErrorMessage("Payment was canceled on Khalti.");
-      return;
-    }
-
-    if (!khaltiOrderId || !pidx) {
-      setState("FAILED");
-      setErrorMessage("Missing transaction reference or payment token.");
-      return;
-    }
-
-    const amountRs = khaltiAmountPaisa ? Math.round(Number(khaltiAmountPaisa) / 100) : undefined;
-    setSummary({
-      gateway: "Khalti",
-      transactionId: khaltiOrderId,
-      refCode: khaltiTxnId || pidx,
-      amount: amountRs,
-    });
-
-    startTransition(async () => {
-      try {
-        const res = await verifyAndCompletePayment({
-          transactionId: khaltiOrderId,
-          gatewayRef: pidx,
-          isSimulator: false,
-        });
-
-        if (res.success) {
-          setState("SUCCESS");
-        } else {
+        } catch (err) {
           setState("FAILED");
-          setErrorMessage(res.error || "Khalti payment verification could not be confirmed.");
+          setErrorMessage(err instanceof Error ? err.message : "Unexpected eSewa verification error");
         }
-      } catch (err) {
+      });
+      return;
+    }
+
+    // ── Process Khalti Flow ───────────────────────────
+    if (isKhalti) {
+      if (khaltiStatus === "User canceled" || khaltiStatus === "Canceled") {
         setState("FAILED");
-        setErrorMessage(err instanceof Error ? err.message : "Unexpected verification error");
+        setErrorMessage("Payment was canceled on Khalti.");
+        return;
       }
-    });
-  }, [pidx, khaltiStatus, khaltiOrderId, khaltiTxnId, khaltiAmountPaisa, esewaDataEncoded, esewaGatewayParam, searchParams]);
+
+      if (!khaltiOrderId || !pidx) {
+        setState("FAILED");
+        setErrorMessage("Missing Khalti transaction reference or payment token.");
+        return;
+      }
+
+      const amountRs = khaltiAmountPaisa ? Math.round(Number(khaltiAmountPaisa) / 100) : undefined;
+      setSummary({
+        gateway: "Khalti",
+        transactionId: khaltiOrderId,
+        refCode: khaltiTxnId || pidx,
+        amount: amountRs,
+      });
+
+      startTransition(async () => {
+        try {
+          const res = await verifyAndCompletePayment({
+            transactionId: khaltiOrderId,
+            gatewayRef: pidx,
+            isSimulator: false,
+          });
+
+          if (res.success) {
+            setState("SUCCESS");
+          } else {
+            setState("FAILED");
+            setErrorMessage(res.error || "Khalti payment verification could not be confirmed.");
+          }
+        } catch (err) {
+          setState("FAILED");
+          setErrorMessage(err instanceof Error ? err.message : "Unexpected verification error");
+        }
+      });
+      return;
+    }
+
+    // ── Fallback: Neither Gateway Params Found ─────────
+    setState("FAILED");
+    setErrorMessage("No valid payment transaction reference or callback token was found.");
+  }, [searchParams]);
 
   return (
     <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl text-center">
@@ -179,11 +250,20 @@ function CallbackContent() {
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-left space-y-2 text-xs">
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="text-slate-500 dark:text-slate-400">Gateway</span>
-              <span className={`font-semibold ${summary?.gateway === "eSewa" ? "text-emerald-600 dark:text-emerald-400" : "text-purple-600 dark:text-purple-400"}`}>
-                {summary?.gateway === "eSewa" ? "eSewa ePay" : "Khalti Digital"}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <Image
+                  src={summary?.gateway === "eSewa" ? "/esewa-logo.png" : "/khalti-logo.png"}
+                  alt={summary?.gateway || "Gateway"}
+                  width={18}
+                  height={18}
+                  className="w-4 h-4 object-contain inline-block shrink-0"
+                />
+                <span className={`font-semibold ${summary?.gateway === "eSewa" ? "text-emerald-600 dark:text-emerald-400" : "text-purple-600 dark:text-purple-400"}`}>
+                  {summary?.gateway === "eSewa" ? "eSewa ePay" : "Khalti Digital"}
+                </span>
+              </div>
             </div>
             {summary?.amount !== undefined && (
               <div className="flex justify-between">
