@@ -1,0 +1,185 @@
+import crypto from "crypto";
+
+/**
+ * eSewa ePay (v2) Integration Utility for KamGhar
+ * Works with both eSewa Sandbox (UAT / EPAYTEST) and Production
+ */
+
+export interface EsewaPaymentPayload {
+  amount: string;
+  tax_amount: string;
+  product_service_charge: string;
+  product_delivery_charge: string;
+  total_amount: string;
+  transaction_uuid: string;
+  product_code: string;
+  signed_field_names: string;
+  signature: string;
+  success_url: string;
+  failure_url: string;
+}
+
+export interface EsewaCallbackData {
+  transaction_code: string;
+  status: "COMPLETE" | "PENDING" | "CANCELED" | "NOT_FOUND";
+  total_amount: string;
+  transaction_uuid: string;
+  product_code: string;
+  signature?: string;
+  signed_field_names?: string;
+}
+
+export interface EsewaStatusResponse {
+  product_code: string;
+  transaction_uuid: string;
+  total_amount: number | string;
+  status: "COMPLETE" | "PENDING" | "NOT_FOUND" | "CANCELED";
+  ref_id: string | null;
+}
+
+export function isEsewaConfigured(): boolean {
+  return (
+    !!process.env.ESEWA_PRODUCT_CODE?.trim() &&
+    !!process.env.ESEWA_SECRET_KEY?.trim()
+  );
+}
+
+export function getEsewaGatewayUrl(): string {
+  return (
+    process.env.ESEWA_GATEWAY_URL?.trim() ||
+    "https://rc-epay.esewa.com.np/api/epay/main/v2/form"
+  );
+}
+
+export function getEsewaStatusUrl(): string {
+  return (
+    process.env.ESEWA_STATUS_URL?.trim() ||
+    "https://rc.esewa.com.np/api/epay/transaction/status/"
+  );
+}
+
+/**
+ * Generates an HMAC-SHA256 signature in Base64 format as required by eSewa v2.
+ * String template: total_amount={VAL},transaction_uuid={VAL},product_code={VAL}
+ */
+export function generateEsewaSignature(
+  message: string,
+  secretKey?: string
+): string {
+  const key = secretKey || process.env.ESEWA_SECRET_KEY?.trim() || "8gBm/:&EnhH.1/q";
+  return crypto.createHmac("sha256", key).update(message).digest("base64");
+}
+
+/**
+ * Creates the complete form fields payload required to initiate an eSewa ePay v2 checkout.
+ */
+export function createEsewaPaymentPayload(params: {
+  amount: number;
+  transactionUuid: string;
+  successUrl: string;
+  failureUrl: string;
+  productCode?: string;
+  secretKey?: string;
+}): EsewaPaymentPayload {
+  const productCode =
+    params.productCode ||
+    process.env.ESEWA_PRODUCT_CODE?.trim() ||
+    "EPAYTEST";
+  const secretKey =
+    params.secretKey ||
+    process.env.ESEWA_SECRET_KEY?.trim() ||
+    "8gBm/:&EnhH.1/q";
+
+  const totalAmountStr = params.amount.toString();
+  const signedFieldNames = "total_amount,transaction_uuid,product_code";
+  const rawMessage = `total_amount=${totalAmountStr},transaction_uuid=${params.transactionUuid},product_code=${productCode}`;
+
+  const signature = generateEsewaSignature(rawMessage, secretKey);
+
+  return {
+    amount: totalAmountStr,
+    tax_amount: "0",
+    product_service_charge: "0",
+    product_delivery_charge: "0",
+    total_amount: totalAmountStr,
+    transaction_uuid: params.transactionUuid,
+    product_code: productCode,
+    signed_field_names: signedFieldNames,
+    signature,
+    success_url: params.successUrl,
+    failure_url: params.failureUrl,
+  };
+}
+
+/**
+ * Decodes the base64-encoded `data` query parameter returned by eSewa upon redirect to success_url.
+ */
+export function decodeEsewaCallbackData(
+  encodedData: string
+): EsewaCallbackData | null {
+  try {
+    const jsonStr = Buffer.from(encodedData, "base64").toString("utf-8");
+    return JSON.parse(jsonStr) as EsewaCallbackData;
+  } catch (err) {
+    console.error("Failed to decode eSewa callback payload:", err);
+    return null;
+  }
+}
+
+/**
+ * Performs a server-to-server transaction status check using eSewa's Status Check API.
+ */
+export async function verifyEsewaTransaction(params: {
+  productCode?: string;
+  totalAmount: number | string;
+  transactionUuid: string;
+}): Promise<{ success: boolean; data?: EsewaStatusResponse; error?: string }> {
+  const productCode =
+    params.productCode ||
+    process.env.ESEWA_PRODUCT_CODE?.trim() ||
+    "EPAYTEST";
+
+  const baseUrl = getEsewaStatusUrl();
+  const amountStr = typeof params.totalAmount === "number"
+    ? params.totalAmount.toString()
+    : params.totalAmount.replace(/,/g, "").trim();
+
+  const url = `${baseUrl.replace(/\/+$/, "")}/?product_code=${encodeURIComponent(
+    productCode
+  )}&total_amount=${encodeURIComponent(amountStr)}&transaction_uuid=${encodeURIComponent(
+    params.transactionUuid
+  )}`;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    const body = (await res.json().catch(() => null)) as EsewaStatusResponse | null;
+
+    if (res.ok && body) {
+      if (body.status === "COMPLETE") {
+        return { success: true, data: body };
+      }
+      return {
+        success: false,
+        data: body,
+        error: `eSewa transaction status: ${body.status || "Unknown"}`,
+      };
+    }
+
+    return {
+      success: false,
+      error: `eSewa verification request failed with HTTP ${res.status}`,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Network error contacting eSewa status API",
+    };
+  }
+}

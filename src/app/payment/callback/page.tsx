@@ -6,38 +6,121 @@ import Link from "next/link";
 import { CheckCircle2, XCircle, Loader2, ArrowRight, Home, Briefcase } from "lucide-react";
 import { verifyAndCompletePayment } from "@/app/actions/payment";
 
+interface CallbackSummary {
+  gateway: "eSewa" | "Khalti";
+  transactionId: string;
+  refCode?: string;
+  amount?: number;
+}
+
 function CallbackContent() {
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
   const [state, setState] = useState<"VERIFYING" | "SUCCESS" | "FAILED">("VERIFYING");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [summary, setSummary] = useState<CallbackSummary | null>(null);
 
+  // Khalti parameters
   const pidx = searchParams.get("pidx");
-  const status = searchParams.get("status");
-  const transactionId = searchParams.get("purchase_order_id");
+  const khaltiStatus = searchParams.get("status");
+  const khaltiOrderId = searchParams.get("purchase_order_id");
   const khaltiTxnId = searchParams.get("transaction_id") || searchParams.get("txnId");
-  const amountPaisa = searchParams.get("amount");
-  const amountRs = amountPaisa ? Math.round(Number(amountPaisa) / 100) : null;
+  const khaltiAmountPaisa = searchParams.get("amount");
+
+  // eSewa parameters
+  const esewaDataEncoded = searchParams.get("data");
+  const esewaGatewayParam = searchParams.get("gateway");
 
   useEffect(() => {
-    // If user canceled on Khalti
-    if (status === "User canceled" || status === "Canceled") {
+    // ── 1. eSewa Callback Flow ─────────────────────────
+    if (esewaGatewayParam === "esewa" || esewaDataEncoded) {
+      if (searchParams.get("status") === "failed" || searchParams.get("status") === "canceled") {
+        setState("FAILED");
+        setErrorMessage("Payment was canceled or failed on eSewa.");
+        return;
+      }
+
+      if (!esewaDataEncoded) {
+        setState("FAILED");
+        setErrorMessage("Missing eSewa callback payload.");
+        return;
+      }
+
+      try {
+        const decodedStr = atob(esewaDataEncoded);
+        const parsed = JSON.parse(decodedStr);
+
+        if (parsed.status !== "COMPLETE") {
+          setState("FAILED");
+          setErrorMessage(`eSewa returned payment status: ${parsed.status || "Unknown"}`);
+          return;
+        }
+
+        const transactionUuid = parsed.transaction_uuid;
+        const refId = parsed.transaction_code;
+        const totalAmountNum = parsed.total_amount
+          ? Math.round(Number(parsed.total_amount.toString().replace(/,/g, "")))
+          : undefined;
+
+        setSummary({
+          gateway: "eSewa",
+          transactionId: transactionUuid,
+          refCode: refId,
+          amount: totalAmountNum,
+        });
+
+        startTransition(async () => {
+          try {
+            const res = await verifyAndCompletePayment({
+              transactionId: transactionUuid,
+              gatewayRef: refId,
+              isSimulator: false,
+            });
+
+            if (res.success) {
+              setState("SUCCESS");
+            } else {
+              setState("FAILED");
+              setErrorMessage(res.error || "eSewa payment verification could not be confirmed.");
+            }
+          } catch (err) {
+            setState("FAILED");
+            setErrorMessage(err instanceof Error ? err.message : "Unexpected eSewa verification error");
+          }
+        });
+      } catch (decodeErr) {
+        setState("FAILED");
+        setErrorMessage("Invalid eSewa response payload.");
+      }
+      return;
+    }
+
+    // ── 2. Khalti Callback Flow ────────────────────────
+    if (khaltiStatus === "User canceled" || khaltiStatus === "Canceled") {
       setState("FAILED");
       setErrorMessage("Payment was canceled on Khalti.");
       return;
     }
 
-    if (!transactionId || !pidx) {
+    if (!khaltiOrderId || !pidx) {
       setState("FAILED");
-      setErrorMessage("Missing transaction reference or Khalti token.");
+      setErrorMessage("Missing transaction reference or payment token.");
       return;
     }
+
+    const amountRs = khaltiAmountPaisa ? Math.round(Number(khaltiAmountPaisa) / 100) : undefined;
+    setSummary({
+      gateway: "Khalti",
+      transactionId: khaltiOrderId,
+      refCode: khaltiTxnId || pidx,
+      amount: amountRs,
+    });
 
     startTransition(async () => {
       try {
         const res = await verifyAndCompletePayment({
-          transactionId,
+          transactionId: khaltiOrderId,
           gatewayRef: pidx,
           isSimulator: false,
         });
@@ -46,27 +129,27 @@ function CallbackContent() {
           setState("SUCCESS");
         } else {
           setState("FAILED");
-          setErrorMessage(res.error || "Payment verification could not be confirmed.");
+          setErrorMessage(res.error || "Khalti payment verification could not be confirmed.");
         }
       } catch (err) {
         setState("FAILED");
         setErrorMessage(err instanceof Error ? err.message : "Unexpected verification error");
       }
     });
-  }, [pidx, status, transactionId]);
+  }, [pidx, khaltiStatus, khaltiOrderId, khaltiTxnId, khaltiAmountPaisa, esewaDataEncoded, esewaGatewayParam, searchParams]);
 
   return (
     <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl text-center">
       {state === "VERIFYING" && (
         <div className="space-y-4 py-8">
-          <div className="w-16 h-16 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 mx-auto flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 mx-auto flex items-center justify-center">
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            Verifying Khalti Payment
+            Verifying Payment Status
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Please wait while we confirm your payment reference with Khalti...
+            Please wait while we confirm your payment reference with the gateway...
           </p>
         </div>
       )}
@@ -81,31 +164,29 @@ function CallbackContent() {
               Payment Successful!
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Your payment via Khalti has been verified and your boost is now active.
+              Your payment via {summary?.gateway || "Local Gateway"} has been confirmed and your boost is now active.
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-left space-y-2 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-500 dark:text-slate-400">Gateway</span>
-              <span className="font-semibold text-purple-600 dark:text-purple-400">Khalti Digital</span>
+              <span className={`font-semibold ${summary?.gateway === "eSewa" ? "text-emerald-600 dark:text-emerald-400" : "text-purple-600 dark:text-purple-400"}`}>
+                {summary?.gateway === "eSewa" ? "eSewa ePay" : "Khalti Digital"}
+              </span>
             </div>
-            {amountRs !== null && (
+            {summary?.amount !== undefined && (
               <div className="flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400">Amount</span>
-                <span className="font-semibold text-slate-900 dark:text-white">Rs. {amountRs}</span>
+                <span className="font-semibold text-slate-900 dark:text-white">Rs. {summary.amount}</span>
               </div>
             )}
-            {khaltiTxnId && (
+            {summary?.refCode && (
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Khalti Txn ID</span>
-                <span className="font-mono text-slate-700 dark:text-slate-300">{khaltiTxnId}</span>
-              </div>
-            )}
-            {pidx && (
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">PIDX</span>
-                <span className="font-mono text-[10px] text-slate-500 truncate max-w-[180px]">{pidx}</span>
+                <span className="text-slate-500 dark:text-slate-400">Gateway Ref</span>
+                <span className="font-mono text-[11px] text-slate-700 dark:text-slate-300 truncate max-w-[180px]">
+                  {summary.refCode}
+                </span>
               </div>
             )}
           </div>
@@ -164,7 +245,7 @@ export default function PaymentCallbackPage() {
       <Suspense
         fallback={
           <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-xl text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 mx-auto flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 mx-auto flex items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin" />
             </div>
             <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">

@@ -7,6 +7,12 @@ import { PaymentGateway, PaymentStatus, TransactionType } from "@prisma/client";
 import { BOOST_PACKAGES, FEATURE_PACKAGES } from "@/lib/constants";
 import { getSiteUrl } from "@/lib/site-url";
 import { initiateKhaltiPayment, verifyKhaltiPayment, isKhaltiConfigured } from "@/lib/khalti";
+import {
+  createEsewaPaymentPayload,
+  verifyEsewaTransaction,
+  isEsewaConfigured,
+  getEsewaGatewayUrl,
+} from "@/lib/esewa";
 
 export type PaymentResult = {
   success: boolean;
@@ -15,6 +21,10 @@ export type PaymentResult = {
   amount?: number;
   gateway?: PaymentGateway;
   paymentUrl?: string;
+  esewaConfig?: {
+    actionUrl: string;
+    fields: Record<string, string>;
+  };
 };
 
 /* ── Initiate Job Boost Payment ────────────────────────────── */
@@ -61,6 +71,7 @@ export async function initiateBoostPayment(input: {
     });
 
     let paymentUrl: string | undefined;
+    let esewaConfig: PaymentResult["esewaConfig"] | undefined;
 
     if (input.gateway === "KHALTI" && isKhaltiConfigured()) {
       try {
@@ -95,6 +106,23 @@ export async function initiateBoostPayment(input: {
       } catch (khaltiErr) {
         console.error("Khalti initiation exception:", khaltiErr);
       }
+    } else if (input.gateway === "ESEWA" && isEsewaConfigured()) {
+      try {
+        const siteUrl = await getSiteUrl();
+        const payload = createEsewaPaymentPayload({
+          amount: pkg.price,
+          transactionUuid: transaction.id,
+          successUrl: `${siteUrl}/payment/callback?gateway=esewa`,
+          failureUrl: `${siteUrl}/payment/callback?gateway=esewa&status=failed&purchase_order_id=${transaction.id}`,
+        });
+
+        esewaConfig = {
+          actionUrl: getEsewaGatewayUrl(),
+          fields: payload as unknown as Record<string, string>,
+        };
+      } catch (esewaErr) {
+        console.error("eSewa boost payment initiation exception:", esewaErr);
+      }
     }
 
     return {
@@ -103,6 +131,7 @@ export async function initiateBoostPayment(input: {
       amount: pkg.price,
       gateway: transaction.gateway,
       paymentUrl,
+      esewaConfig,
     };
   } catch (err) {
     console.error("Initiate boost payment error:", err);
@@ -152,6 +181,7 @@ export async function initiateFeaturePayment(input: {
     });
 
     let paymentUrl: string | undefined;
+    let esewaConfig: PaymentResult["esewaConfig"] | undefined;
 
     if (input.gateway === "KHALTI" && isKhaltiConfigured()) {
       try {
@@ -186,6 +216,23 @@ export async function initiateFeaturePayment(input: {
       } catch (khaltiErr) {
         console.error("Khalti initiation exception:", khaltiErr);
       }
+    } else if (input.gateway === "ESEWA" && isEsewaConfigured()) {
+      try {
+        const siteUrl = await getSiteUrl();
+        const payload = createEsewaPaymentPayload({
+          amount: pkg.price,
+          transactionUuid: transaction.id,
+          successUrl: `${siteUrl}/payment/callback?gateway=esewa`,
+          failureUrl: `${siteUrl}/payment/callback?gateway=esewa&status=failed&purchase_order_id=${transaction.id}`,
+        });
+
+        esewaConfig = {
+          actionUrl: getEsewaGatewayUrl(),
+          fields: payload as unknown as Record<string, string>,
+        };
+      } catch (esewaErr) {
+        console.error("eSewa feature payment initiation exception:", esewaErr);
+      }
     }
 
     return {
@@ -194,6 +241,7 @@ export async function initiateFeaturePayment(input: {
       amount: pkg.price,
       gateway: transaction.gateway,
       paymentUrl,
+      esewaConfig,
     };
   } catch (err) {
     console.error("Initiate feature payment error:", err);
@@ -245,6 +293,22 @@ export async function verifyAndCompletePayment(input: {
         }
         verifiedRef = verifyRes.data.transaction_id || pidxToVerify;
       }
+    }
+
+    // Verify eSewa transaction status via status check API if not simulated
+    if (transaction.gateway === PaymentGateway.ESEWA && !input.isSimulator && isEsewaConfigured()) {
+      const verifyRes = await verifyEsewaTransaction({
+        totalAmount: transaction.amount,
+        transactionUuid: transaction.id,
+      });
+
+      if (!verifyRes.success || verifyRes.data?.status !== "COMPLETE") {
+        return {
+          success: false,
+          error: verifyRes.error || `eSewa payment status: ${verifyRes.data?.status || "Incomplete"}`,
+        };
+      }
+      verifiedRef = verifyRes.data.ref_id || input.gatewayRef || `ESEWA-${transaction.id}`;
     }
 
     const meta = (transaction.metadata as { packageDays?: number; jobTitle?: string }) || {};

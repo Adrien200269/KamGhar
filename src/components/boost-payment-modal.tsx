@@ -76,6 +76,23 @@ export default function BoostPaymentModal({
           return;
         }
 
+        // If eSewa configuration is returned and not in simulator mode, post to eSewa checkout
+        if (res.esewaConfig && !isSimulator) {
+          const form = document.createElement("form");
+          form.method = "POST";
+          form.action = res.esewaConfig.actionUrl;
+          Object.entries(res.esewaConfig.fields).forEach(([key, val]) => {
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = key;
+            input.value = val;
+            form.appendChild(input);
+          });
+          document.body.appendChild(form);
+          form.submit();
+          return;
+        }
+
         // If a gateway payment URL is returned (Khalti ePayment) and not in simulator mode, redirect to checkout
         if (res.paymentUrl && !isSimulator) {
           window.location.href = res.paymentUrl;
@@ -256,6 +273,19 @@ export default function BoostPaymentModal({
                       <span>{tx("Simulate Instant Approval (Test / Demo)", "द्रुत परीक्षण मोड (सिमुलेटर)")}</span>
                     </label>
                   </div>
+
+                  {gateway === "ESEWA" && !isSimulator && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-900/60 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
+                      <div className="font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>eSewa Sandbox Credentials:</span>
+                      </div>
+                      <div className="font-mono text-[10px] space-y-0.5 opacity-90">
+                        <p>ID: <strong className="text-emerald-900 dark:text-emerald-200">9806800001</strong> | Pass: <strong className="text-emerald-900 dark:text-emerald-200">Nepal@123</strong></p>
+                        <p>MPIN: <strong className="text-emerald-900 dark:text-emerald-200">1122</strong> | Token: <strong className="text-emerald-900 dark:text-emerald-200">123456</strong></p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {errorMsg && (
