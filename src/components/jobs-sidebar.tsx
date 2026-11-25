@@ -20,6 +20,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
+import { usePostJobModal } from "@/components/post-job-modal-provider";
 
 interface JobsSidebarProps {
   user: {
@@ -45,6 +46,7 @@ export default function JobsSidebar({
   onSignOut,
 }: JobsSidebarProps) {
   const { tx } = useLanguage();
+  const { openPostJobModal } = usePostJobModal();
   const pathname = usePathname();
 
   const isWorker = user?.role === "WORKER";
@@ -263,9 +265,12 @@ export default function JobsSidebar({
                   </Link>
 
                   {!isWorker && (
-                    <Link
-                      href="/jobs/new"
-                      onClick={onCloseMobile}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onCloseMobile();
+                        openPostJobModal();
+                      }}
                       className={plainLinkClass}
                       title={collapsed ? tx("Post a Job", "काम पोस्ट गर्नुहोस्") : undefined}
                     >
@@ -275,7 +280,7 @@ export default function JobsSidebar({
                           {tx("Post a Job", "काम पोस्ट गर्नुहोस्")}
                         </span>
                       )}
-                    </Link>
+                    </button>
                   )}
 
                   <Link

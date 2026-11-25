@@ -5,11 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Briefcase, Plus, Users, LayoutDashboard, User } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
+import { usePostJobModal } from "@/components/post-job-modal-provider";
 import { createClient } from "@/lib/supabase/client";
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { tx } = useLanguage();
+  const { isOpen: isPostModalOpen, openPostJobModal } = usePostJobModal();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function MobileBottomNav() {
 
   const isHomeActive = pathname === "/";
   const isJobsActive = pathname?.startsWith("/jobs") && pathname !== "/jobs/new";
-  const isPostActive = pathname === "/jobs/new";
+  const isPostActive = isPostModalOpen || pathname === "/jobs/new";
   const isWorkersActive = pathname?.startsWith("/workers");
   const isDashActive = pathname?.startsWith("/dashboard");
 
@@ -81,10 +83,11 @@ export default function MobileBottomNav() {
         </Link>
 
         {/* 3. Post Job Floating Button */}
-        <Link
-          href="/jobs/new"
+        <button
+          type="button"
+          onClick={() => openPostJobModal()}
           title={tx("Post a Job", "काम पोस्ट गर्नुहोस्")}
-          className="flex flex-col items-center justify-center -translate-y-3 group active:scale-90 transition-transform"
+          className="flex flex-col items-center justify-center -translate-y-3 group active:scale-90 transition-transform cursor-pointer"
         >
           <div
             className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all border-4 border-slate-50 dark:border-slate-950 ${
@@ -98,7 +101,7 @@ export default function MobileBottomNav() {
           <span className="text-[9px] font-bold text-orange-600 dark:text-orange-400 mt-0.5">
             {tx("Post", "पोस्ट")}
           </span>
-        </Link>
+        </button>
 
         {/* 4. Workers */}
         <Link

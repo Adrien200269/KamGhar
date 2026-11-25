@@ -61,6 +61,7 @@ import ThemeToggle from "@/components/theme-toggle";
 import LanguageToggle from "@/components/language-toggle";
 import NotificationDropdown from "@/components/notification-dropdown";
 import { useLanguage } from "@/components/language-provider";
+import { usePostJobModal } from "@/components/post-job-modal-provider";
 import LiveRouteTrackerModal from "@/components/live-route-tracker-modal";
 import { VoiceNotePlayer } from "@/components/voice-note";
 import UploadcareImageUploader from "@/components/uploadcare-image-uploader";
@@ -240,6 +241,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function DashboardView({ user }: { user: UserWithProfile }) {
   const { lang, t, tx } = useLanguage();
+  const { openPostJobModal } = usePostJobModal();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -922,7 +924,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                 itemTitle: firstOpen.title,
               });
             } else {
-              router.push("/jobs/new");
+              openPostJobModal();
             }
           }
         }}
@@ -978,15 +980,16 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   </span>
                 </Link>
               ) : (
-                <Link
-                  href="/jobs/new"
+                <button
+                  type="button"
+                  onClick={() => openPostJobModal()}
                   className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span className="hidden xs:inline">
                     {tx("Post a Job", "काम पोस्ट गर्नुहोस्")}
                   </span>
-                </Link>
+                </button>
               )}
 
               <NotificationDropdown
@@ -2179,13 +2182,14 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                     ))}
                   </div>
 
-                  <Link
-                    href="/jobs/new"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => openPostJobModal()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>New Job</span>
-                  </Link>
+                  </button>
                 </div>
               </div>
 
@@ -2200,13 +2204,14 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto mb-5">
                     Need work done? Post your requirement now and skilled local workers in your area will reach out.
                   </p>
-                  <Link
-                    href="/jobs/new"
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-orange-500/20 transition-all"
+                  <button
+                    type="button"
+                    onClick={() => openPostJobModal()}
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-orange-500/20 transition-all cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Post a Job Requirement</span>
-                  </Link>
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-3">

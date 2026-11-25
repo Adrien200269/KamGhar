@@ -26,6 +26,7 @@ import {
 import { completeRecruiterOnboarding } from "@/app/actions/profile";
 import { NEPAL_DISTRICTS } from "@/lib/constants";
 import UploadcareImageUploader from "@/components/uploadcare-image-uploader";
+import { usePostJobModal } from "@/components/post-job-modal-provider";
 
 // Dynamically import MapPicker with SSR disabled
 const MapPicker = dynamic(() => import("@/components/map-picker"), {
@@ -126,6 +127,7 @@ export default function RecruiterOnboarding({
   initialData,
 }: RecruiterOnboardingProps) {
   const router = useRouter();
+  const { openPostJobModal } = usePostJobModal();
 
   // Mode: "tour" or "wizard"
   const [viewMode, setViewMode] = useState<"tour" | "wizard">("tour");
@@ -1043,7 +1045,10 @@ export default function RecruiterOnboarding({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       type="button"
-                      onClick={() => router.push("/jobs/new")}
+                      onClick={() => {
+                        router.push("/dashboard");
+                        openPostJobModal();
+                      }}
                       className="w-full py-3 px-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       Post Your First Job Post <ArrowRight className="w-4 h-4" />

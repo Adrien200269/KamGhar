@@ -24,7 +24,6 @@ import {
   ChevronDown,
   ChevronUp,
   Radio,
-  Mic,
   Calendar,
   Clock,
   CalendarClock,
@@ -41,9 +40,8 @@ import {
   toNepaliDigits,
 } from "@/lib/nepali-date";
 
-// Load Leaflet map only client-side (no SSR â€” Leaflet touches window/document)
+// Load Leaflet map only client-side (no SSR — Leaflet touches window/document)
 const MapPicker = dynamic(() => import("@/components/map-picker"), { ssr: false });
-
 
 const CATEGORIES = [
   { name: "Electrician", icon: Zap },
@@ -60,14 +58,38 @@ const CATEGORIES = [
 
 const BUDGET_PRESETS = [500, 1000, 2000, 5000];
 
-export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: string }) {
+export type JobPostPrefill = {
+  title?: string;
+  category?: string;
+  budget?: string;
+};
+
+export default function JobPostForm({
+  defaultDistrict,
+  isModal = false,
+  prefill,
+  onClose,
+  onSuccess,
+}: {
+  defaultDistrict?: string;
+  isModal?: boolean;
+  prefill?: JobPostPrefill;
+  onClose?: () => void;
+  onSuccess?: (result: { jobId?: string; broadcastCount?: number }) => void;
+}) {
   const router = useRouter();
 
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0].name);
+  const initialCategory = prefill?.category
+    ? CATEGORIES.find(
+        (c) => c.name.toLowerCase() === prefill.category?.toLowerCase()
+      )?.name ?? CATEGORIES[0].name
+    : CATEGORIES[0].name;
+
+  const [title, setTitle] = useState(prefill?.title ?? "");
+  const [category, setCategory] = useState(initialCategory);
   const [district, setDistrict] = useState(defaultDistrict || "Kathmandu");
   const [specificAddress, setSpecificAddress] = useState("");
-  const [budget, setBudget] = useState("");
+  const [budget, setBudget] = useState(prefill?.budget ?? "");
   const [isNegotiable, setIsNegotiable] = useState(false);
   const [timingMode, setTimingMode] = useState<"PRESET" | "EXACT">("PRESET");
   const [preferredTime, setPreferredTime] = useState(SCHEDULE_TIME_SLOTS[1].labelEn);
@@ -80,7 +102,6 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
   const [description, setDescription] = useState("");
   const [isUrgentBroadcast, setIsUrgentBroadcast] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [broadcastCountResult, setBroadcastCountResult] = useState<number | null>(null);
 
   const [coords, setCoords] = useState<{ lat: number; lng: number }>(
     getDistrictCoordinates(defaultDistrict || "Kathmandu")
@@ -111,7 +132,7 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
       setExactMinute(defaultTarget.getMinutes());
       setTodayBsLabel(getApproximateBsDate(now).formattedNe);
 
-      if (typeof window !== "undefined") {
+      if (!prefill && typeof window !== "undefined") {
         const searchParams = new URLSearchParams(window.location.search);
         const qTitle = searchParams.get("title");
         const qCategory = searchParams.get("category");
@@ -128,7 +149,7 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
     }, 0);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [prefill]);
 
   const handleDistrictChange = (d: string) => {
     setDistrict(d);
@@ -139,7 +160,6 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
   const handleMapChange = (lat: number, lng: number, address?: string) => {
     setCoords({ lat, lng });
     if (address) {
-      // Pull out a short landmark from the reverse-geocoded result
       const parts = address.split(",");
       const short = parts.slice(0, 3).join(",").trim();
       setSpecificAddress(short);
@@ -147,7 +167,6 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
     setLocationSuccess(true);
     setTimeout(() => setLocationSuccess(false), 3000);
   };
-
 
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
@@ -196,7 +215,9 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
     try {
       const response = await createJob({
         title: title.trim(),
-        description: preferredTime ? `${description.trim()}\n\n[Preferred Timing: ${preferredTime}]` : description.trim(),
+        description: preferredTime
+          ? `${description.trim()}\n\n[Preferred Timing: ${preferredTime}]`
+          : description.trim(),
         category,
         urgency: isUrgentBroadcast ? "URGENT" : "MEDIUM",
         budget: isNegotiable || !budget ? null : parseFloat(budget),
@@ -209,8 +230,15 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
       if (!response.success) {
         setError(response.error ?? "Failed to post job. Please check all fields.");
         setIsSubmitting(false);
+      } else if (onSuccess) {
+        onSuccess({
+          jobId: response.jobId,
+          broadcastCount: response.broadcastCount,
+        });
       } else {
-        const broadcastParam = response.broadcastCount ? `&broadcast=${response.broadcastCount}` : "";
+        const broadcastParam = response.broadcastCount
+          ? `&broadcast=${response.broadcastCount}`
+          : "";
         router.push(`/dashboard?posted=true${broadcastParam}`);
         router.refresh();
       }
@@ -220,15 +248,606 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
     }
   };
 
+  const glassInputClass = isModal
+    ? "w-full px-4 py-3 bg-white/70 dark:bg-slate-800/65 backdrop-blur-md border border-white/80 dark:border-white/15 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/25 focus:border-orange-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none"
+    : "w-full px-4 py-3 bg-slate-50/90 dark:bg-slate-800/75 border border-slate-200/90 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400";
+
+  const formContent = (
+    <>
+      {/* Error Alert */}
+      <AnimatePresence mode="wait">
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -8 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-5 p-4 rounded-2xl bg-red-50/90 dark:bg-red-950/60 backdrop-blur-md border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-sm flex items-start gap-3"
+          >
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+            <div className="flex-1 font-medium">{error}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* 1. Job Title */}
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+              1. What do you need help with? <span className="text-red-500">*</span>
+            </label>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              {title.length}/120
+            </span>
+          </div>
+          <input
+            type="text"
+            required
+            maxLength={120}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Electrician needed to fix circuit breaker & wiring"
+            className={glassInputClass}
+          />
+        </div>
+
+        {/* 2. Category Selector */}
+        <div>
+          <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-2.5">
+            2. Select Service Category <span className="text-red-500">*</span>
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {CATEGORIES.map((cat) => {
+              const Icon = cat.icon;
+              const isSelected = category === cat.name;
+              return (
+                <button
+                  key={cat.name}
+                  type="button"
+                  onClick={() => setCategory(cat.name)}
+                  className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
+                    isSelected
+                      ? "bg-orange-500/15 dark:bg-orange-950/50 border-orange-500 text-orange-900 dark:text-orange-200 ring-2 ring-orange-500/20 shadow-sm font-bold backdrop-blur-md"
+                      : isModal
+                      ? "bg-white/60 dark:bg-slate-800/55 border-white/75 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white/85 dark:hover:bg-slate-800/80 backdrop-blur-sm"
+                      : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600"
+                  }`}
+                >
+                  <Icon
+                    className={`w-4 h-4 ${
+                      isSelected
+                        ? "text-orange-600 dark:text-orange-400"
+                        : "text-slate-400"
+                    }`}
+                  />
+                  <span className="text-[11px] leading-tight line-clamp-1">
+                    {cat.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. Location */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-orange-500" />
+              <span>
+                3. Location &amp; Area <span className="text-red-500">*</span>
+              </span>
+            </label>
+
+            <button
+              type="button"
+              onClick={handleDetectLocation}
+              disabled={detectingLocation}
+              className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+            >
+              {detectingLocation ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" /> Locating...
+                </>
+              ) : locationSuccess ? (
+                <>
+                  <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Location Detected
+                </>
+              ) : (
+                <>
+                  <Navigation className="w-3 h-3" /> Auto-Detect GPS
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <select
+                value={district}
+                onChange={(e) => handleDistrictChange(e.target.value)}
+                className={glassInputClass}
+              >
+                {NEPAL_DISTRICTS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <input
+                type="text"
+                value={specificAddress}
+                onChange={(e) => setSpecificAddress(e.target.value)}
+                placeholder="Street / Landmark (e.g. New Baneshwor)"
+                className={glassInputClass}
+              />
+            </div>
+          </div>
+
+          {/* Map Picker Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowMap((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-dashed border-orange-300/90 dark:border-orange-700 bg-orange-50/55 dark:bg-orange-950/25 backdrop-blur-sm text-orange-700 dark:text-orange-400 text-xs font-semibold hover:bg-orange-50/85 dark:hover:bg-orange-950/40 transition-colors cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              <Map className="w-4 h-4" />
+              {showMap
+                ? "Hide map"
+                : "📍 Pin exact location on map (recommended for accuracy)"}
+            </span>
+            {showMap ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </button>
+
+          <AnimatePresence>
+            {showMap && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22 }}
+                className="overflow-hidden space-y-2"
+              >
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-orange-500 flex-shrink-0" />
+                  Drag the pin or click anywhere on the map to set the exact job location.
+                  The address field above will update automatically.
+                </p>
+                <MapPicker
+                  lat={coords.lat}
+                  lng={coords.lng}
+                  onChange={handleMapChange}
+                />
+                <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                  Coordinates: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* 4. Budget */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+              4. Budget (NPR)
+            </label>
+            <label className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isNegotiable}
+                onChange={(e) => {
+                  setIsNegotiable(e.target.checked);
+                  if (e.target.checked) setBudget("");
+                }}
+                className="rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+              />
+              <span className="font-medium">Negotiable / Open to Offers</span>
+            </label>
+          </div>
+
+          {!isNegotiable && (
+            <div className="space-y-2">
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-sm font-semibold text-slate-400 pointer-events-none z-10">
+                  Rs.
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  step={50}
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  placeholder="Enter amount (e.g. 1500)"
+                  className={`${glassInputClass} pl-12 font-semibold`}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between text-[11px] pb-1 w-full">
+                  <span className="text-slate-500 dark:text-slate-400">
+                    Standard market rates:
+                  </span>
+                  <Link
+                    href="/rate-guide"
+                    target="_blank"
+                    className="text-orange-600 dark:text-orange-400 hover:underline font-semibold inline-flex items-center gap-1"
+                  >
+                    <span>कति पर्ला? Rate Guide</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Quick set:
+                </span>
+                {BUDGET_PRESETS.map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setBudget(String(val))}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                      isModal
+                        ? "bg-white/65 dark:bg-slate-800/70 border border-white/75 dark:border-white/10 hover:bg-orange-50 dark:hover:bg-orange-950/40 text-slate-700 dark:text-slate-200 hover:text-orange-600 dark:hover:text-orange-400"
+                        : "bg-slate-100 dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-orange-950/40 text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400"
+                    }`}
+                  >
+                    Rs. {val.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Preferred Timing, Calendar & Exact Clock */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider block">
+              Preferred Timing / Shift
+            </label>
+            <span className="text-[11px] text-orange-600 dark:text-orange-400 font-semibold">
+              {timingMode === "EXACT" && exactDate
+                ? `${getApproximateBsDate(exactDate).formattedNe} • ${formatExactClockTime(
+                    exactHour24,
+                    exactMinute
+                  )}`
+                : todayBsLabel}
+            </span>
+          </div>
+
+          {/* Quick Presets + Exact Date & Time Toggle Pill */}
+          <div className="flex flex-wrap gap-2">
+            {SCHEDULE_TIME_SLOTS.map((slot) => {
+              const active = timingMode === "PRESET" && preferredTime === slot.labelEn;
+              return (
+                <button
+                  key={slot.value}
+                  type="button"
+                  onClick={() => {
+                    setTimingMode("PRESET");
+                    setPreferredTime(slot.labelEn);
+                    setShowExactPicker(false);
+                    if (slot.value === "IMMEDIATE") {
+                      setIsUrgentBroadcast(true);
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    active
+                      ? "bg-orange-600 text-white shadow-sm"
+                      : isModal
+                      ? "bg-white/65 dark:bg-slate-800/65 border border-white/75 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-800"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {slot.labelEn}
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={() => {
+                const activeDate = exactDate ?? new Date();
+                if (!exactDate) setExactDate(activeDate);
+                setTimingMode("EXACT");
+                setPreferredTime(
+                  formatExactScheduledTiming(activeDate, exactHour24, exactMinute)
+                );
+                setShowExactPicker((prev) =>
+                  timingMode === "EXACT" ? !prev : true
+                );
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                timingMode === "EXACT"
+                  ? "bg-orange-600 text-white shadow-sm"
+                  : "bg-orange-50/80 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/60 hover:bg-orange-100 dark:hover:bg-orange-950/60"
+              }`}
+            >
+              <CalendarClock className="w-3.5 h-3.5" />
+              <span>Exact Date &amp; Time</span>
+            </button>
+          </div>
+
+          {/* Always-Visible Calendar & Clock Triggers */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                const activeDate = exactDate ?? new Date();
+                if (!exactDate) setExactDate(activeDate);
+                setTimingMode("EXACT");
+                setPreferredTime(
+                  formatExactScheduledTiming(activeDate, exactHour24, exactMinute)
+                );
+                setExactPickerTab("calendar");
+                setShowExactPicker((prev) =>
+                  timingMode === "EXACT" && exactPickerTab === "calendar"
+                    ? !prev
+                    : true
+                );
+              }}
+              className={`flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-2xl border text-left transition cursor-pointer ${
+                timingMode === "EXACT"
+                  ? "bg-orange-50/75 dark:bg-orange-950/30 border-orange-400 dark:border-orange-700 shadow-xs backdrop-blur-sm"
+                  : isModal
+                  ? "bg-white/65 dark:bg-slate-800/60 border-white/75 dark:border-white/10 hover:border-orange-300 dark:hover:border-orange-700 backdrop-blur-sm"
+                  : "bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                    timingMode === "EXACT"
+                      ? "bg-orange-600 text-white"
+                      : "bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Calendar Date
+                  </span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-white truncate block">
+                    {exactDate
+                      ? `${exactDate.toLocaleDateString("en-US", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })} (${getApproximateBsDate(exactDate).monthNe} ${toNepaliDigits(
+                          getApproximateBsDate(exactDate).day
+                        )})`
+                      : "Select date"}
+                  </span>
+                </div>
+              </div>
+              {showExactPicker ? (
+                <ChevronUp className="w-4 h-4 text-orange-600 shrink-0" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const activeDate = exactDate ?? new Date();
+                if (!exactDate) setExactDate(activeDate);
+                setTimingMode("EXACT");
+                setPreferredTime(
+                  formatExactScheduledTiming(activeDate, exactHour24, exactMinute)
+                );
+                setExactPickerTab("clock");
+                setShowExactPicker((prev) =>
+                  timingMode === "EXACT" && exactPickerTab === "clock"
+                    ? !prev
+                    : true
+                );
+              }}
+              className={`flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-2xl border text-left transition cursor-pointer ${
+                timingMode === "EXACT"
+                  ? "bg-orange-50/75 dark:bg-orange-950/30 border-orange-400 dark:border-orange-700 shadow-xs backdrop-blur-sm"
+                  : isModal
+                  ? "bg-white/65 dark:bg-slate-800/60 border-white/75 dark:border-white/10 hover:border-orange-300 dark:hover:border-orange-700 backdrop-blur-sm"
+                  : "bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                    timingMode === "EXACT"
+                      ? "bg-orange-600 text-white"
+                      : "bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  }`}
+                >
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Exact Clock Time
+                  </span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-white truncate block">
+                    {formatExactClockTime(exactHour24, exactMinute)}
+                  </span>
+                </div>
+              </div>
+              {showExactPicker ? (
+                <ChevronUp className="w-4 h-4 text-orange-600 shrink-0" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+              )}
+            </button>
+          </div>
+
+          {/* Expandable Interactive Calendar & Clock Panel */}
+          <AnimatePresence>
+            {showExactPicker && exactDate && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <ExactDateTimePicker
+                  selectedDate={exactDate}
+                  hour24={exactHour24}
+                  minute={exactMinute}
+                  activeTab={exactPickerTab}
+                  onTabChange={setExactPickerTab}
+                  onChange={(nextDate, nextHour24, nextMinute) => {
+                    setExactDate(nextDate);
+                    setExactHour24(nextHour24);
+                    setExactMinute(nextMinute);
+                    setTimingMode("EXACT");
+                    setPreferredTime(
+                      formatExactScheduledTiming(nextDate, nextHour24, nextMinute)
+                    );
+                  }}
+                  onDone={() => setShowExactPicker(false)}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* 5. Description */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center mb-1">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+              5. Job Description &amp; Requirements{" "}
+              <span className="text-red-500">*</span>
+            </label>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              {description.length}/2000
+            </span>
+          </div>
+          <textarea
+            required
+            rows={4}
+            maxLength={2000}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Explain the work required, tools needed, materials available, and any preferences..."
+            className={`${glassInputClass} resize-none leading-relaxed`}
+          />
+
+          {/* Voice Description Note */}
+          <div className="pt-1">
+            <VoiceNoteRecorder
+              onAudioRecorded={setAudioUrl}
+              label="Voice Note Description (अडियो सन्देश)"
+            />
+          </div>
+        </div>
+
+        {/* 6. Quick Job Broadcast (One-Tap Urgent Hiring) */}
+        <div
+          className={`p-4 rounded-2xl border transition-all backdrop-blur-sm ${
+            isUrgentBroadcast
+              ? "bg-red-50/80 dark:bg-red-950/35 border-red-300 dark:border-red-800/60 shadow-sm"
+              : isModal
+              ? "bg-white/60 dark:bg-slate-800/55 border-white/75 dark:border-white/10"
+              : "bg-slate-50 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/60"
+          }`}
+        >
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isUrgentBroadcast}
+              onChange={(e) => setIsUrgentBroadcast(e.target.checked)}
+              className="mt-1 w-4 h-4 text-red-600 rounded focus:ring-red-500 cursor-pointer"
+            />
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <Radio
+                    className={`w-4 h-4 ${
+                      isUrgentBroadcast
+                        ? "text-red-600 animate-pulse"
+                        : "text-slate-500"
+                    }`}
+                  />
+                  <span>Quick Job Broadcast (One-Tap Urgent Hiring)</span>
+                </span>
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">
+                  Urgent 30-60m
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Pipe burst, electrical spark, or emergency repair? Instantly broadcast to
+                verified &amp; available technicians within a 5 km radius in {district}. First
+                to accept gets dispatched!
+              </p>
+            </div>
+          </label>
+        </div>
+
+        {/* Actions */}
+        <div className="pt-3 flex flex-col sm:flex-row gap-3">
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="py-3.5 px-5 rounded-2xl bg-white/65 dark:bg-slate-800/65 border border-white/80 dark:border-white/15 text-slate-700 dark:text-slate-200 text-sm font-bold hover:bg-white dark:hover:bg-slate-800 transition-colors text-center cursor-pointer"
+            >
+              Cancel
+            </button>
+          ) : (
+            <Link
+              href="/dashboard"
+              className="py-3.5 px-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center cursor-pointer"
+            >
+              Cancel
+            </Link>
+          )}
+
+          <motion.button
+            type="submit"
+            disabled={isSubmitting}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className="flex-1 py-3.5 px-6 bg-orange-600 hover:bg-orange-700 disabled:opacity-70 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 text-sm transition-all cursor-pointer"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Publishing Job...</span>
+              </>
+            ) : (
+              <>
+                <span>Publish Job</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </motion.button>
+        </div>
+      </form>
+    </>
+  );
+
+  if (isModal) {
+    return formContent;
+  }
+
   return (
     <div className="w-full max-w-2xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-black/40 p-4 sm:p-10 transition-colors"
+        className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl backdrop-saturate-150 rounded-[28px] border border-white/80 dark:border-white/15 shadow-[0_24px_80px_-14px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.9)] p-4 sm:p-10 transition-colors"
       >
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 text-orange-600 dark:text-orange-400 text-xs font-semibold mb-3">
             <Sparkles className="w-3.5 h-3.5" />
@@ -241,501 +860,7 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
             Connect with verified local workers and technicians in your area.
           </p>
         </div>
-
-        {/* Error Alert */}
-        <AnimatePresence mode="wait">
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, y: -8 }}
-              animate={{ opacity: 1, height: "auto", y: 0 }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-sm flex items-start gap-3"
-            >
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
-              <div className="flex-1 font-medium">{error}</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 1. Job Title */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                1. What do you need help with? <span className="text-red-500">*</span>
-              </label>
-              <span className="text-[11px] text-slate-400">{title.length}/120</span>
-            </div>
-            <input
-              type="text"
-              required
-              maxLength={120}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Electrician needed to fix circuit breaker & wiring"
-              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400"
-            />
-          </div>
-
-          {/* 2. Category Selector */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2.5">
-              2. Select Service Category <span className="text-red-500">*</span>
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              {CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                const isSelected = category === cat.name;
-                return (
-                  <button
-                    key={cat.name}
-                    type="button"
-                    onClick={() => setCategory(cat.name)}
-                    className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                      isSelected
-                        ? "bg-orange-50 dark:bg-orange-950/40 border-orange-500 text-orange-900 dark:text-orange-200 ring-2 ring-orange-500/20 shadow-sm font-bold"
-                        : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600"
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 ${isSelected ? "text-orange-600 dark:text-orange-400" : "text-slate-400"}`} />
-                    <span className="text-[11px] leading-tight line-clamp-1">{cat.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. Location */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-orange-500" />
-                <span>3. Location & Area <span className="text-red-500">*</span></span>
-              </label>
-
-              <button
-                type="button"
-                onClick={handleDetectLocation}
-                disabled={detectingLocation}
-                className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-              >
-                {detectingLocation ? (
-                  <><Loader2 className="w-3 h-3 animate-spin" /> Locating...</>
-                ) : locationSuccess ? (
-                  <><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Location Detected</>
-                ) : (
-                  <><Navigation className="w-3 h-3" /> Auto-Detect GPS</>
-                )}
-              </button>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <select
-                  value={district}
-                  onChange={(e) => handleDistrictChange(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white"
-                >
-                  {NEPAL_DISTRICTS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <input
-                  type="text"
-                  value={specificAddress}
-                  onChange={(e) => setSpecificAddress(e.target.value)}
-                  placeholder="Street / Landmark (e.g. New Baneshwor)"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400"
-                />
-              </div>
-            </div>
-            {/* Map Picker Toggle */}
-            <button
-              type="button"
-              onClick={() => setShowMap((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-dashed border-orange-300 dark:border-orange-700 bg-orange-50/50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-400 text-xs font-semibold hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors cursor-pointer"
-            >
-              <span className="flex items-center gap-2">
-                <Map className="w-4 h-4" />
-                {showMap ? "Hide map" : "📍 Pin exact location on map (recommended for accuracy)"}
-              </span>
-              {showMap ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-
-            <AnimatePresence>
-              {showMap && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.22 }}
-                  className="overflow-hidden space-y-2"
-                >
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-orange-500 flex-shrink-0" />
-                    Drag the pin or click anywhere on the map to set the exact job location.
-                    The address field above will update automatically.
-                  </p>
-                  <MapPicker lat={coords.lat} lng={coords.lng} onChange={handleMapChange} />
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                    Coordinates: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* 4. Budget */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                4. Budget (NPR)
-              </label>
-              <label className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isNegotiable}
-                  onChange={(e) => {
-                    setIsNegotiable(e.target.checked);
-                    if (e.target.checked) setBudget("");
-                  }}
-                  className="rounded border-slate-300 text-orange-600 focus:ring-orange-500"
-                />
-                <span className="font-medium">Negotiable / Open to Offers</span>
-              </label>
-            </div>
-
-            {!isNegotiable && (
-              <div className="space-y-2">
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-sm font-semibold text-slate-400 pointer-events-none">
-                    Rs.
-                  </span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={50}
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value)}
-                    placeholder="Enter amount (e.g. 1500)"
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400 font-semibold"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center justify-between text-[11px] pb-1 w-full">
-                    <span className="text-slate-400">Standard market rates:</span>
-                    <Link
-                      href="/rate-guide"
-                      target="_blank"
-                      className="text-orange-600 dark:text-orange-400 hover:underline font-semibold inline-flex items-center gap-1"
-                    >
-                      <span>कति पर्ला? Rate Guide</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-400">Quick set:</span>
-                  {BUDGET_PRESETS.map((val) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setBudget(String(val))}
-                      className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-orange-950/40 text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
-                    >
-                      Rs. {val.toLocaleString()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Preferred Timing, Calendar & Exact Clock */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                Preferred Timing / Shift
-              </label>
-              <span className="text-[11px] text-orange-600 dark:text-orange-400 font-semibold">
-                {timingMode === "EXACT" && exactDate
-                  ? `${getApproximateBsDate(exactDate).formattedNe} • ${formatExactClockTime(exactHour24, exactMinute)}`
-                  : todayBsLabel}
-              </span>
-            </div>
-
-            {/* Quick Presets + Exact Date & Time Toggle Pill */}
-            <div className="flex flex-wrap gap-2">
-              {SCHEDULE_TIME_SLOTS.map((slot) => {
-                const active = timingMode === "PRESET" && preferredTime === slot.labelEn;
-                return (
-                  <button
-                    key={slot.value}
-                    type="button"
-                    onClick={() => {
-                      setTimingMode("PRESET");
-                      setPreferredTime(slot.labelEn);
-                      setShowExactPicker(false);
-                      if (slot.value === "IMMEDIATE") {
-                        setIsUrgentBroadcast(true);
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                      active
-                        ? "bg-orange-600 text-white shadow-sm"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                    }`}
-                  >
-                    {slot.labelEn}
-                  </button>
-                );
-              })}
-
-              <button
-                type="button"
-                onClick={() => {
-                  const activeDate = exactDate ?? new Date();
-                  if (!exactDate) setExactDate(activeDate);
-                  setTimingMode("EXACT");
-                  setPreferredTime(formatExactScheduledTiming(activeDate, exactHour24, exactMinute));
-                  setShowExactPicker((prev) => (timingMode === "EXACT" ? !prev : true));
-                }}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                  timingMode === "EXACT"
-                    ? "bg-orange-600 text-white shadow-sm"
-                    : "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/60 hover:bg-orange-100 dark:hover:bg-orange-950/50"
-                }`}
-              >
-                <CalendarClock className="w-3.5 h-3.5" />
-                <span>Exact Date &amp; Time</span>
-              </button>
-            </div>
-
-            {/* Always-Visible Calendar & Clock Triggers */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
-              <button
-                type="button"
-                onClick={() => {
-                  const activeDate = exactDate ?? new Date();
-                  if (!exactDate) setExactDate(activeDate);
-                  setTimingMode("EXACT");
-                  setPreferredTime(formatExactScheduledTiming(activeDate, exactHour24, exactMinute));
-                  setExactPickerTab("calendar");
-                  setShowExactPicker((prev) =>
-                    timingMode === "EXACT" && exactPickerTab === "calendar" ? !prev : true
-                  );
-                }}
-                className={`flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-2xl border text-left transition cursor-pointer ${
-                  timingMode === "EXACT"
-                    ? "bg-orange-50/70 dark:bg-orange-950/25 border-orange-400 dark:border-orange-700 shadow-xs"
-                    : "bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700"
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                      timingMode === "EXACT"
-                        ? "bg-orange-600 text-white"
-                        : "bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
-                    }`}
-                  >
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                      Calendar Date
-                    </span>
-                    <span className="text-xs font-bold text-slate-800 dark:text-white truncate block">
-                      {exactDate
-                        ? `${exactDate.toLocaleDateString("en-US", {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })} (${getApproximateBsDate(exactDate).monthNe} ${toNepaliDigits(
-                            getApproximateBsDate(exactDate).day
-                          )})`
-                        : "Select date"}
-                    </span>
-                  </div>
-                </div>
-                {showExactPicker ? (
-                  <ChevronUp className="w-4 h-4 text-orange-600 shrink-0" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const activeDate = exactDate ?? new Date();
-                  if (!exactDate) setExactDate(activeDate);
-                  setTimingMode("EXACT");
-                  setPreferredTime(formatExactScheduledTiming(activeDate, exactHour24, exactMinute));
-                  setExactPickerTab("clock");
-                  setShowExactPicker((prev) =>
-                    timingMode === "EXACT" && exactPickerTab === "clock" ? !prev : true
-                  );
-                }}
-                className={`flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-2xl border text-left transition cursor-pointer ${
-                  timingMode === "EXACT"
-                    ? "bg-orange-50/70 dark:bg-orange-950/25 border-orange-400 dark:border-orange-700 shadow-xs"
-                    : "bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700"
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                      timingMode === "EXACT"
-                        ? "bg-orange-600 text-white"
-                        : "bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
-                    }`}
-                  >
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                      Exact Clock Time
-                    </span>
-                    <span className="text-xs font-bold text-slate-800 dark:text-white truncate block">
-                      {formatExactClockTime(exactHour24, exactMinute)}
-                    </span>
-                  </div>
-                </div>
-                {showExactPicker ? (
-                  <ChevronUp className="w-4 h-4 text-orange-600 shrink-0" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-                )}
-              </button>
-            </div>
-
-            {/* Expandable Interactive Calendar & Clock Panel */}
-            <AnimatePresence>
-              {showExactPicker && exactDate && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <ExactDateTimePicker
-                    selectedDate={exactDate}
-                    hour24={exactHour24}
-                    minute={exactMinute}
-                    activeTab={exactPickerTab}
-                    onTabChange={setExactPickerTab}
-                    onChange={(nextDate, nextHour24, nextMinute) => {
-                      setExactDate(nextDate);
-                      setExactHour24(nextHour24);
-                      setExactMinute(nextMinute);
-                      setTimingMode("EXACT");
-                      setPreferredTime(
-                        formatExactScheduledTiming(nextDate, nextHour24, nextMinute)
-                      );
-                    }}
-                    onDone={() => setShowExactPicker(false)}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* 5. Description */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center mb-1">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                5. Job Description & Requirements <span className="text-red-500">*</span>
-              </label>
-              <span className="text-[11px] text-slate-400">{description.length}/2000</span>
-            </div>
-            <textarea
-              required
-              rows={4}
-              maxLength={2000}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Explain the work required, tools needed, materials available, and any preferences..."
-              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400 resize-none leading-relaxed"
-            />
-
-            {/* Voice Description Note */}
-            <div className="pt-1">
-              <VoiceNoteRecorder
-                onAudioRecorded={setAudioUrl}
-                label="Voice Note Description (अडियो सन्देश)"
-              />
-            </div>
-          </div>
-
-          {/* 6. Quick Job Broadcast (One-Tap Urgent Hiring) */}
-          <div className={`p-4 rounded-2xl border transition-all ${
-            isUrgentBroadcast
-              ? "bg-red-50/80 dark:bg-red-950/30 border-red-300 dark:border-red-800/60 shadow-sm"
-              : "bg-slate-50 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/60"
-          }`}>
-            <label className="flex items-start gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={isUrgentBroadcast}
-                onChange={(e) => setIsUrgentBroadcast(e.target.checked)}
-                className="mt-1 w-4 h-4 text-red-600 rounded focus:ring-red-500 cursor-pointer"
-              />
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Radio className={`w-4 h-4 ${isUrgentBroadcast ? "text-red-600 animate-pulse" : "text-slate-500"}`} />
-                    <span>Quick Job Broadcast (One-Tap Urgent Hiring)</span>
-                  </span>
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">
-                    Urgent 30-60m
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  Pipe burst, electrical spark, or emergency repair? Instantly broadcast to verified &amp; available technicians within a 5 km radius in {district}. First to accept gets dispatched!
-                </p>
-              </div>
-            </label>
-          </div>
-
-          {/* Actions */}
-          <div className="pt-3 flex flex-col sm:flex-row gap-3">
-            <Link
-              href="/dashboard"
-              className="py-3.5 px-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-center cursor-pointer"
-            >
-              Cancel
-            </Link>
-
-            <motion.button
-              type="submit"
-              disabled={isSubmitting}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              className="flex-1 py-3.5 px-6 bg-orange-600 hover:bg-orange-700 disabled:opacity-70 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 text-sm transition-all cursor-pointer"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Publishing Job...</span>
-                </>
-              ) : (
-                <>
-                  <span>Publish Job</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </motion.button>
-          </div>
-        </form>
+        {formContent}
       </motion.div>
     </div>
   );

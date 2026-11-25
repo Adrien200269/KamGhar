@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap,
@@ -23,6 +22,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
+import { usePostJobModal } from "@/components/post-job-modal-provider";
 import {
   NEPAL_RATE_CATEGORIES,
   calculateEstimatedRate,
@@ -40,7 +40,7 @@ const ICON_MAP: Record<string, any> = {
 
 export default function RateGuideView() {
   const { tx, lang } = useLanguage();
-  const router = useRouter();
+  const { openPostJobModal } = usePostJobModal();
 
   const [selectedCategory, setSelectedCategory] = useState<string>(
     NEPAL_RATE_CATEGORIES[0].category
@@ -90,12 +90,11 @@ export default function RateGuideView() {
   };
 
   const handlePostWithBudget = (task: ServiceTask, totalBudget: number) => {
-    const params = new URLSearchParams({
+    openPostJobModal({
       category: selectedCategory,
       budget: totalBudget.toString(),
       title: `${task.nameEn} service`,
     });
-    router.push(`/jobs/new?${params.toString()}`);
   };
 
   return (

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/components/language-provider";
+import { PostJobModalProvider } from "@/components/post-job-modal-provider";
 import ScrollProgress from "@/components/scroll-progress";
 import MacCursor from "@/components/mac-cursor";
 import PwaInstallBanner from "@/components/pwa-install-banner";
@@ -51,11 +52,13 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
         <ThemeProvider>
           <LanguageProvider>
-            {children}
-            <PwaInstallBanner />
-            <ScrollProgress />
-            <MacCursor />
-            <MobileBottomNav />
+            <PostJobModalProvider>
+              {children}
+              <PwaInstallBanner />
+              <ScrollProgress />
+              <MacCursor />
+              <MobileBottomNav />
+            </PostJobModalProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>

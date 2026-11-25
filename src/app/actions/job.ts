@@ -13,6 +13,45 @@ export type JobActionResult = {
   broadcastCount?: number;
 };
 
+export type PostJobEligibility = {
+  status: "ALLOWED" | "UNAUTHENTICATED" | "WORKER_RESTRICTED";
+  defaultDistrict: string;
+};
+
+/* ── Check whether the current user can open Post Job modal ─── */
+export async function getPostJobEligibility(): Promise<PostJobEligibility> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return { status: "UNAUTHENTICATED", defaultDistrict: "Kathmandu" };
+  }
+
+  try {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        role: true,
+        recruiterProfile: { select: { address: true } },
+      },
+    });
+
+    if (dbUser?.role === "WORKER") {
+      return { status: "WORKER_RESTRICTED", defaultDistrict: "Kathmandu" };
+    }
+
+    return {
+      status: "ALLOWED",
+      defaultDistrict: dbUser?.recruiterProfile?.address || "Kathmandu",
+    };
+  } catch {
+    return { status: "ALLOWED", defaultDistrict: "Kathmandu" };
+  }
+}
+
 /* ── Create a new Job ─────────────────────────────────────── */
 export async function createJob(rawInput: unknown): Promise<JobActionResult> {
   const parseResult = CreateJobSchema.safeParse(rawInput);

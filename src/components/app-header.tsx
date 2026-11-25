@@ -21,6 +21,7 @@ import LanguageToggle from "@/components/language-toggle";
 import NotificationDropdown from "@/components/notification-dropdown";
 import ChatModal from "@/components/chat-modal";
 import { useLanguage } from "@/components/language-provider";
+import { usePostJobModal } from "@/components/post-job-modal-provider";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AppHeader({
@@ -35,6 +36,7 @@ export default function AppHeader({
   isLoggedIn?: boolean;
 }) {
   const { tx } = useLanguage();
+  const { openPostJobModal } = usePostJobModal();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(initialIsLoggedIn ?? false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
@@ -103,13 +105,14 @@ export default function AppHeader({
             </span>
           </Link>
 
-          <Link
-            href="/jobs/new"
+          <button
+            type="button"
+            onClick={() => openPostJobModal()}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>{tx("Post a Job", "काम पोस्ट गर्नुहोस्")}</span>
-          </Link>
+          </button>
 
           {/* Notification Button & Dropdown (only for logged-in user) */}
           {isLoggedIn && (
@@ -255,14 +258,17 @@ export default function AppHeader({
               <span>{tx("Rate Guide", "कति पर्ला?")}</span>
             </Link>
 
-            <Link
-              href="/jobs/new"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/50 text-xs font-bold text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/60"
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                openPostJobModal();
+              }}
+              className="flex items-center gap-2 p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/50 text-xs font-bold text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/60 text-left cursor-pointer"
             >
               <Plus className="w-4 h-4 text-orange-600" />
               <span>{tx("Post a Job", "काम पोस्ट गर्नुहोस्")}</span>
-            </Link>
+            </button>
 
             {isAdmin && (
               <Link

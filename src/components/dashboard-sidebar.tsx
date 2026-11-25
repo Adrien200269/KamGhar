@@ -26,6 +26,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
+import { usePostJobModal } from "@/components/post-job-modal-provider";
 import { getRemainingBoostInfo } from "@/lib/boost";
 
 export type DashboardTab =
@@ -92,6 +93,7 @@ export default function DashboardSidebar({
   onSignOut,
 }: DashboardSidebarProps) {
   const { tx } = useLanguage();
+  const { openPostJobModal } = usePostJobModal();
   const isWorker = user.role === "WORKER";
   const profile = isWorker ? user.workerProfile : user.recruiterProfile;
   const displayName = profile?.name || user.email.split("@")[0];
@@ -495,8 +497,12 @@ export default function DashboardSidebar({
                 </Link>
               ) : (
                 <>
-                  <Link
-                    href="/jobs/new"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCloseMobile();
+                      openPostJobModal();
+                    }}
                     className={externalLinkClass}
                     title={
                       collapsed
@@ -510,7 +516,7 @@ export default function DashboardSidebar({
                         {tx("Post a New Job", "काम पोस्ट गर्नुहोस्")}
                       </span>
                     )}
-                  </Link>
+                  </button>
 
                   <Link
                     href="/workers"
