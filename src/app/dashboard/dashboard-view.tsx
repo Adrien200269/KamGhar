@@ -1151,10 +1151,21 @@ export default function DashboardView({
             </motion.div>
           )}
 
-          {/* ── Welcome + Profile card ────────────────────── */}
-          <motion.div variants={fadeUp} className="grid sm:grid-cols-3 gap-4">
+          {/* ── Welcome + Profile + Ad + Activity row ────────── */}
+          <motion.div
+            variants={fadeUp}
+            className={
+              ads.length > 0
+                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,1fr)] gap-4 items-stretch"
+                : "grid sm:grid-cols-3 gap-4"
+            }
+          >
             {/* Profile summary */}
-            <div className="sm:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 flex flex-col xs:flex-row items-start gap-3.5 sm:gap-4 shadow-sm">
+            <div
+              className={`${
+                ads.length > 0 ? "order-1 xl:p-5" : "sm:col-span-2"
+              } bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 flex flex-col xs:flex-row items-start gap-3.5 sm:gap-4 shadow-sm`}
+            >
               {/* Avatar with photo and camera badge */}
               <div className="relative group flex-shrink-0">
                 {profile?.profilePhotoUrl ? (
@@ -1179,7 +1190,7 @@ export default function DashboardView({
                   <Camera className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="w-full flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1273,7 +1284,7 @@ export default function DashboardView({
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => setShowVisitingCardModal(true)}
                       title={tx("Digital Visiting Card & QR", "डिजिटल भिजिटिङ कार्ड तथा QR")}
@@ -1342,8 +1353,21 @@ export default function DashboardView({
               </div>
             </div>
 
+            {/* Sponsored Ad placed between Profile and Activity cards */}
+            {ads.length > 0 && (
+              <div className="order-2 md:order-3 md:col-span-2 xl:order-2 xl:col-span-1 relative xl:min-h-[235px]">
+                <div className="xl:absolute xl:inset-0 h-full">
+                  <SponsoredAdsSection ads={ads} variant="dashboard" fillHeight />
+                </div>
+              </div>
+            )}
+
             {/* Stats card with 7-Day Activity Trend Chart */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 flex flex-col justify-between shadow-sm">
+            <div
+              className={`${
+                ads.length > 0 ? "order-3 md:order-2 xl:order-3 xl:p-5" : ""
+              } bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 flex flex-col justify-between shadow-sm`}
+            >
               <div>
                 {/* Header with live activity indicator badge */}
                 <div className="flex items-center justify-between mb-3">
@@ -1471,13 +1495,6 @@ export default function DashboardView({
               </div>
             </div>
           </motion.div>
-
-          {/* ── Sponsored Partner Ads (Dashboard Overview) ────────── */}
-          {ads.length > 0 && (
-            <motion.div variants={fadeUp}>
-              <SponsoredAdsSection ads={ads} variant="dashboard" />
-            </motion.div>
-          )}
           </>
           )}
 

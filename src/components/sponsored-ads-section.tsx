@@ -59,14 +59,17 @@ export function SponsoredAdCard({
   ad,
   layout = "grid",
   previewOnly = false,
+  fillHeight = false,
 }: {
   ad: PublicAdItem;
   layout?: "wide" | "grid" | "dashboard";
   previewOnly?: boolean;
+  fillHeight?: boolean;
 }) {
   if (ad.imageUrl) {
-    const heightClass =
-      layout === "dashboard"
+    const heightClass = fillHeight
+      ? "h-[180px] sm:h-[220px] xl:h-full"
+      : layout === "dashboard"
         ? "h-[160px] sm:h-[210px] lg:h-[230px]"
         : "h-[175px] sm:h-[230px] lg:h-[270px]";
 
@@ -87,7 +90,10 @@ export function SponsoredAdCard({
     }
 
     return (
-      <AdLinkWrapper ad={ad} className="block w-full cursor-pointer">
+      <AdLinkWrapper
+        ad={ad}
+        className={`block w-full cursor-pointer ${fillHeight ? "xl:h-full" : ""}`}
+      >
         {innerImage}
       </AdLinkWrapper>
     );
@@ -95,13 +101,23 @@ export function SponsoredAdCard({
 
   // Fallback for text-only ads when no banner image was uploaded
   const fallbackCard = (
-    <div className="group rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-sm hover:border-orange-300 dark:hover:border-orange-700 transition-all flex items-center justify-between gap-4">
+    <div
+      className={`group rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-sm hover:border-orange-300 dark:hover:border-orange-700 transition-all flex gap-4 ${
+        fillHeight
+          ? "min-h-[160px] xl:h-full flex-col items-center justify-center text-center"
+          : "items-center justify-between"
+      }`}
+    >
       <div className="min-w-0 space-y-1">
         <p className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
           {ad.title}
         </p>
         {ad.description && (
-          <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-1">
+          <p
+            className={`text-xs text-slate-600 dark:text-slate-400 ${
+              fillHeight ? "line-clamp-2" : "line-clamp-1"
+            }`}
+          >
             {ad.description}
           </p>
         )}
@@ -118,7 +134,10 @@ export function SponsoredAdCard({
   }
 
   return (
-    <AdLinkWrapper ad={ad} className="block w-full cursor-pointer">
+    <AdLinkWrapper
+      ad={ad}
+      className={`block w-full cursor-pointer ${fillHeight ? "xl:h-full" : ""}`}
+    >
       {fallbackCard}
     </AdLinkWrapper>
   );
@@ -132,9 +151,11 @@ export function SponsoredAdCard({
 export default function SponsoredAdsSection({
   ads,
   variant,
+  fillHeight = false,
 }: {
   ads: PublicAdItem[];
   variant: "landing" | "dashboard";
+  fillHeight?: boolean;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -177,14 +198,25 @@ export default function SponsoredAdsSection({
 
   return (
     <div
-      className={variant === "landing" ? "pt-3 pb-4" : ""}
+      className={
+        variant === "landing"
+          ? "pt-3 pb-4"
+          : fillHeight
+            ? "xl:h-full"
+            : ""
+      }
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <div className="relative rounded-2xl overflow-hidden">
+      <div
+        className={`relative rounded-2xl overflow-hidden ${
+          fillHeight ? "xl:h-full" : ""
+        }`}
+      >
         <SponsoredAdCard
           ad={activeAd}
           layout={variant === "dashboard" ? "dashboard" : "wide"}
+          fillHeight={fillHeight}
         />
 
         {/* Hamrobazar-style bottom-right carousel controls (only when 2+ ads) */}
