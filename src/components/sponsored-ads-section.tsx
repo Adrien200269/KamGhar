@@ -4,13 +4,12 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Megaphone, Sparkles } from "lucide-react";
+import { ArrowUpRight, Megaphone } from "lucide-react";
 import {
   recordAdClick,
   recordAdImpression,
   type PublicAdItem,
 } from "@/app/actions/ads";
-import { useLanguage } from "@/components/language-provider";
 
 function AdLinkWrapper({
   ad,
@@ -243,7 +242,6 @@ export default function SponsoredAdsSection({
   ads: PublicAdItem[];
   variant: "landing" | "dashboard";
 }) {
-  const { tx } = useLanguage();
   const trackedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -261,67 +259,29 @@ export default function SponsoredAdsSection({
 
   if (variant === "dashboard") {
     return (
-      <section aria-label="Featured Partner Offers" className="space-y-2.5">
-        <div className="flex items-center justify-between px-0.5">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-            <span>{tx("Featured Partner Offers", "विशेष साझेदार अफरहरू")}</span>
-          </span>
-        </div>
-
-        <div
-          className={`grid gap-3 ${
-            ads.length === 1 ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"
-          }`}
-        >
-          {ads.slice(0, 2).map((ad) => (
-            <SponsoredAdCard key={ad.id} ad={ad} layout="dashboard" />
-          ))}
-        </div>
-      </section>
+      <div
+        className={`grid gap-3 ${
+          ads.length === 1 ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"
+        }`}
+      >
+        {ads.slice(0, 2).map((ad) => (
+          <SponsoredAdCard key={ad.id} ad={ad} layout="dashboard" />
+        ))}
+      </div>
     );
   }
 
   return (
-    <section
-      aria-label="Local Partners and Advertisements"
-      className="py-14 bg-slate-50 dark:bg-slate-950 border-t border-slate-200/80 dark:border-slate-800"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800/60 text-orange-700 dark:text-orange-300 text-[11px] font-bold mb-2">
-              <Megaphone className="w-3.5 h-3.5" />
-              <span>{tx("Local Sponsors & Partners", "स्थानीय प्रायोजक तथा साझेदार")}</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {tx("Featured Tools, Supplies & Services", "उपकरण, सामग्री तथा विशेष सेवाहरू")}
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
-            {tx(
-              "Promotions from trusted Nepali hardware stores, service brands, and local partners.",
-              "नेपाली हार्डवेयर पसल, सेवा ब्रान्ड र स्थानीय साझेदारहरूको विशेष विज्ञापन।"
-            )}
-          </p>
-        </div>
-
-        {ads.length === 1 ? (
-          <SponsoredAdCard ad={ads[0]} layout="wide" />
-        ) : (
-          <div
-            className={`grid gap-5 ${
-              ads.length === 2
-                ? "grid-cols-1 md:grid-cols-2"
-                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-            }`}
-          >
-            {ads.map((ad) => (
-              <SponsoredAdCard key={ad.id} ad={ad} layout="grid" />
-            ))}
-          </div>
-        )}
+    <div className="pt-4 pb-2">
+      <div
+        className={`grid gap-3 ${
+          ads.length === 1 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
+        }`}
+      >
+        {ads.slice(0, 2).map((ad) => (
+          <SponsoredAdCard key={ad.id} ad={ad} layout="dashboard" />
+        ))}
       </div>
-    </section>
+    </div>
   );
 }

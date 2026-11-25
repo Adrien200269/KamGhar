@@ -108,7 +108,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative overflow-hidden pt-14 pb-0 sm:pt-20">
+        <section className="relative overflow-hidden pt-4 pb-0 sm:pt-6">
           {/* ── Background decorative orbs ── */}
           <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
             <div className="absolute -top-32 -left-24 w-[480px] h-[480px] rounded-full bg-orange-400/20 dark:bg-orange-500/10 blur-[100px]" />
@@ -125,7 +125,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
           </div>
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[calc(100vh-4rem)] py-12 lg:py-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-8 items-center py-4 lg:py-6">
 
               {/* ── Left Column: Text & CTAs ── */}
               <div className="flex flex-col items-start">
@@ -134,7 +134,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: -12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800/70 text-orange-800 dark:text-orange-200 text-xs font-semibold mb-7 shadow-sm"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800/70 text-orange-800 dark:text-orange-200 text-xs font-semibold mb-4 shadow-sm"
                 >
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75" />
@@ -189,7 +189,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.25 }}
-                  className="mt-4 sm:mt-7 text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg"
+                  className="mt-3 sm:mt-4 text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg"
                 >
                   {tx(
                     "Electricians, plumbers, tutors, designers — connect with verified local talent or find gigs, all sorted by proximity to your location.",
@@ -202,7 +202,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.35 }}
-                  className="mt-7 sm:mt-9 flex flex-col sm:flex-row gap-3 w-full sm:w-auto"
+                  className="mt-5 sm:mt-6 flex flex-col sm:flex-row gap-3 w-full sm:w-auto"
                 >
                   <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} className="w-full sm:w-auto">
                     <Link
@@ -231,7 +231,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.6, delay: 0.5 }}
-                  className="mt-6 sm:mt-8 flex flex-wrap gap-2 sm:gap-2.5"
+                  className="mt-4 sm:mt-5 flex flex-wrap gap-2 sm:gap-2.5"
                 >
                   {[
                     { icon: Check, label: tx("Zero Commission", "शून्य कमिसन") },
@@ -253,7 +253,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.6 }}
-                  className="mt-8 sm:mt-10 grid grid-cols-3 gap-2 sm:gap-6 border-t border-slate-200 dark:border-slate-800 pt-6 sm:pt-8 w-full max-w-sm"
+                  className="mt-5 sm:mt-6 grid grid-cols-3 gap-2 sm:gap-6 border-t border-slate-200 dark:border-slate-800 pt-4 sm:pt-5 w-full max-w-sm"
                 >
                   {[
                     { value: "2,400+", label: tx("Active Workers", "सक्रिय कामदार") },
@@ -269,7 +269,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
               </div>
 
               {/* ── Right Column: Real Photo Collage ── */}
-              <div className="relative hidden lg:flex items-center justify-center h-[600px]">
+              <div className="relative hidden lg:flex items-center justify-center h-[450px]">
 
                 {/* Soft background glow */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -312,7 +312,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, x: 30 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.7, delay: 0.5 }}
-                  className="absolute right-0 top-4 w-[220px] h-[200px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
+                  className="absolute right-0 top-2 w-[220px] h-[190px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
                 >
                   <Image
                     src="/worker-digital.webp"
@@ -334,7 +334,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.7, delay: 0.65 }}
-                  className="absolute right-4 bottom-8 w-[210px] h-[220px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
+                  className="absolute right-4 bottom-2 w-[210px] h-[205px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
                 >
                   <Image
                     src="/worker-plumber.jpg"
@@ -387,6 +387,9 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
 
               </div>
             </div>
+
+            {/* ── Hero Sponsored Ad Slot (shown directly in Hero when active) ── */}
+            <SponsoredAdsSection ads={ads} variant="landing" />
 
             {/* ── Stats / Social Proof Bar ── */}
             <motion.div
@@ -629,9 +632,6 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
             </div>
           </div>
         </section>
-
-        {/* ── Sponsored Partner Ads Section ── */}
-        <SponsoredAdsSection ads={ads} variant="landing" />
 
         {/* ── Notebook / Journal Section (Field Notes & Community Sticky Notes) ── */}
         <HomeNotebook />
