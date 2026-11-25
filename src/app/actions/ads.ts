@@ -44,15 +44,6 @@ function isSafeHttpOrRelativeUrl(value: string): boolean {
   }
 }
 
-function isSafeHttpUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value.trim());
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 const AdInputSchema = z
   .object({
     sponsorName: z
@@ -63,20 +54,21 @@ const AdInputSchema = z
     title: z
       .string()
       .trim()
-      .min(3, "Ad headline must be at least 3 characters")
-      .max(120, "Ad headline must be under 120 characters"),
+      .min(3, "Ad title must be at least 3 characters")
+      .max(120, "Ad title must be under 120 characters"),
     description: z
       .string()
       .trim()
-      .min(5, "Description must be at least 5 characters")
-      .max(320, "Description must be under 320 characters"),
+      .max(320, "Description must be under 320 characters")
+      .optional()
+      .default(""),
     imageUrl: z
       .string()
       .trim()
       .optional()
       .nullable()
-      .refine((v) => !v || isSafeHttpUrl(v), {
-        message: "Image URL must be a valid http(s) URL",
+      .refine((v) => !v || isSafeHttpOrRelativeUrl(v), {
+        message: "Image URL must be a valid http(s) URL or / path",
       }),
     targetUrl: z
       .string()
@@ -88,22 +80,29 @@ const AdInputSchema = z
     ctaLabel: z
       .string()
       .trim()
-      .min(2, "Button label must be at least 2 characters")
       .max(40, "Button label is too long")
+      .optional()
       .default("Learn More"),
     placement: z.enum(["LANDING", "DASHBOARD", "BOTH"]).default("BOTH"),
     audience: z.enum(["ALL", "WORKER", "RECRUITER"]).default("ALL"),
     badgeText: z
       .string()
       .trim()
-      .min(2, "Badge text must be at least 2 characters")
       .max(30, "Badge text is too long")
+      .optional()
       .default("Sponsored"),
     isActive: z.boolean().default(true),
     priority: z.coerce.number().int().min(0).max(999).default(0),
     startsAt: z.string().optional().nullable(),
     endsAt: z.string().optional().nullable(),
   })
+  .refine(
+    (data) => Boolean(data.imageUrl && data.imageUrl.trim()) || data.description.trim().length >= 5,
+    {
+      message: "Provide either a banner image or a description (at least 5 characters)",
+      path: ["description"],
+    }
+  )
   .refine(
     (data) => {
       if (data.startsAt && data.endsAt) {

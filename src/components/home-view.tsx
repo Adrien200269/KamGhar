@@ -269,11 +269,11 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
               </div>
 
               {/* ── Right Column: Real Photo Collage ── */}
-              <div className="relative hidden lg:flex items-center justify-center h-[450px]">
+              <div className="relative hidden lg:flex items-center justify-center h-[415px]">
 
                 {/* Soft background glow */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-96 h-96 rounded-full bg-orange-300/20 dark:bg-orange-500/10 blur-[80px]" />
+                  <div className="w-80 h-80 rounded-full bg-orange-300/20 dark:bg-orange-500/10 blur-[80px]" />
                 </div>
 
                 {/* Large main photo — electrician */}
@@ -281,7 +281,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.7, delay: 0.3 }}
-                  className="absolute left-0 top-12 w-[280px] h-[340px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
+                  className="absolute left-0 top-8 w-[270px] h-[310px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
                 >
                   <Image
                     src="/worker-electrician.jpg"
@@ -312,7 +312,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, x: 30 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.7, delay: 0.5 }}
-                  className="absolute right-0 top-2 w-[220px] h-[190px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
+                  className="absolute right-0 top-2 w-[215px] h-[175px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
                 >
                   <Image
                     src="/worker-digital.webp"
@@ -334,7 +334,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.7, delay: 0.65 }}
-                  className="absolute right-4 bottom-2 w-[210px] h-[205px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
+                  className="absolute right-4 bottom-2 w-[210px] h-[190px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
                 >
                   <Image
                     src="/worker-plumber.jpg"

@@ -359,7 +359,7 @@ export default function AdminAdsPanel({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Ad Headline *
+                    Campaign Title (Internal / Alt Text) *
                   </label>
                   <input
                     type="text"
@@ -369,24 +369,26 @@ export default function AdminAdsPanel({
                     onChange={(e) =>
                       setForm((p) => ({ ...p, title: e.target.value }))
                     }
-                    placeholder="e.g. 20% Off Bosch Drills & Electrical Kits in Kathmandu"
+                    placeholder="e.g. Verified Pro Rs. 200 Banner"
                     className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Ad Description *
+                    Fallback Description{" "}
+                    <span className="text-slate-400 font-normal">
+                      (optional when banner image is uploaded)
+                    </span>
                   </label>
                   <textarea
-                    required
-                    rows={3}
+                    rows={2}
                     maxLength={320}
                     value={form.description}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, description: e.target.value }))
                     }
-                    placeholder="Short persuasive copy explaining the offer..."
+                    placeholder="Only shown if no banner image is provided..."
                     className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 resize-none"
                   />
                 </div>
