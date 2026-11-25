@@ -29,9 +29,11 @@ import {
   Crosshair,
   ExternalLink,
   Heart,
+  CalendarClock,
 } from "lucide-react";
 import { applyToJob, getJobs } from "@/app/actions/job";
 import { NEPAL_DISTRICTS } from "@/lib/constants";
+import { extractPreferredTiming } from "@/lib/nepali-date";
 import { VoiceNoteRecorder, VoiceNotePlayer } from "@/components/voice-note";
 import { useLanguage } from "@/components/language-provider";
 import { createClient } from "@/lib/supabase/client";
@@ -665,9 +667,24 @@ export default function JobsFeed({
                   </h3>
 
                   {/* Description snippet */}
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">
-                    {job.description}
-                  </p>
+                  {(() => {
+                    const { cleanDescription, preferredTiming } = extractPreferredTiming(
+                      job.description || ""
+                    );
+                    return (
+                      <>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">
+                          {cleanDescription}
+                        </p>
+                        {preferredTiming && (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-orange-50/80 dark:bg-orange-950/40 border border-orange-200/70 dark:border-orange-800/50 text-[11px] font-semibold text-orange-700 dark:text-orange-300 max-w-full">
+                            <CalendarClock className="w-3 h-3 text-orange-600 dark:text-orange-400 shrink-0" />
+                            <span className="truncate">{preferredTiming}</span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* Voice Note Player if client provided audio */}
                   {job.audioUrl && (

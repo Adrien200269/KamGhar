@@ -35,6 +35,8 @@ import ChatModal from "@/components/chat-modal";
 import BoostPaymentModal from "@/components/boost-payment-modal";
 import WorkerVisitingCardModal from "@/components/worker-visiting-card-modal";
 import SafetyToolkitModal from "@/components/safety-toolkit-modal";
+import ExactDateTimePicker from "@/components/exact-date-time-picker";
+import { formatExactScheduledTiming } from "@/lib/nepali-date";
 import { getWorkerWhatsAppUrl } from "@/lib/whatsapp";
 import { getRemainingBoostInfo } from "@/lib/boost";
 import dynamic from "next/dynamic";
@@ -80,6 +82,10 @@ export default function WorkerProfileView({
   const [hireCategory, setHireCategory] = useState(profile.skills[0] || "Electrician");
   const [hireBudget, setHireBudget] = useState(profile.hourlyRate ? profile.hourlyRate.toString() : "");
   const [hireTime, setHireTime] = useState("Today Afternoon");
+  const [showHireCalendarClock, setShowHireCalendarClock] = useState(false);
+  const [hireExactDate, setHireExactDate] = useState<Date>(() => new Date());
+  const [hireHour24, setHireHour24] = useState(14);
+  const [hireMinute, setHireMinute] = useState(0);
   const [hireAddress, setHireAddress] = useState("");
   const [isHiring, startHireTransition] = useTransition();
   const [hireSuccess, setHireSuccess] = useState(false);
@@ -681,9 +687,20 @@ export default function WorkerProfileView({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                      {tx("Preferred Time", "समय")}
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        {tx("Preferred Time", "समय")}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowHireCalendarClock((v) => !v)}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer"
+                      >
+                        <Calendar className="w-3 h-3" />
+                        <Clock className="w-3 h-3" />
+                        <span>{showHireCalendarClock ? tx("Hide", "लुकाउनुहोस्") : tx("Pick exact", "मिति/समय")}</span>
+                      </button>
+                    </div>
                     <input
                       type="text"
                       value={hireTime}
@@ -693,6 +710,22 @@ export default function WorkerProfileView({
                     />
                   </div>
                 </div>
+
+                {showHireCalendarClock && (
+                  <ExactDateTimePicker
+                    compact
+                    selectedDate={hireExactDate}
+                    hour24={hireHour24}
+                    minute={hireMinute}
+                    onChange={(d, h, m) => {
+                      setHireExactDate(d);
+                      setHireHour24(h);
+                      setHireMinute(m);
+                      setHireTime(formatExactScheduledTiming(d, h, m));
+                    }}
+                    onDone={() => setShowHireCalendarClock(false)}
+                  />
+                )}
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">

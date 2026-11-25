@@ -46,7 +46,7 @@ export const CreateJobSchema = z.object({
   description: z
     .string()
     .min(20, "Please provide a detailed description (at least 20 characters)")
-    .max(2000),
+    .max(2200),
   category: z.string().min(2, "Please select a category"),
   urgency: UrgencyLevelSchema.default("MEDIUM").optional(),
   budget: z

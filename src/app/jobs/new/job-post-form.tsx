@@ -25,11 +25,21 @@ import {
   ChevronUp,
   Radio,
   Mic,
+  Calendar,
+  Clock,
+  CalendarClock,
 } from "lucide-react";
 import { createJob } from "@/app/actions/job";
 import { NEPAL_DISTRICTS, getDistrictCoordinates } from "@/lib/constants";
 import { VoiceNoteRecorder } from "@/components/voice-note";
-import { SCHEDULE_TIME_SLOTS, getApproximateBsDate } from "@/lib/nepali-date";
+import ExactDateTimePicker from "@/components/exact-date-time-picker";
+import {
+  SCHEDULE_TIME_SLOTS,
+  getApproximateBsDate,
+  formatExactClockTime,
+  formatExactScheduledTiming,
+  toNepaliDigits,
+} from "@/lib/nepali-date";
 
 // Load Leaflet map only client-side (no SSR â€” Leaflet touches window/document)
 const MapPicker = dynamic(() => import("@/components/map-picker"), { ssr: false });
@@ -59,7 +69,14 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
   const [specificAddress, setSpecificAddress] = useState("");
   const [budget, setBudget] = useState("");
   const [isNegotiable, setIsNegotiable] = useState(false);
+  const [timingMode, setTimingMode] = useState<"PRESET" | "EXACT">("PRESET");
   const [preferredTime, setPreferredTime] = useState(SCHEDULE_TIME_SLOTS[1].labelEn);
+  const [exactDate, setExactDate] = useState<Date | null>(null);
+  const [exactHour24, setExactHour24] = useState<number>(14);
+  const [exactMinute, setExactMinute] = useState<number>(0);
+  const [showExactPicker, setShowExactPicker] = useState(false);
+  const [exactPickerTab, setExactPickerTab] = useState<"calendar" | "clock">("calendar");
+  const [todayBsLabel, setTodayBsLabel] = useState<string>("");
   const [description, setDescription] = useState("");
   const [isUrgentBroadcast, setIsUrgentBroadcast] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -76,20 +93,41 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const searchParams = new URLSearchParams(window.location.search);
-      const qTitle = searchParams.get("title");
-      const qCategory = searchParams.get("category");
-      const qBudget = searchParams.get("budget");
-      if (qTitle) setTitle(qTitle);
-      if (qCategory) {
-        const found = CATEGORIES.find(
-          (c) => c.name.toLowerCase() === qCategory.toLowerCase()
-        );
-        if (found) setCategory(found.name);
+    const timer = setTimeout(() => {
+      const now = new Date();
+      const defaultTarget = new Date(now.getTime() + 60 * 60 * 1000);
+      // Round up to nearest 15-minute mark for a crisp initial exact clock value
+      const mins = defaultTarget.getMinutes();
+      const roundedMins = Math.ceil(mins / 15) * 15;
+      if (roundedMins === 60) {
+        defaultTarget.setHours(defaultTarget.getHours() + 1, 0, 0, 0);
+      } else {
+        defaultTarget.setMinutes(roundedMins, 0, 0);
       }
-      if (qBudget) setBudget(qBudget);
-    }
+      setExactDate(
+        new Date(defaultTarget.getFullYear(), defaultTarget.getMonth(), defaultTarget.getDate())
+      );
+      setExactHour24(defaultTarget.getHours());
+      setExactMinute(defaultTarget.getMinutes());
+      setTodayBsLabel(getApproximateBsDate(now).formattedNe);
+
+      if (typeof window !== "undefined") {
+        const searchParams = new URLSearchParams(window.location.search);
+        const qTitle = searchParams.get("title");
+        const qCategory = searchParams.get("category");
+        const qBudget = searchParams.get("budget");
+        if (qTitle) setTitle(qTitle);
+        if (qCategory) {
+          const found = CATEGORIES.find(
+            (c) => c.name.toLowerCase() === qCategory.toLowerCase()
+          );
+          if (found) setCategory(found.name);
+        }
+        if (qBudget) setBudget(qBudget);
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const handleDistrictChange = (d: string) => {
@@ -419,25 +457,31 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
             )}
           </div>
 
-          {/* Preferred Timing & Nepali Date Hint */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          {/* Preferred Timing, Calendar & Exact Clock */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
                 Preferred Timing / Shift
               </label>
-              <span className="text-[11px] text-orange-600 font-semibold">
-                {getApproximateBsDate().formattedNe}
+              <span className="text-[11px] text-orange-600 dark:text-orange-400 font-semibold">
+                {timingMode === "EXACT" && exactDate
+                  ? `${getApproximateBsDate(exactDate).formattedNe} • ${formatExactClockTime(exactHour24, exactMinute)}`
+                  : todayBsLabel}
               </span>
             </div>
+
+            {/* Quick Presets + Exact Date & Time Toggle Pill */}
             <div className="flex flex-wrap gap-2">
               {SCHEDULE_TIME_SLOTS.map((slot) => {
-                const active = preferredTime === slot.labelEn;
+                const active = timingMode === "PRESET" && preferredTime === slot.labelEn;
                 return (
                   <button
                     key={slot.value}
                     type="button"
                     onClick={() => {
+                      setTimingMode("PRESET");
                       setPreferredTime(slot.labelEn);
+                      setShowExactPicker(false);
                       if (slot.value === "IMMEDIATE") {
                         setIsUrgentBroadcast(true);
                       }
@@ -445,14 +489,164 @@ export default function JobPostForm({ defaultDistrict }: { defaultDistrict?: str
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                       active
                         ? "bg-orange-600 text-white shadow-sm"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                   >
                     {slot.labelEn}
                   </button>
                 );
               })}
+
+              <button
+                type="button"
+                onClick={() => {
+                  const activeDate = exactDate ?? new Date();
+                  if (!exactDate) setExactDate(activeDate);
+                  setTimingMode("EXACT");
+                  setPreferredTime(formatExactScheduledTiming(activeDate, exactHour24, exactMinute));
+                  setShowExactPicker((prev) => (timingMode === "EXACT" ? !prev : true));
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  timingMode === "EXACT"
+                    ? "bg-orange-600 text-white shadow-sm"
+                    : "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/60 hover:bg-orange-100 dark:hover:bg-orange-950/50"
+                }`}
+              >
+                <CalendarClock className="w-3.5 h-3.5" />
+                <span>Exact Date &amp; Time</span>
+              </button>
             </div>
+
+            {/* Always-Visible Calendar & Clock Triggers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const activeDate = exactDate ?? new Date();
+                  if (!exactDate) setExactDate(activeDate);
+                  setTimingMode("EXACT");
+                  setPreferredTime(formatExactScheduledTiming(activeDate, exactHour24, exactMinute));
+                  setExactPickerTab("calendar");
+                  setShowExactPicker((prev) =>
+                    timingMode === "EXACT" && exactPickerTab === "calendar" ? !prev : true
+                  );
+                }}
+                className={`flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-2xl border text-left transition cursor-pointer ${
+                  timingMode === "EXACT"
+                    ? "bg-orange-50/70 dark:bg-orange-950/25 border-orange-400 dark:border-orange-700 shadow-xs"
+                    : "bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700"
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      timingMode === "EXACT"
+                        ? "bg-orange-600 text-white"
+                        : "bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                    }`}
+                  >
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      Calendar Date
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-white truncate block">
+                      {exactDate
+                        ? `${exactDate.toLocaleDateString("en-US", {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })} (${getApproximateBsDate(exactDate).monthNe} ${toNepaliDigits(
+                            getApproximateBsDate(exactDate).day
+                          )})`
+                        : "Select date"}
+                    </span>
+                  </div>
+                </div>
+                {showExactPicker ? (
+                  <ChevronUp className="w-4 h-4 text-orange-600 shrink-0" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const activeDate = exactDate ?? new Date();
+                  if (!exactDate) setExactDate(activeDate);
+                  setTimingMode("EXACT");
+                  setPreferredTime(formatExactScheduledTiming(activeDate, exactHour24, exactMinute));
+                  setExactPickerTab("clock");
+                  setShowExactPicker((prev) =>
+                    timingMode === "EXACT" && exactPickerTab === "clock" ? !prev : true
+                  );
+                }}
+                className={`flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-2xl border text-left transition cursor-pointer ${
+                  timingMode === "EXACT"
+                    ? "bg-orange-50/70 dark:bg-orange-950/25 border-orange-400 dark:border-orange-700 shadow-xs"
+                    : "bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700"
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      timingMode === "EXACT"
+                        ? "bg-orange-600 text-white"
+                        : "bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+                    }`}
+                  >
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      Exact Clock Time
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-white truncate block">
+                      {formatExactClockTime(exactHour24, exactMinute)}
+                    </span>
+                  </div>
+                </div>
+                {showExactPicker ? (
+                  <ChevronUp className="w-4 h-4 text-orange-600 shrink-0" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </button>
+            </div>
+
+            {/* Expandable Interactive Calendar & Clock Panel */}
+            <AnimatePresence>
+              {showExactPicker && exactDate && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <ExactDateTimePicker
+                    selectedDate={exactDate}
+                    hour24={exactHour24}
+                    minute={exactMinute}
+                    activeTab={exactPickerTab}
+                    onTabChange={setExactPickerTab}
+                    onChange={(nextDate, nextHour24, nextMinute) => {
+                      setExactDate(nextDate);
+                      setExactHour24(nextHour24);
+                      setExactMinute(nextMinute);
+                      setTimingMode("EXACT");
+                      setPreferredTime(
+                        formatExactScheduledTiming(nextDate, nextHour24, nextMinute)
+                      );
+                    }}
+                    onDone={() => setShowExactPicker(false)}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* 5. Description */}
