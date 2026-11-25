@@ -1,7 +1,12 @@
 import { Suspense } from "react";
 import HomeView from "@/components/home-view";
+import { getActiveAds } from "@/app/actions/ads";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const landingAds = await getActiveAds("LANDING", "ALL");
+
   return (
     <Suspense
       fallback={
@@ -10,7 +15,7 @@ export default function Home() {
         </div>
       }
     >
-      <HomeView />
+      <HomeView ads={landingAds} />
     </Suspense>
   );
 }

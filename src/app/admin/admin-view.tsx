@@ -61,6 +61,8 @@ import ThemeToggle from "@/components/theme-toggle";
 import LanguageToggle from "@/components/language-toggle";
 import { useLanguage } from "@/components/language-provider";
 import { VoiceNotePlayer } from "@/components/voice-note";
+import AdminAdsPanel from "@/components/admin-ads-panel";
+import type { AdminAdItem } from "@/app/actions/ads";
 import {
   updateUserRoleByAdmin,
   toggleUserPhoneVerifiedByAdmin,
@@ -357,6 +359,7 @@ export default function AdminView({
   heatmapData: initialHeatmapData,
   analyticsData: initialAnalyticsData,
   auditLogs: initialAuditLogs = [],
+  ads: initialAds = [],
 }: {
   currentUser: {
     id: string;
@@ -378,6 +381,7 @@ export default function AdminView({
   heatmapData?: HeatmapData;
   analyticsData?: FunnelAnalytics;
   auditLogs?: AuditLogEntry[];
+  ads?: AdminAdItem[];
 }) {
   const router = useRouter();
   const { tx } = useLanguage();
@@ -403,6 +407,7 @@ export default function AdminView({
     jobs: { en: "Job Postings", ne: "कामका विज्ञापनहरू" },
     categories: { en: "Service Categories", ne: "सेवा विधाहरू" },
     monetization: { en: "Featured Revenue", ne: "फिचर्ड भुक्तानी" },
+    ads: { en: "Sponsored Ads", ne: "प्रायोजित विज्ञापन" },
     reconciliation: { en: "CSV & Invoicing", ne: "हिसाब मिलान" },
     heatmap: { en: "Supply Heatmap", ne: "माग तथा नक्सा" },
     broadcast: { en: "Emergency Broadcasts", ne: "आपतकालीन सूचना" },
@@ -881,6 +886,7 @@ export default function AdminView({
         usersCount={initialUsers.length}
         jobsCount={initialJobs.length}
         reviewsCount={initialReviews.length}
+        adsCount={initialAds.length}
         onSignOut={handleSignOut}
       />
 
@@ -2099,6 +2105,13 @@ export default function AdminView({
               </div>
             </div>
           </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* TAB: SPONSORED ADVERTISEMENTS MANAGER                               */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === "ads" && (
+          <AdminAdsPanel initialAds={initialAds} showToast={showToast} />
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════ */}

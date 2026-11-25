@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserProfile } from "@/app/actions/profile";
+import { getActiveAds } from "@/app/actions/ads";
 import DashboardView from "./dashboard-view";
 
 export const metadata = {
@@ -34,5 +35,13 @@ export default async function DashboardPage(props: {
     }
   }
 
-  return <DashboardView user={user} />;
+  const adAudience =
+    user.role === "WORKER"
+      ? "WORKER"
+      : user.role === "RECRUITER"
+      ? "RECRUITER"
+      : "ALL";
+  const dashboardAds = await getActiveAds("DASHBOARD", adAudience);
+
+  return <DashboardView user={user} ads={dashboardAds} />;
 }

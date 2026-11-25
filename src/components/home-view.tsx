@@ -30,6 +30,8 @@ import NotificationDropdown from "@/components/notification-dropdown";
 import ChatModal from "@/components/chat-modal";
 import AppHeader from "@/components/app-header";
 import HomeNotebook from "@/components/home-notebook";
+import SponsoredAdsSection from "@/components/sponsored-ads-section";
+import type { PublicAdItem } from "@/app/actions/ads";
 import { useLanguage } from "@/components/language-provider";
 import { createClient } from "@/lib/supabase/client";
 
@@ -44,7 +46,7 @@ const CATEGORIES = [
   { name: "Home Cleaning", nameNe: "घर सरसफाइ", icon: Sparkles, jobs: "95+ gigs", jobsNe: "९५+ कामहरू" },
 ];
 
-export default function HomeView() {
+export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
   const { lang, tx, t } = useLanguage();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "true";
@@ -627,6 +629,9 @@ export default function HomeView() {
             </div>
           </div>
         </section>
+
+        {/* ── Sponsored Partner Ads Section ── */}
+        <SponsoredAdsSection ads={ads} variant="landing" />
 
         {/* ── Notebook / Journal Section (Field Notes & Community Sticky Notes) ── */}
         <HomeNotebook />

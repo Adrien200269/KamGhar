@@ -62,6 +62,8 @@ import LanguageToggle from "@/components/language-toggle";
 import NotificationDropdown from "@/components/notification-dropdown";
 import { useLanguage } from "@/components/language-provider";
 import { usePostJobModal } from "@/components/post-job-modal-provider";
+import SponsoredAdsSection from "@/components/sponsored-ads-section";
+import type { PublicAdItem } from "@/app/actions/ads";
 import LiveRouteTrackerModal from "@/components/live-route-tracker-modal";
 import { VoiceNotePlayer } from "@/components/voice-note";
 import UploadcareImageUploader from "@/components/uploadcare-image-uploader";
@@ -239,7 +241,13 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export default function DashboardView({ user }: { user: UserWithProfile }) {
+export default function DashboardView({
+  user,
+  ads = [],
+}: {
+  user: UserWithProfile;
+  ads?: PublicAdItem[];
+}) {
   const { lang, t, tx } = useLanguage();
   const { openPostJobModal } = usePostJobModal();
   const router = useRouter();
@@ -1463,6 +1471,13 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               </div>
             </div>
           </motion.div>
+
+          {/* ── Sponsored Partner Ads (Dashboard Overview) ────────── */}
+          {ads.length > 0 && (
+            <motion.div variants={fadeUp}>
+              <SponsoredAdsSection ads={ads} variant="dashboard" />
+            </motion.div>
+          )}
           </>
           )}
 
@@ -1494,9 +1509,10 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                     </div>
                   </motion.div>
 
-                  {/* Public Profile Visibility Preview */}
+                  {/* Public Profile Visibility Preview (Glassmorphism Card) */}
                   <motion.div variants={fadeUp}>
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-3">
+                    <div className="relative overflow-hidden bg-white/68 dark:bg-slate-900/68 backdrop-blur-xl backdrop-saturate-150 rounded-3xl border border-white/85 dark:border-white/15 p-6 shadow-[0_14px_40px_-14px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,0.85)] dark:shadow-[0_14px_40px_-14px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] space-y-3">
+                      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/90 dark:via-white/25 to-transparent" />
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                           <Eye className="w-4 h-4 text-orange-500" />
@@ -1510,7 +1526,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                         </Link>
                       </div>
 
-                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-800/55 backdrop-blur-md border border-white/80 dark:border-white/10 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-900 dark:text-white text-sm">{displayName}</span>
@@ -2194,7 +2210,7 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
               </div>
 
               {filteredJobs.length === 0 ? (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 border-dashed p-10 text-center">
+                <div className="relative overflow-hidden bg-white/68 dark:bg-slate-900/68 backdrop-blur-xl backdrop-saturate-150 rounded-3xl border border-dashed border-orange-300/80 dark:border-orange-700/50 p-10 text-center shadow-[0_14px_40px_-14px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.85)]">
                   <div className="w-12 h-12 mx-auto rounded-2xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center text-orange-600 dark:text-orange-400 mb-3">
                     <Briefcase className="w-6 h-6" />
                   </div>
@@ -2218,9 +2234,11 @@ export default function DashboardView({ user }: { user: UserWithProfile }) {
                   {filteredJobs.map((job) => (
                     <motion.div
                       key={job.id}
-                      whileHover={{ y: -1 }}
-                      className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-sm space-y-3 transition-colors"
+                      whileHover={{ y: -2 }}
+                      className="relative overflow-hidden bg-white/68 dark:bg-slate-900/68 backdrop-blur-xl backdrop-saturate-150 rounded-3xl border border-white/85 dark:border-white/15 p-5 shadow-[0_14px_40px_-14px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,0.85)] dark:shadow-[0_14px_40px_-14px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.1)] hover:border-orange-300/90 dark:hover:border-orange-500/40 space-y-3 transition-all"
                     >
+                      <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/90 dark:via-white/25 to-transparent" />
+                      <div className="pointer-events-none absolute -top-10 -right-10 w-28 h-28 rounded-full bg-orange-400/12 dark:bg-orange-500/10 blur-2xl" />
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">

@@ -180,7 +180,9 @@ export default function JobDetailsView({
         </Link>
 
         {/* Main Job Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-8 shadow-sm space-y-6">
+        <div className="relative overflow-hidden bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl backdrop-saturate-150 rounded-3xl border border-white/85 dark:border-white/15 p-4 sm:p-8 shadow-[0_18px_48px_-14px_rgba(15,23,42,0.16),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_18px_48px_-14px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] space-y-6">
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/95 dark:via-white/30 to-transparent" />
+          <div className="pointer-events-none absolute -top-12 -right-12 w-36 h-36 rounded-full bg-orange-400/15 dark:bg-orange-500/10 blur-2xl" />
           {/* Header Row */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="space-y-2">

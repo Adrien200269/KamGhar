@@ -35,6 +35,7 @@ export type AdminTabType =
   | "categories"
   | "analytics"
   | "monetization"
+  | "ads"
   | "reconciliation"
   | "audit";
 
@@ -60,6 +61,7 @@ interface AdminSidebarProps {
   usersCount?: number;
   jobsCount?: number;
   reviewsCount?: number;
+  adsCount?: number;
   onSignOut?: () => void;
 }
 
@@ -76,6 +78,7 @@ export default function AdminSidebar({
   usersCount = 0,
   jobsCount = 0,
   reviewsCount = 0,
+  adsCount = 0,
   onSignOut,
 }: AdminSidebarProps) {
   const { tx } = useLanguage();
@@ -396,6 +399,23 @@ export default function AdminSidebar({
               >
                 <CreditCard className="w-4 h-4 shrink-0 text-emerald-500" />
                 {!collapsed && <span>{tx("Featured & Boosts", "फिचर्ड भुक्तानी")}</span>}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectTab("ads")}
+                className={navItemClass("ads")}
+                title={collapsed ? tx("Sponsored Ads", "प्रायोजित विज्ञापन") : undefined}
+              >
+                <Megaphone className="w-4 h-4 shrink-0 text-orange-500" />
+                {!collapsed && (
+                  <div className="flex-1 flex items-center justify-between">
+                    <span>{tx("Sponsored Ads", "प्रायोजित विज्ञापन")}</span>
+                    {adsCount > 0 && (
+                      <span className="text-[10px] text-slate-400">({adsCount})</span>
+                    )}
+                  </div>
+                )}
               </button>
 
               <button

@@ -88,8 +88,13 @@ export default function JobsLayout({ user, children, badgeText, badgeTextNe, bre
         </header>
 
         {/* ── Scrollable Main Content ── */}
-        <main className="flex-1 overflow-y-auto w-full scrollbar-thin">
-          {children}
+        <main className="relative flex-1 overflow-y-auto w-full scrollbar-thin">
+          {/* Subtle ambient glows so glassmorphism cards have soft color refraction */}
+          <div className="pointer-events-none fixed inset-0 overflow-hidden -z-0">
+            <div className="absolute -top-24 right-[10%] w-80 h-80 rounded-full bg-orange-300/15 dark:bg-orange-500/5 blur-3xl" />
+            <div className="absolute bottom-[10%] left-[20%] w-72 h-72 rounded-full bg-amber-300/15 dark:bg-amber-500/5 blur-3xl" />
+          </div>
+          <div className="relative z-10">{children}</div>
         </main>
       </div>
     </div>

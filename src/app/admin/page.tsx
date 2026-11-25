@@ -17,6 +17,7 @@ import {
   getMarketplaceFunnelAnalytics,
   getAdminAuditLogs,
 } from "@/app/actions/admin";
+import { getAdminAdsList } from "@/app/actions/ads";
 import AdminView from "./admin-view";
 import AdminClaimButton from "./admin-claim-button";
 
@@ -103,6 +104,7 @@ export default async function AdminPage() {
     heatmapRes,
     analyticsRes,
     auditLogs,
+    adsRes,
   ] = await Promise.all([
     getAdminOverviewStats(),
     getAdminUsersList(),
@@ -114,6 +116,7 @@ export default async function AdminPage() {
     getGeographicHeatmapData(),
     getMarketplaceFunnelAnalytics(),
     getAdminAuditLogs(),
+    getAdminAdsList(),
   ]);
 
   const stats = statsRes.success && statsRes.data ? statsRes.data : {
@@ -131,6 +134,7 @@ export default async function AdminPage() {
   const reviews = reviewsRes.success && reviewsRes.data ? reviewsRes.data : [];
   const heatmapData = heatmapRes.success && heatmapRes.data ? heatmapRes.data : { jobs: [], workers: [], hubs: [] };
   const analyticsData = analyticsRes.success && analyticsRes.data ? analyticsRes.data : null;
+  const ads = adsRes.success && adsRes.data ? adsRes.data : [];
 
   return (
     <AdminView
@@ -145,6 +149,7 @@ export default async function AdminPage() {
       heatmapData={heatmapData as any}
       analyticsData={analyticsData as any}
       auditLogs={auditLogs}
+      ads={ads}
     />
   );
 }

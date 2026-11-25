@@ -200,15 +200,33 @@ export default function WorkerVisitingCardModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-sm print:p-0 print:bg-white overflow-y-auto">
+      <div
+        onClick={onClose}
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/45 dark:bg-slate-950/70 backdrop-blur-md print:p-0 print:bg-white overflow-y-auto"
+      >
+        {/* Ambient refraction orbs behind the glass modal */}
+        <div className="pointer-events-none fixed inset-0 overflow-hidden print:hidden">
+          <div
+            className={`absolute top-[16%] left-[20%] w-72 h-72 rounded-full blur-3xl ${
+              isRecruiter ? "bg-blue-400/25 dark:bg-blue-500/15" : "bg-orange-400/25 dark:bg-orange-500/15"
+            }`}
+          />
+          <div className="absolute bottom-[16%] right-[18%] w-72 h-72 rounded-full bg-amber-300/25 dark:bg-amber-500/10 blur-3xl" />
+        </div>
+
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          initial={{ opacity: 0, scale: 0.94, y: 14 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden print:border-none print:shadow-none my-auto max-h-[92dvh] flex flex-col"
+          exit={{ opacity: 0, scale: 0.94, y: 14 }}
+          transition={{ type: "spring", stiffness: 320, damping: 28 }}
+          onClick={(e) => e.stopPropagation()}
+          className="relative w-full max-w-lg rounded-[28px] bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl backdrop-saturate-150 border border-white/85 dark:border-white/15 shadow-[0_32px_96px_-16px_rgba(15,23,42,0.38),0_0_0_1px_rgba(255,255,255,0.45)_inset,0_1px_0_rgba(255,255,255,0.9)_inset] dark:shadow-[0_32px_96px_-16px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.08)_inset,0_1px_0_rgba(255,255,255,0.18)_inset] overflow-hidden print:border-none print:shadow-none print:bg-white my-auto max-h-[92dvh] flex flex-col"
         >
+          {/* Specular top glass sheen */}
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/95 dark:via-white/35 to-transparent z-20 print:hidden" />
+
           {/* Header */}
-          <div className="p-4 px-5 sm:px-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between print:hidden shrink-0">
+          <div className="relative z-10 p-4 px-5 sm:px-6 border-b border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl flex items-center justify-between print:hidden shrink-0">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-orange-500" />
               <h3 className="font-bold text-sm text-slate-900 dark:text-white">
@@ -219,33 +237,49 @@ export default function WorkerVisitingCardModal({
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 transition-colors"
+              className="w-8 h-8 rounded-full bg-white/75 dark:bg-slate-800/75 hover:bg-white dark:hover:bg-slate-800 border border-white/80 dark:border-white/15 flex items-center justify-center text-slate-600 dark:text-slate-300 shadow-xs transition-all hover:scale-105 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Business Card Canvas (Standard physical 3.5x2 aspect style) */}
-          <div className="p-4 sm:p-6 overflow-y-auto flex-1">
-            <div
-              id="printable-card"
-              className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900 text-white p-4 sm:p-6 shadow-2xl border border-white/10 space-y-4 sm:space-y-5"
-            >
-              {/* Background ambient warmth aura */}
-              <div
-                className={`pointer-events-none absolute -right-12 -bottom-12 w-48 h-48 rounded-full blur-2xl ${
-                  isRecruiter ? "bg-blue-500/10" : "bg-orange-500/15"
-                }`}
-              />
-              <div className="pointer-events-none absolute top-0 right-0 p-4 opacity-10">
-                <ShieldCheck className="w-24 h-24 text-white" />
+          {/* Business Card Canvas (Glassmorphism Stage + Physical 3.5x2 aspect style) */}
+          <div className="relative z-10 p-4 sm:p-6 overflow-y-auto flex-1">
+            <div className="relative rounded-2xl">
+              {/* Glowing colorful backdrop orbs behind the translucent visiting card */}
+              <div className="pointer-events-none absolute -inset-2 overflow-hidden rounded-3xl print:hidden">
+                <div
+                  className={`absolute -top-6 -left-6 w-40 h-40 rounded-full blur-2xl ${
+                    isRecruiter ? "bg-blue-500/45" : "bg-orange-500/45"
+                  }`}
+                />
+                <div className="absolute -bottom-6 -right-6 w-44 h-44 rounded-full bg-amber-400/35 blur-2xl" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-36 rounded-full bg-rose-500/20 blur-2xl" />
               </div>
 
+              <div
+                id="printable-card"
+                className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900/75 via-slate-900/65 to-slate-800/70 backdrop-blur-2xl backdrop-saturate-150 text-white p-4 sm:p-6 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.55),inset_0_1px_1px_rgba(255,255,255,0.38),inset_0_-1px_1px_rgba(255,255,255,0.1)] border border-white/30 space-y-4 sm:space-y-5 print:bg-slate-950 print:backdrop-blur-none"
+              >
+                {/* Specular glass edge & diagonal frost sheen */}
+                <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent print:hidden" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-white/5 print:hidden" />
+
+                {/* Background ambient warmth aura */}
+                <div
+                  className={`pointer-events-none absolute -right-12 -bottom-12 w-48 h-48 rounded-full blur-2xl ${
+                    isRecruiter ? "bg-blue-500/20" : "bg-orange-500/25"
+                  }`}
+                />
+                <div className="pointer-events-none absolute top-0 right-0 p-4 opacity-10">
+                  <ShieldCheck className="w-24 h-24 text-white" />
+                </div>
+
               {/* Card Top: Brand Logo & Trust Badge */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="relative z-10 flex items-center justify-between border-b border-white/15 pb-3">
                 <div className="flex items-center gap-2.5">
-                  {/* Clean white container for logo contrast on dark card */}
-                  <div className="bg-white rounded-lg px-2 py-0.5 flex items-center justify-center shadow-xs">
+                  {/* Clean frosted logo container for contrast */}
+                  <div className="bg-white/95 backdrop-blur-md rounded-lg px-2 py-0.5 flex items-center justify-center shadow-xs border border-white/60">
                     <Image
                       src="/logo.png"
                       alt="KamGhar"
@@ -255,16 +289,16 @@ export default function WorkerVisitingCardModal({
                       className="h-5 w-auto object-contain"
                     />
                   </div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-white/10 text-slate-300 border border-white/10">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/15 backdrop-blur-md text-slate-100 border border-white/20">
                     {isRecruiter ? "Hirer" : "Verified Pro"}
                   </span>
                 </div>
 
                 <div
-                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border backdrop-blur-md ${
                     isVerified
-                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                      : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                      ? "bg-emerald-500/25 text-emerald-200 border-emerald-400/40"
+                      : "bg-amber-500/25 text-amber-200 border-amber-400/40"
                   }`}
                 >
                   <ShieldCheck className="w-3 h-3" />
@@ -277,15 +311,15 @@ export default function WorkerVisitingCardModal({
               </div>
 
               {/* Card Middle: Profile, Details, and QR */}
-              <div className="flex items-start justify-between gap-3 sm:gap-4">
+              <div className="relative z-10 flex items-start justify-between gap-3 sm:gap-4">
                 <div className="space-y-2 flex-1 min-w-0">
                   <div className="flex items-center gap-3">
                     {/* Avatar */}
                     <div
-                      className={`relative w-14 h-14 rounded-2xl overflow-hidden bg-slate-800 border-2 flex-shrink-0 flex items-center justify-center ${
+                      className={`relative w-14 h-14 rounded-2xl overflow-hidden bg-white/10 backdrop-blur-md border-2 flex-shrink-0 flex items-center justify-center shadow-inner ${
                         isRecruiter
-                          ? "border-blue-500/50 text-blue-300"
-                          : "border-orange-500/50 text-orange-300"
+                          ? "border-blue-400/60 text-blue-200"
+                          : "border-orange-400/60 text-orange-200"
                       }`}
                     >
                       {cardPhoto ? (
@@ -311,21 +345,21 @@ export default function WorkerVisitingCardModal({
 
                       {isRecruiter ? (
                         <>
-                          <p className="text-xs font-semibold text-blue-400 truncate">
+                          <p className="text-xs font-semibold text-blue-300 truncate">
                             {recruiter?.businessName ||
                               tx("Homeowner & Hirer", "रोजगारदाता / ग्राहक")}
                           </p>
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-[10px] text-slate-300/80">
                             {tx("Direct Client & Job Poster", "प्रत्यक्ष रोजगारदाता")}
                           </p>
                         </>
                       ) : (
                         <>
-                          <p className="text-xs font-semibold text-orange-400 truncate">
+                          <p className="text-xs font-semibold text-orange-300 truncate">
                             {worker?.primarySkill || "Professional Technician"}
                           </p>
                           {worker?.experienceYears ? (
-                            <p className="text-[10px] text-slate-400">
+                            <p className="text-[10px] text-slate-300/80">
                               {worker.experienceYears} {tx("yrs exp", "वर्ष अनुभव")}
                             </p>
                           ) : null}
@@ -335,30 +369,30 @@ export default function WorkerVisitingCardModal({
                   </div>
 
                   {/* Location & Contact Snippet */}
-                  <div className="pt-1 space-y-1 text-[11px] text-slate-300">
+                  <div className="pt-1 space-y-1 text-[11px] text-slate-200">
                     {cardAddress && (
-                      <div className="flex items-center gap-1.5 text-slate-400">
-                        <MapPin className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                      <div className="flex items-center gap-1.5 text-slate-300">
+                        <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
                         <span className="truncate">{cardAddress}</span>
                       </div>
                     )}
                     {cardPhone && (
-                      <div className="flex items-center gap-1.5 text-slate-300 font-mono text-[11px]">
-                        <Phone className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                      <div className="flex items-center gap-1.5 text-slate-200 font-mono text-[11px]">
+                        <Phone className="w-3 h-3 text-slate-400 flex-shrink-0" />
                         <span>{cardPhone}</span>
                       </div>
                     )}
                     {isRecruiter && cardEmail && (
-                      <div className="flex items-center gap-1.5 text-slate-400 text-[10px] truncate">
-                        <Mail className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                      <div className="flex items-center gap-1.5 text-slate-300 text-[10px] truncate">
+                        <Mail className="w-3 h-3 text-slate-400 flex-shrink-0" />
                         <span className="truncate">{cardEmail}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* QR Code Container */}
-                <div className="flex flex-col items-center flex-shrink-0 bg-white p-2 rounded-2xl shadow-md border border-slate-200">
+                {/* Frosted Glass QR Code Container */}
+                <div className="flex flex-col items-center flex-shrink-0 bg-white/92 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-white/80">
                   <div className="relative w-20 h-20">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -376,10 +410,10 @@ export default function WorkerVisitingCardModal({
               </div>
 
               {/* Card Bottom: Metric Badges */}
-              <div className="flex items-center justify-between border-t border-white/10 pt-2.5 text-xs">
+              <div className="relative z-10 flex items-center justify-between border-t border-white/15 pt-2.5 text-xs">
                 {isRecruiter ? (
                   <>
-                    <div className="flex items-center gap-1.5 text-blue-400 font-bold">
+                    <div className="flex items-center gap-1.5 text-blue-300 font-bold">
                       <Briefcase className="w-3.5 h-3.5" />
                       <span>
                         {recruiter?.activeJobsCount !== undefined
@@ -387,23 +421,23 @@ export default function WorkerVisitingCardModal({
                           : tx("Active Hirer", "सक्रिय रोजगारदाता")}
                       </span>
                     </div>
-                    <span className="text-[10px] text-emerald-400 font-semibold">
+                    <span className="text-[10px] text-emerald-300 font-semibold">
                       {tx("Direct Worker Payouts", "भरपर्दो प्रत्यक्ष भुक्तानी")}
                     </span>
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center gap-1 text-amber-400 font-bold">
+                    <div className="flex items-center gap-1 text-amber-300 font-bold">
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                       <span>{worker?.avgRating?.toFixed(1) || "5.0"}</span>
-                      <span className="text-[10px] text-slate-400 font-normal">
+                      <span className="text-[10px] text-slate-300/80 font-normal">
                         ({worker?.reviewCount || 1} {tx("reviews", "समीक्षा")})
                       </span>
                     </div>
 
                     {worker?.hourlyRate ? (
                       <div className="text-right">
-                        <span className="text-[10px] text-slate-400 block leading-none">
+                        <span className="text-[10px] text-slate-300/80 block leading-none">
                           {tx("Rate", "दर")}
                         </span>
                         <span className="text-xs font-black text-white">
@@ -411,12 +445,13 @@ export default function WorkerVisitingCardModal({
                         </span>
                       </div>
                     ) : (
-                      <span className="text-[10px] text-emerald-400 font-semibold">
+                      <span className="text-[10px] text-emerald-300 font-semibold">
                         {tx("Fair Market Benchmark", "निष्पक्ष बजार दर")}
                       </span>
                     )}
                   </>
                 )}
+              </div>
               </div>
             </div>
 
@@ -425,7 +460,7 @@ export default function WorkerVisitingCardModal({
               {cardPhone && (
                 <a
                   href={`tel:${cardPhone}`}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  className="px-4 py-2.5 rounded-xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-white/80 dark:border-white/15 hover:bg-white dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs"
                 >
                   <Phone className="w-3.5 h-3.5 text-blue-600" />
                   <span>{tx("Call Directly", "फोन गर्नुहोस्")}</span>
@@ -437,7 +472,7 @@ export default function WorkerVisitingCardModal({
                   href={waUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm shadow-emerald-600/20 flex items-center justify-center gap-1.5"
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-600 backdrop-blur-md text-white text-xs font-bold transition-all shadow-sm shadow-emerald-600/20 flex items-center justify-center gap-1.5"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   <span>
@@ -450,11 +485,11 @@ export default function WorkerVisitingCardModal({
             </div>
 
             {/* Download, Share, & Print Actions */}
-            <div className="mt-3 flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800 print:hidden">
+            <div className="mt-3 flex flex-wrap items-center gap-2 pt-3 border-t border-white/50 dark:border-white/10 print:hidden">
               <button
                 type="button"
                 onClick={handleDownloadVCard}
-                className="flex-1 px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold shadow-sm shadow-orange-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 px-3 py-2 rounded-xl bg-orange-600/95 hover:bg-orange-600 text-white text-xs font-bold shadow-sm shadow-orange-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>{tx("Save Contact (.vcf)", "सम्पर्क सेभ (.vcf)")}</span>
@@ -463,7 +498,7 @@ export default function WorkerVisitingCardModal({
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-white/65 dark:bg-slate-800/65 backdrop-blur-md border border-white/80 dark:border-white/15 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
               >
                 {copied ? (
                   <Check className="w-3.5 h-3.5 text-emerald-500" />
@@ -478,7 +513,7 @@ export default function WorkerVisitingCardModal({
               <button
                 type="button"
                 onClick={handleShare}
-                className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-white/65 dark:bg-slate-800/65 backdrop-blur-md border border-white/80 dark:border-white/15 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
               >
                 <Share2 className="w-3.5 h-3.5 text-slate-500" />
                 <span>{tx("Share", "सेयर")}</span>
@@ -487,7 +522,7 @@ export default function WorkerVisitingCardModal({
               <button
                 type="button"
                 onClick={handlePrint}
-                className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-white/65 dark:bg-slate-800/65 backdrop-blur-md border border-white/80 dark:border-white/15 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5 text-slate-500" />
                 <span>{tx("Print", "प्रिन्ट")}</span>

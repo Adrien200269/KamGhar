@@ -621,9 +621,12 @@ export default function JobsFeed({
                 layout
                 whileHover={{ y: -3 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 flex flex-col justify-between shadow-sm hover:shadow-md hover:border-orange-300 dark:hover:border-orange-800/80 transition-all"
+                className="relative overflow-hidden bg-white/68 dark:bg-slate-900/68 backdrop-blur-xl backdrop-saturate-150 rounded-3xl border border-white/85 dark:border-white/15 p-6 flex flex-col justify-between shadow-[0_14px_40px_-14px_rgba(15,23,42,0.14),0_1px_0_rgba(255,255,255,0.85)_inset] dark:shadow-[0_14px_40px_-14px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.1)_inset] hover:shadow-lg hover:border-orange-300/90 dark:hover:border-orange-500/40 transition-all"
               >
-                <div className="space-y-3.5">
+                {/* Specular glass top edge & subtle corner glow */}
+                <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/95 dark:via-white/25 to-transparent" />
+                <div className="pointer-events-none absolute -top-10 -right-10 w-28 h-28 rounded-full bg-orange-400/12 dark:bg-orange-500/10 blur-2xl" />
+                <div className="space-y-3.5 relative z-10">
                   {/* Category + Date + Urgent indicator */}
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -695,7 +698,7 @@ export default function JobsFeed({
                 </div>
 
                 {/* Footer Info & Action */}
-                <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 space-y-3.5">
+                <div className="relative z-10 pt-4 mt-4 border-t border-white/60 dark:border-white/10 space-y-3.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
                       <MapPin className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
@@ -761,12 +764,12 @@ export default function JobsFeed({
       {/* ── Apply Modal ────────────────────────────────────── */}
       <AnimatePresence>
         {selectedJobForApply && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 dark:bg-slate-950/70 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-8 shadow-2xl space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto"
+              className="relative w-full max-w-lg bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl backdrop-saturate-150 rounded-3xl border border-white/85 dark:border-white/15 p-5 sm:p-8 shadow-[0_28px_80px_-14px_rgba(15,23,42,0.32),inset_0_1px_0_rgba(255,255,255,0.9)] space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>

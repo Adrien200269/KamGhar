@@ -88,6 +88,7 @@ model User {
   conversationsAsUser1 Conversation[] @relation("ConversationUser1")
   conversationsAsUser2 Conversation[] @relation("ConversationUser2")
   notifications    Notification[]
+  createdAds       Advertisement[]  @relation("AdminCreatedAds")
 
   @@map("users")
 }
@@ -309,4 +310,44 @@ model Notification {
   @@index([userId, createdAt])
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+enum AdPlacement {
+  LANDING
+  DASHBOARD
+  BOTH
+}
+
+enum AdAudience {
+  ALL
+  WORKER
+  RECRUITER
+}
+
+model Advertisement {
+  id          String      @id @default(uuid())
+  sponsorName String
+  title       String
+  description String
+  imageUrl    String?
+  targetUrl   String
+  ctaLabel    String      @default("Learn More")
+  placement   AdPlacement @default(BOTH)
+  audience    AdAudience  @default(ALL)
+  badgeText   String      @default("Sponsored")
+  isActive    Boolean     @default(true)
+  priority    Int         @default(0)
+  impressions Int         @default(0)
+  clicks      Int         @default(0)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdById String?
+  createdBy   User?       @relation("AdminCreatedAds", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([isActive, placement])
+  @@index([isActive, audience])
+  @@index([priority, createdAt])
+  @@map("advertisements")
 }
