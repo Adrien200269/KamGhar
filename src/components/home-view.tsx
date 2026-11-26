@@ -108,24 +108,10 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative overflow-hidden pt-4 pb-0 sm:pt-6">
-          {/* ── Background decorative orbs ── */}
-          <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-            <div className="absolute -top-32 -left-24 w-[480px] h-[480px] rounded-full bg-orange-400/20 dark:bg-orange-500/10 blur-[100px]" />
-            <div className="absolute top-1/2 -right-32 w-[400px] h-[400px] rounded-full bg-amber-400/15 dark:bg-amber-500/8 blur-[90px]" />
-            <div className="absolute bottom-0 left-1/3 w-[300px] h-[300px] rounded-full bg-orange-300/10 dark:bg-orange-600/5 blur-[80px]" />
-            {/* Subtle grid pattern */}
-            <div
-              className="absolute inset-0 opacity-[0.025] dark:opacity-[0.04]"
-              style={{
-                backgroundImage: `linear-gradient(rgba(0,0,0,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.5) 1px, transparent 1px)`,
-                backgroundSize: "48px 48px",
-              }}
-            />
-          </div>
+        <section className="relative overflow-hidden bg-[#f8fafc] dark:bg-slate-950 pt-4 pb-0 sm:pt-6">
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-8 items-center py-4 lg:py-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center py-8 lg:py-10">
 
               {/* ── Left Column: Text & CTAs ── */}
               <div className="flex flex-col items-start">
@@ -134,7 +120,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: -12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100 dark:bg-orange-950/60 border border-orange-200 dark:border-orange-800/70 text-orange-800 dark:text-orange-200 text-xs font-semibold mb-4 shadow-sm"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#ffebd8] dark:bg-orange-950/60 border border-[#fbd1ae] dark:border-orange-800/70 text-[#b43f00] dark:text-orange-200 text-xs font-bold mb-5 shadow-sm"
                 >
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75" />
@@ -149,13 +135,11 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.1 }}
-                  className="text-3xl xs:text-4xl sm:text-6xl xl:text-7xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.15] sm:leading-[1.08]"
+                  className="text-4xl sm:text-5xl xl:text-[72px] font-extrabold text-[#0f172a] dark:text-white tracking-[-0.02em] leading-[1.06]"
                 >
-                  {tx("Find work.", "काम खोज्नुहोस्।")}{" "}
-                  <span className="relative inline-block">
-                    <span className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-400 bg-clip-text text-transparent">
-                      {tx("Hire talent.", "जनशक्ति रोज्नुहोस्।")}
-                    </span>
+                  <span className="block">{tx("Find work.", "काम खोज्नुहोस्।")}</span>
+                  <span className="relative block text-[#f85f0a]">
+                    {tx("Hire talent.", "जनशक्ति रोज्नुहोस्।")}
                     <motion.svg
                       initial={{ pathLength: 0, opacity: 0 }}
                       animate={{ pathLength: 1, opacity: 1 }}
@@ -167,21 +151,14 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                     >
                       <motion.path
                         d="M2 9 Q75 3 150 7 Q225 11 298 5"
-                        stroke="url(#heroUnderline)"
+                        stroke="#f85f0a"
                         strokeWidth="3"
                         strokeLinecap="round"
                         fill="none"
                       />
-                      <defs>
-                        <linearGradient id="heroUnderline" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor="#ea580c" />
-                          <stop offset="100%" stopColor="#f59e0b" />
-                        </linearGradient>
-                      </defs>
                     </motion.svg>
                   </span>
-                  <br />
-                  {tx("Near you in Nepal.", "तपाईंको नजिकै।")}
+                  <span className="block">{tx("Near you in Nepal.", "तपाईंको नजिकै नेपालमा।")}</span>
                 </motion.h1>
 
                 {/* Subheading */}
@@ -189,7 +166,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.25 }}
-                  className="mt-3 sm:mt-4 text-base sm:text-lg text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg"
+                  className="mt-5 sm:mt-6 text-base sm:text-[18px] text-[#475569] dark:text-slate-400 leading-[1.65] max-w-[520px]"
                 >
                   {tx(
                     "Electricians, plumbers, tutors, designers — connect with verified local talent or find gigs, all sorted by proximity to your location.",
@@ -202,25 +179,25 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.35 }}
-                  className="mt-5 sm:mt-6 flex flex-col sm:flex-row gap-3 w-full sm:w-auto"
+                  className="mt-7 sm:mt-8 flex flex-col sm:flex-row gap-4 w-full sm:w-auto"
                 >
                   <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} className="w-full sm:w-auto">
                     <Link
                       href="/register?role=worker"
-                      className="group inline-flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-bold shadow-xl shadow-orange-500/30 transition-all text-sm sm:text-base w-full sm:w-auto"
+                      className="inline-flex items-center justify-center gap-2.5 px-7 py-4 bg-[#f85f0a] hover:bg-orange-600 text-white rounded-[14px] font-bold shadow-[0px_10px_30px_0px_rgba(0,0,0,0.1)] transition-all text-base w-full sm:w-auto"
                     >
                       <Briefcase className="w-5 h-5" />
                       {tx("I Want to Work", "म काम गर्न चाहन्छु")}
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      <ArrowRight className="w-4 h-4" />
                     </Link>
                   </motion.div>
 
                   <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} className="w-full sm:w-auto">
                     <Link
                       href="/register?role=recruiter"
-                      className="inline-flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 bg-white dark:bg-slate-900 hover:bg-orange-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white border-2 border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-700 rounded-2xl font-bold shadow-sm transition-all text-sm sm:text-base w-full sm:w-auto"
+                      className="inline-flex items-center justify-center gap-2.5 px-7 py-4 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-[#0f172a] dark:text-white border border-[#e2e8f0] dark:border-slate-700 rounded-[14px] font-bold transition-all text-base w-full sm:w-auto"
                     >
-                      <Users className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                      <Users className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                       {tx("I Need to Hire", "मलाई कामदार चाहिन्छ")}
                     </Link>
                   </motion.div>
@@ -231,79 +208,92 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.6, delay: 0.5 }}
-                  className="mt-4 sm:mt-5 flex flex-wrap gap-2 sm:gap-2.5"
+                  className="mt-5 flex flex-wrap gap-2 sm:gap-3"
                 >
                   {[
-                    { icon: Check, label: tx("Zero Commission", "शून्य कमिसन") },
-                    { icon: MapPin, label: tx("GPS Matching", "जीपीएस म्याचिङ") },
-                    { icon: ShieldCheck, label: tx("Verified Profiles", "प्रमाणित प्रोफाइलहरू") },
-                  ].map(({ icon: Icon, label }) => (
+                    { icon: Check, label: tx("Zero Commission", "शून्य कमिसन"), color: "text-emerald-500" },
+                    { icon: MapPin, label: tx("GPS Matching", "जीपीएस म्याचिङ"), color: "text-emerald-500" },
+                    { icon: ShieldCheck, label: tx("Verified Profiles", "प्रमाणित प्रोफाइलहरू"), color: "text-emerald-500" },
+                  ].map(({ icon: Icon, label, color }) => (
                     <span
                       key={label}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white dark:bg-slate-800/80 border border-[#e2e8f0] dark:border-slate-700 text-[#475569] dark:text-slate-300 text-xs font-semibold"
                     >
-                      <Icon className="w-3.5 h-3.5 text-emerald-500" />
+                      <Icon className={`w-3.5 h-3.5 ${color}`} />
                       {label}
                     </span>
                   ))}
                 </motion.div>
-
-                {/* Stats row */}
-                <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.6 }}
-                  className="mt-5 sm:mt-6 grid grid-cols-3 gap-2 sm:gap-6 border-t border-slate-200 dark:border-slate-800 pt-4 sm:pt-5 w-full max-w-sm"
-                >
-                  {[
-                    { value: "2,400+", label: tx("Active Workers", "सक्रिय कामदार") },
-                    { value: "840+", label: tx("Open Gigs", "खुला कामहरू") },
-                    { value: "14+", label: tx("Skill Categories", "सीप विधाहरू") },
-                  ].map(({ value, label }) => (
-                    <div key={label}>
-                      <div className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">{value}</div>
-                      <div className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium leading-tight">{label}</div>
-                    </div>
-                  ))}
-                </motion.div>
               </div>
 
-              {/* ── Right Column: Real Photo Collage ── */}
-              <div className="relative hidden lg:flex items-center justify-center h-[415px]">
+              {/* ── Right Column: Figma-matched photo collage ── */}
+              <div className="relative hidden lg:block h-[590px]">
 
-                {/* Soft background glow */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-80 h-80 rounded-full bg-orange-300/20 dark:bg-orange-500/10 blur-[80px]" />
-                </div>
-
-                {/* Large main photo — electrician */}
+                {/* Large main photo — electrician (full height, left-aligned) */}
                 <motion.div
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.7, delay: 0.3 }}
-                  className="absolute left-0 top-8 w-[270px] h-[310px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
+                  className="absolute left-0 top-0 w-[320px] h-[590px] rounded-3xl overflow-hidden shadow-[0px_12px_30px_0px_rgba(0,0,0,0.15)] ring-[5px] ring-white dark:ring-slate-800 z-20"
                 >
                   <Image
                     src="/worker-electrician.jpg"
                     alt="Electrician at work"
                     fill
                     className="object-cover"
-                    sizes="280px"
+                    sizes="320px"
+                    priority
                   />
-                  {/* Label badge */}
-                  <div className="absolute bottom-4 left-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-2xl px-3 py-2 flex items-center gap-2 shadow-lg">
-                    <div className="w-7 h-7 rounded-xl bg-orange-100 dark:bg-orange-950 flex items-center justify-center flex-shrink-0">
-                      <Zap className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">Electrician</div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                        <MapPin className="w-2.5 h-2.5" /> 1.2 km away
+                  {/* Label badge on photo — bottom right */}
+                  <div className="absolute bottom-4 left-4 right-4 bg-white dark:bg-slate-900/95 rounded-[14px] px-3 py-2.5 flex items-center justify-between shadow-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-xl bg-orange-100 dark:bg-orange-950 flex items-center justify-center flex-shrink-0">
+                        <Zap className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-[#0f172a] dark:text-white">Electrician</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          <MapPin className="w-2.5 h-2.5" /> 1.2 km away
+                        </div>
                       </div>
                     </div>
-                    <span className="ml-auto text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
                       Available
                     </span>
+                  </div>
+                </motion.div>
+
+                {/* Rating badge — bottom-left overlapping photo */}
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 1.0 }}
+                  className="absolute bottom-16 left-4 bg-[#f85f0a] rounded-[14px] px-3.5 py-2.5 shadow-[0px_10px_30px_0px_rgba(0,0,0,0.1)] z-30"
+                >
+                  <div className="flex items-center gap-0.5 mb-1">
+                    {[1,2,3,4,5].map((s) => (
+                      <Star key={s} className="w-3 h-3 text-white fill-white" />
+                    ))}
+                  </div>
+                  <div className="text-xs font-bold text-white">4.9 avg rating</div>
+                  <div className="text-[10px] text-[#ffe1cc]">from 1,200+ reviews</div>
+                </motion.div>
+
+                {/* Floating workers pill — top center-right */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.9 }}
+                  className="absolute top-2 right-2 bg-white dark:bg-slate-900 border border-[#e2e8f0] dark:border-slate-700 rounded-2xl px-4 py-2.5 shadow-xl z-30 flex items-center gap-2.5"
+                >
+                  <div className="flex -space-x-2">
+                    <div className="w-6 h-6 rounded-full bg-orange-400 ring-2 ring-white dark:ring-slate-900" />
+                    <div className="w-6 h-6 rounded-full bg-amber-400 ring-2 ring-white dark:ring-slate-900" />
+                    <div className="w-6 h-6 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-slate-900" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-extrabold text-[#0f172a] dark:text-white">2,400+ Workers</div>
+                    <div className="text-[10px] text-[#64748b] dark:text-slate-400">across Nepal</div>
                   </div>
                 </motion.div>
 
@@ -312,7 +302,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, x: 30 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.7, delay: 0.5 }}
-                  className="absolute right-0 top-2 w-[215px] h-[175px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
+                  className="absolute right-0 top-14 w-[220px] h-[180px] rounded-3xl overflow-hidden shadow-2xl ring-[5px] ring-white dark:ring-slate-800 z-20"
                 >
                   <Image
                     src="/worker-digital.webp"
@@ -325,7 +315,7 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                     <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-950 flex items-center justify-center flex-shrink-0">
                       <Laptop className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                     </div>
-                    <div className="text-[10px] font-bold text-slate-900 dark:text-white">Digital Freelancer</div>
+                    <div className="text-[10px] font-bold text-[#0f172a] dark:text-white">Digital Freelancer</div>
                   </div>
                 </motion.div>
 
@@ -334,55 +324,21 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.7, delay: 0.65 }}
-                  className="absolute right-4 bottom-2 w-[210px] h-[190px] rounded-3xl overflow-hidden shadow-2xl ring-4 ring-white dark:ring-slate-800 z-20"
+                  className="absolute right-0 bottom-0 w-[220px] h-[195px] rounded-3xl overflow-hidden shadow-2xl ring-[5px] ring-white dark:ring-slate-800 z-20"
                 >
                   <Image
                     src="/worker-plumber.jpg"
                     alt="Plumber at work"
                     fill
                     className="object-cover"
-                    sizes="210px"
+                    sizes="220px"
                   />
                   <div className="absolute bottom-3 left-3 right-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl px-2.5 py-1.5 flex items-center gap-2 shadow-md">
                     <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-950 flex items-center justify-center flex-shrink-0">
                       <Wrench className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                     </div>
-                    <div className="text-[10px] font-bold text-slate-900 dark:text-white">Plumber</div>
+                    <div className="text-[10px] font-bold text-[#0f172a] dark:text-white">Plumber</div>
                   </div>
-                </motion.div>
-
-                {/* Floating stat pill — top center */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5, delay: 0.9 }}
-                  className="absolute top-0 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 shadow-xl z-30 flex items-center gap-2.5"
-                >
-                  <div className="flex -space-x-2">
-                    <div className="w-6 h-6 rounded-full bg-orange-400 ring-2 ring-white dark:ring-slate-900" />
-                    <div className="w-6 h-6 rounded-full bg-amber-400 ring-2 ring-white dark:ring-slate-900" />
-                    <div className="w-6 h-6 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-slate-900" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-extrabold text-slate-900 dark:text-white">2,400+ Workers</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400">across Nepal</div>
-                  </div>
-                </motion.div>
-
-                {/* Floating rating badge — bottom left */}
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 1.0 }}
-                  className="absolute bottom-4 left-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl px-4 py-3 shadow-xl shadow-orange-500/30 z-30"
-                >
-                  <div className="flex items-center gap-1 mb-1">
-                    {[1,2,3,4,5].map((s) => (
-                      <Star key={s} className="w-3 h-3 text-white fill-white" />
-                    ))}
-                  </div>
-                  <div className="text-xs font-bold text-white">4.9 avg rating</div>
-                  <div className="text-[10px] text-orange-100">from 1,200+ reviews</div>
                 </motion.div>
 
               </div>
