@@ -35,6 +35,169 @@ import type { PublicAdItem } from "@/app/actions/ads";
 import { useLanguage } from "@/components/language-provider";
 import { createClient } from "@/lib/supabase/client";
 
+const HERO_SLIDES = [
+  {
+    src: "/worker-electrician.jpg",
+    alt: "Electrician at work",
+    label: "Electrician",
+    sublabel: "1.2 km away",
+    icon: Zap,
+    iconBg: "bg-orange-100 dark:bg-orange-950",
+    iconColor: "text-orange-600 dark:text-orange-400",
+    available: true,
+  },
+  {
+    src: "/worker-digital.webp",
+    alt: "Digital freelancer",
+    label: "Digital Freelancer",
+    sublabel: "0.8 km away",
+    icon: Laptop,
+    iconBg: "bg-blue-100 dark:bg-blue-950",
+    iconColor: "text-blue-600 dark:text-blue-400",
+    available: true,
+  },
+  {
+    src: "/worker-plumber.jpg",
+    alt: "Plumber at work",
+    label: "Plumber",
+    sublabel: "2.3 km away",
+    icon: Wrench,
+    iconBg: "bg-amber-100 dark:bg-amber-950",
+    iconColor: "text-amber-600 dark:text-amber-400",
+    available: false,
+  },
+  {
+    src: "/worker-cleaner.webp",
+    alt: "Home cleaner",
+    label: "Home Cleaner",
+    sublabel: "1.7 km away",
+    icon: Sparkles,
+    iconBg: "bg-emerald-100 dark:bg-emerald-950",
+    iconColor: "text-emerald-600 dark:text-emerald-400",
+    available: true,
+  },
+];
+
+function HeroPhotoSlider() {
+  const [current, setCurrent] = useState(0);
+  const total = HERO_SLIDES.length;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % total);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [total]);
+
+  const slide = HERO_SLIDES[current];
+  const Icon = slide.icon;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 40 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.7, delay: 0.3 }}
+      className="relative hidden lg:block h-[590px]"
+    >
+      {/* Big photo frame */}
+      <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-[0px_20px_50px_0px_rgba(0,0,0,0.18)] ring-[5px] ring-white dark:ring-slate-800 z-10">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current}
+            initial={{ opacity: 0, scale: 1.04 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            transition={{ duration: 0.7, ease: "easeInOut" }}
+            className="absolute inset-0"
+          >
+            <Image
+              src={slide.src}
+              alt={slide.alt}
+              fill
+              className="object-cover"
+              sizes="560px"
+              priority={current === 0}
+            />
+            {/* Gradient overlay at bottom */}
+            <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/50 to-transparent" />
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Rating badge — bottom-left inside photo */}
+        <div className="absolute bottom-[88px] left-5 bg-[#f85f0a] rounded-[14px] px-3.5 py-2.5 shadow-lg z-20">
+          <div className="flex items-center gap-0.5 mb-0.5">
+            {[1,2,3,4,5].map((s) => (
+              <Star key={s} className="w-3 h-3 text-white fill-white" />
+            ))}
+          </div>
+          <div className="text-xs font-bold text-white">4.9 avg rating</div>
+          <div className="text-[10px] text-[#ffe1cc]">from 1,200+ reviews</div>
+        </div>
+
+        {/* Label badge — bottom of photo */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`label-${current}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4 }}
+            className="absolute bottom-5 left-5 right-5 bg-white dark:bg-slate-900/95 backdrop-blur-sm rounded-[14px] px-3.5 py-3 flex items-center justify-between shadow-xl z-20"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className={`w-8 h-8 rounded-xl ${slide.iconBg} flex items-center justify-center flex-shrink-0`}>
+                <Icon className={`w-4 h-4 ${slide.iconColor}`} />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-[#0f172a] dark:text-white">{slide.label}</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                  <MapPin className="w-2.5 h-2.5" /> {slide.sublabel}
+                </div>
+              </div>
+            </div>
+            {slide.available && (
+              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full">
+                Available
+              </span>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Slide dot indicators */}
+        <div className="absolute top-4 right-4 flex gap-1.5 z-20">
+          {HERO_SLIDES.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrent(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === current ? "w-6 bg-white" : "w-1.5 bg-white/50"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Floating workers pill — top-left above photo */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.9 }}
+        className="absolute -top-4 -left-4 bg-white dark:bg-slate-900 border border-[#e2e8f0] dark:border-slate-700 rounded-2xl px-4 py-2.5 shadow-xl z-30 flex items-center gap-2.5"
+      >
+        <div className="flex -space-x-2">
+          <div className="w-6 h-6 rounded-full bg-orange-400 ring-2 ring-white dark:ring-slate-900" />
+          <div className="w-6 h-6 rounded-full bg-amber-400 ring-2 ring-white dark:ring-slate-900" />
+          <div className="w-6 h-6 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-slate-900" />
+        </div>
+        <div>
+          <div className="text-xs font-extrabold text-[#0f172a] dark:text-white">2,400+ Workers</div>
+          <div className="text-[10px] text-[#64748b] dark:text-slate-400">across Nepal</div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 const CATEGORIES = [
   { name: "Electrician", nameNe: "इलेक्ट्रीसियन", icon: Zap, jobs: "120+ gigs", jobsNe: "१२०+ कामहरू" },
   { name: "Plumbing", nameNe: "प्लम्बिङ", icon: Wrench, jobs: "85+ gigs", jobsNe: "८५+ कामहरू" },
@@ -226,122 +389,8 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
                 </motion.div>
               </div>
 
-              {/* ── Right Column: Figma-matched photo collage ── */}
-              <div className="relative hidden lg:block h-[590px]">
-
-                {/* Large main photo — electrician (full height, left-aligned) */}
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.3 }}
-                  className="absolute left-0 top-0 w-[320px] h-[590px] rounded-3xl overflow-hidden shadow-[0px_12px_30px_0px_rgba(0,0,0,0.15)] ring-[5px] ring-white dark:ring-slate-800 z-20"
-                >
-                  <Image
-                    src="/worker-electrician.jpg"
-                    alt="Electrician at work"
-                    fill
-                    className="object-cover"
-                    sizes="320px"
-                    priority
-                  />
-                  {/* Label badge on photo — bottom right */}
-                  <div className="absolute bottom-4 left-4 right-4 bg-white dark:bg-slate-900/95 rounded-[14px] px-3 py-2.5 flex items-center justify-between shadow-lg">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-xl bg-orange-100 dark:bg-orange-950 flex items-center justify-center flex-shrink-0">
-                        <Zap className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-[#0f172a] dark:text-white">Electrician</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                          <MapPin className="w-2.5 h-2.5" /> 1.2 km away
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
-                      Available
-                    </span>
-                  </div>
-                </motion.div>
-
-                {/* Rating badge — bottom-left overlapping photo */}
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 1.0 }}
-                  className="absolute bottom-16 left-4 bg-[#f85f0a] rounded-[14px] px-3.5 py-2.5 shadow-[0px_10px_30px_0px_rgba(0,0,0,0.1)] z-30"
-                >
-                  <div className="flex items-center gap-0.5 mb-1">
-                    {[1,2,3,4,5].map((s) => (
-                      <Star key={s} className="w-3 h-3 text-white fill-white" />
-                    ))}
-                  </div>
-                  <div className="text-xs font-bold text-white">4.9 avg rating</div>
-                  <div className="text-[10px] text-[#ffe1cc]">from 1,200+ reviews</div>
-                </motion.div>
-
-                {/* Floating workers pill — top center-right */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5, delay: 0.9 }}
-                  className="absolute top-2 right-2 bg-white dark:bg-slate-900 border border-[#e2e8f0] dark:border-slate-700 rounded-2xl px-4 py-2.5 shadow-xl z-30 flex items-center gap-2.5"
-                >
-                  <div className="flex -space-x-2">
-                    <div className="w-6 h-6 rounded-full bg-orange-400 ring-2 ring-white dark:ring-slate-900" />
-                    <div className="w-6 h-6 rounded-full bg-amber-400 ring-2 ring-white dark:ring-slate-900" />
-                    <div className="w-6 h-6 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-slate-900" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-extrabold text-[#0f172a] dark:text-white">2,400+ Workers</div>
-                    <div className="text-[10px] text-[#64748b] dark:text-slate-400">across Nepal</div>
-                  </div>
-                </motion.div>
-
-                {/* Top-right photo — digital worker */}
-                <motion.div
-                  initial={{ opacity: 0, x: 30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.7, delay: 0.5 }}
-                  className="absolute right-0 top-14 w-[220px] h-[180px] rounded-3xl overflow-hidden shadow-2xl ring-[5px] ring-white dark:ring-slate-800 z-20"
-                >
-                  <Image
-                    src="/worker-digital.webp"
-                    alt="Digital worker"
-                    fill
-                    className="object-cover object-top"
-                    sizes="220px"
-                  />
-                  <div className="absolute bottom-3 left-3 right-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl px-2.5 py-1.5 flex items-center gap-2 shadow-md">
-                    <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-950 flex items-center justify-center flex-shrink-0">
-                      <Laptop className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="text-[10px] font-bold text-[#0f172a] dark:text-white">Digital Freelancer</div>
-                  </div>
-                </motion.div>
-
-                {/* Bottom-right photo — plumber */}
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.65 }}
-                  className="absolute right-0 bottom-0 w-[220px] h-[195px] rounded-3xl overflow-hidden shadow-2xl ring-[5px] ring-white dark:ring-slate-800 z-20"
-                >
-                  <Image
-                    src="/worker-plumber.jpg"
-                    alt="Plumber at work"
-                    fill
-                    className="object-cover"
-                    sizes="220px"
-                  />
-                  <div className="absolute bottom-3 left-3 right-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl px-2.5 py-1.5 flex items-center gap-2 shadow-md">
-                    <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-950 flex items-center justify-center flex-shrink-0">
-                      <Wrench className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <div className="text-[10px] font-bold text-[#0f172a] dark:text-white">Plumber</div>
-                  </div>
-                </motion.div>
-
-              </div>
+              {/* ── Right Column: Auto-cycling hero photo ── */}
+              <HeroPhotoSlider />
             </div>
 
             {/* ── Hero Sponsored Ad Slot (shown directly in Hero when active) ── */}
