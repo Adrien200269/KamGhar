@@ -32,6 +32,7 @@ import { createJob } from "@/app/actions/job";
 import { NEPAL_DISTRICTS, getDistrictCoordinates } from "@/lib/constants";
 import { VoiceNoteRecorder } from "@/components/voice-note";
 import ExactDateTimePicker from "@/components/exact-date-time-picker";
+import BoostPaymentModal from "@/components/boost-payment-modal";
 import {
   SCHEDULE_TIME_SLOTS,
   getApproximateBsDate,
@@ -112,6 +113,7 @@ export default function JobPostForm({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingBoostJob, setPendingBoostJob] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -230,6 +232,9 @@ export default function JobPostForm({
       if (!response.success) {
         setError(response.error ?? "Failed to post job. Please check all fields.");
         setIsSubmitting(false);
+      } else if (response.requiresBoostForUrgent && response.jobId) {
+        setIsSubmitting(false);
+        setPendingBoostJob({ id: response.jobId, title: title.trim() });
       } else if (onSuccess) {
         onSuccess({
           jobId: response.jobId,
@@ -781,13 +786,13 @@ export default function JobPostForm({
                   <span>Quick Job Broadcast (One-Tap Urgent Hiring)</span>
                 </span>
                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">
-                  Urgent 30-60m
+                  Urgent 30-60m • Boost Required
                 </span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Pipe burst, electrical spark, or emergency repair? Instantly broadcast to
-                verified &amp; available technicians within a 5 km radius in {district}. First
-                to accept gets dispatched!
+                Pipe burst, electrical spark, or emergency repair? Boosting this gig via
+                eSewa or Khalti activates the Urgent badge and broadcasts to verified &amp;
+                available technicians within 5 km in {district}.
               </p>
             </div>
           </label>
@@ -833,6 +838,35 @@ export default function JobPostForm({
           </motion.button>
         </div>
       </form>
+
+      {pendingBoostJob && (
+        <BoostPaymentModal
+          isOpen={!!pendingBoostJob}
+          type="BOOST_JOB"
+          jobId={pendingBoostJob.id}
+          itemTitle={pendingBoostJob.title}
+          onClose={() => {
+            const jobId = pendingBoostJob.id;
+            setPendingBoostJob(null);
+            if (onSuccess) {
+              onSuccess({ jobId, broadcastCount: 0 });
+            } else {
+              router.push("/dashboard?posted=true");
+              router.refresh();
+            }
+          }}
+          onSuccess={() => {
+            const jobId = pendingBoostJob.id;
+            setPendingBoostJob(null);
+            if (onSuccess) {
+              onSuccess({ jobId, broadcastCount: 0 });
+            } else {
+              router.push("/dashboard?posted=true");
+              router.refresh();
+            }
+          }}
+        />
+      )}
     </>
   );
 

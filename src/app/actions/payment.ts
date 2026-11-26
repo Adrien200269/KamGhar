@@ -363,7 +363,16 @@ export async function verifyAndCompletePayment(input: {
     if (transaction.type === TransactionType.BOOST_JOB && transaction.jobId) {
       const currentJob = await prisma.job.findUnique({
         where: { id: transaction.jobId },
-        select: { boostedUntil: true, title: true },
+        select: {
+          id: true,
+          boostedUntil: true,
+          title: true,
+          address: true,
+          budget: true,
+          latitude: true,
+          longitude: true,
+          urgency: true,
+        },
       });
       const currentExpiry = currentJob?.boostedUntil ? new Date(currentJob.boostedUntil).getTime() : 0;
       const baseTime = currentExpiry > Date.now() ? currentExpiry : Date.now();
@@ -375,6 +384,7 @@ export async function verifyAndCompletePayment(input: {
           data: {
             isBoosted: true,
             boostedUntil: expiresAt,
+            urgency: "URGENT",
           },
         }),
         prisma.transaction.update({
@@ -385,6 +395,11 @@ export async function verifyAndCompletePayment(input: {
           },
         }),
       ]);
+
+      if (currentJob) {
+        const { dispatchUrgentBroadcastForJob } = await import("@/app/actions/job");
+        await dispatchUrgentBroadcastForJob(currentJob).catch(() => 0);
+      }
 
       // Notification
       await prisma.notification.create({

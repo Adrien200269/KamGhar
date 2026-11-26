@@ -11,7 +11,59 @@ export type JobActionResult = {
   error?: string;
   jobId?: string;
   broadcastCount?: number;
+  requiresBoostForUrgent?: boolean;
 };
+
+/* ── Shared helper: 5 km Urgent Broadcast to opted-in workers ─── */
+export async function dispatchUrgentBroadcastForJob(job: {
+  id: string;
+  title: string;
+  address: string;
+  budget: number | null;
+  latitude: number;
+  longitude: number;
+}): Promise<number> {
+  const nearbyWorkers = await prisma.workerProfile.findMany({
+    where: {
+      latitude: { not: null },
+      longitude: { not: null },
+      urgentAlertsEnabled: true,
+      OR: [{ isAvailableNow: true }, { kycStatus: "VERIFIED" }],
+    },
+    select: {
+      id: true,
+      userId: true,
+      latitude: true,
+      longitude: true,
+    },
+  });
+
+  const { calculateHaversineDistanceKm } = await import("@/lib/geo");
+  const matchedWorkers = nearbyWorkers.filter((w) => {
+    if (!w.latitude || !w.longitude) return false;
+    const dist = calculateHaversineDistanceKm(job.latitude, job.longitude, w.latitude, w.longitude);
+    return dist <= 5;
+  });
+
+  for (const w of matchedWorkers.slice(0, 10)) {
+    prisma.notification
+      .create({
+        data: {
+          userId: w.userId,
+          type: "URGENT_BROADCAST",
+          title: `🚨 Urgent Gig Alert: ${job.title}`,
+          titleNe: `🚨 आपतकालीन काम: ${job.title}`,
+          message: `Urgent requirement in ${job.address} • Budget Rs. ${job.budget || "Negotiable"}`,
+          messageNe: `${job.address} मा तत्काल आवश्यक • बजेट रु. ${job.budget || "सहमति अनुसार"}`,
+          link: "/jobs",
+          isRead: false,
+        },
+      })
+      .catch(() => {});
+  }
+
+  return matchedWorkers.length;
+}
 
 export type PostJobEligibility = {
   status: "ALLOWED" | "UNAUTHENTICATED" | "WORKER_RESTRICTED";
@@ -108,13 +160,17 @@ export async function createJob(rawInput: unknown): Promise<JobActionResult> {
       });
     }
 
+    const isAdmin = dbUser?.role === "ADMIN";
+    const requiresBoostForUrgent = urgency === "URGENT" && !isAdmin;
+
     const job = await prisma.job.create({
       data: {
         recruiterId: user.id,
         title,
         description,
         category,
-        urgency,
+        // Regular recruiters must Boost to activate URGENT + 5km broadcast
+        urgency: requiresBoostForUrgent ? "HIGH" : urgency,
         budget: budget ?? null,
         latitude,
         longitude,
@@ -124,51 +180,10 @@ export async function createJob(rawInput: unknown): Promise<JobActionResult> {
       },
     });
 
-    // If urgent broadcast, count nearby available/verified workers within 5km radius
+    // Only admins get free immediate urgent broadcast; recruiters activate it upon Boost payment
     let broadcastCount = 0;
-    if (urgency === "URGENT") {
-      const nearbyWorkers = await prisma.workerProfile.findMany({
-        where: {
-          latitude: { not: null },
-          longitude: { not: null },
-          urgentAlertsEnabled: true,
-          OR: [{ isAvailableNow: true }, { kycStatus: "VERIFIED" }],
-        },
-        select: {
-          id: true,
-          userId: true,
-          latitude: true,
-          longitude: true,
-        },
-      });
-
-      // Filter by 5km radius
-      const { calculateHaversineDistanceKm } = await import("@/lib/geo");
-      const matchedWorkers = nearbyWorkers.filter((w) => {
-        if (!w.latitude || !w.longitude) return false;
-        const dist = calculateHaversineDistanceKm(latitude, longitude, w.latitude, w.longitude);
-        return dist <= 5;
-      });
-
-      broadcastCount = matchedWorkers.length;
-
-      // Dispatch urgent in-app broadcast alerts to nearby workers
-      for (const w of matchedWorkers.slice(0, 10)) {
-        prisma.notification
-          .create({
-            data: {
-              userId: w.userId,
-              type: "URGENT_BROADCAST",
-              title: `🚨 Urgent Gig Alert: ${title}`,
-              titleNe: `🚨 आपतकालीन काम: ${title}`,
-              message: `Urgent requirement in ${address} • Budget Rs. ${budget || "Negotiable"}`,
-              messageNe: `${address} मा तत्काल आवश्यक • बजेट रु. ${budget || "सहमति अनुसार"}`,
-              link: "/jobs",
-              isRead: false,
-            },
-          })
-          .catch(() => {});
-      }
+    if (urgency === "URGENT" && isAdmin) {
+      broadcastCount = await dispatchUrgentBroadcastForJob(job);
     }
 
     revalidatePath("/dashboard");
@@ -178,6 +193,7 @@ export async function createJob(rawInput: unknown): Promise<JobActionResult> {
       success: true,
       jobId: job.id,
       broadcastCount,
+      requiresBoostForUrgent,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create job";
