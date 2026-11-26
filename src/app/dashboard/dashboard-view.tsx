@@ -85,6 +85,7 @@ import {
   verifyPhoneOtp,
   toggleWorkerAvailability,
   updateWorkerAvailabilitySchedule,
+  toggleUrgentAlertsPreference,
   submitKycVerification,
 } from "@/app/actions/profile";
 import AvailabilityCalendar, {
@@ -191,6 +192,7 @@ type UserWithProfile = {
     longitude?: number | null;
     isAvailableNow?: boolean;
     availabilitySchedule?: unknown;
+    urgentAlertsEnabled?: boolean;
     isFeatured?: boolean;
     featuredUntil?: Date | string | null;
     kycStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
@@ -527,6 +529,8 @@ export default function DashboardView({
 
   // Worker live "Available Now" state
   const [isAvailableNow, setIsAvailableNow] = useState(user.workerProfile?.isAvailableNow ?? false);
+  const [urgentAlertsEnabled, setUrgentAlertsEnabled] = useState(user.workerProfile?.urgentAlertsEnabled ?? true);
+  const [togglingUrgentAlerts, setTogglingUrgentAlerts] = useState(false);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
 
   // KYC state
@@ -1269,23 +1273,51 @@ export default function DashboardView({
                           : ""}
                       </p>
                       {isWorker && (
-                        <button
-                          type="button"
-                          disabled={togglingAvailability}
-                          onClick={handleToggleAvailability}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                            isAvailableNow
-                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
-                              : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200"
-                          }`}
-                        >
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              isAvailableNow ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                        <>
+                          <button
+                            type="button"
+                            disabled={togglingAvailability}
+                            onClick={handleToggleAvailability}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                              isAvailableNow
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200"
                             }`}
-                          />
-                          <span>{isAvailableNow ? "Available Now (Active)" : "Off-Duty"}</span>
-                        </button>
+                          >
+                            <span
+                              className={`w-2 h-2 rounded-full ${
+                                isAvailableNow ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+                              }`}
+                            />
+                            <span>{isAvailableNow ? "Available Now (Active)" : "Off-Duty"}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={togglingUrgentAlerts}
+                            onClick={async () => {
+                              setTogglingUrgentAlerts(true);
+                              const res = await toggleUrgentAlertsPreference();
+                              if (res.success && res.urgentAlertsEnabled !== undefined) {
+                                setUrgentAlertsEnabled(res.urgentAlertsEnabled);
+                              }
+                              setTogglingUrgentAlerts(false);
+                            }}
+                            title={tx("Receive alerts for Urgent (within 2 hrs) gigs", "आपतकालीन कामको अलर्ट पाउनुहोस्")}
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                              urgentAlertsEnabled
+                                ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/20"
+                                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200"
+                            }`}
+                          >
+                            <Zap className="w-3 h-3" />
+                            <span>
+                              {urgentAlertsEnabled
+                                ? tx("Urgent Alerts On", "आपतकालीन अलर्ट चालु")
+                                : tx("Urgent Alerts Off", "आपतकालीन अलर्ट बन्द")}
+                            </span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

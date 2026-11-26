@@ -112,6 +112,7 @@ model WorkerProfile {
   featuredUntil   DateTime?
   isAvailableNow  Boolean         @default(false)
   availabilitySchedule Json?
+  urgentAlertsEnabled  Boolean    @default(true)
   kycStatus       KycStatus       @default(UNVERIFIED)
   kycDocumentType KycDocumentType?
   kycDocumentUrl  String?

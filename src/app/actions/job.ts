@@ -131,6 +131,7 @@ export async function createJob(rawInput: unknown): Promise<JobActionResult> {
         where: {
           latitude: { not: null },
           longitude: { not: null },
+          urgentAlertsEnabled: true,
           OR: [{ isAvailableNow: true }, { kycStatus: "VERIFIED" }],
         },
         select: {

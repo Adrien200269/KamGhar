@@ -30,6 +30,7 @@ import {
   ExternalLink,
   Heart,
   CalendarClock,
+  Zap,
 } from "lucide-react";
 import { applyToJob, getJobs } from "@/app/actions/job";
 import { NEPAL_DISTRICTS } from "@/lib/constants";
@@ -436,6 +437,22 @@ export default function JobsFeed({
         {/* Category Filter Chips & View Mode Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
+            <button
+              type="button"
+              onClick={() => {
+                const nextUrg = selectedUrgency === "URGENT" ? "ALL" : "URGENT";
+                setSelectedUrgency(nextUrg);
+                handleFilterChange(search, selectedCategory, selectedDistrict, nextUrg);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                selectedUrgency === "URGENT"
+                  ? "bg-red-600 text-white shadow-md shadow-red-500/25"
+                  : "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/60 border border-red-200 dark:border-red-900/40"
+              }`}
+            >
+              <Zap className={`w-3.5 h-3.5 ${selectedUrgency === "URGENT" ? "text-white fill-white" : "text-red-500"}`} />
+              <span>{tx("Urgent (Within 2h)", "आपतकालीन (२ घण्टा)")}</span>
+            </button>
             <button
               type="button"
               onClick={() => setOnlySaved((prev) => !prev)}

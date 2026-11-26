@@ -764,6 +764,35 @@ export async function updateWorkerAvailabilitySchedule(schedule: {
   }
 }
 
+/* ── Toggle Worker Urgent Gig Alerts Opt-In ────────────────────── */
+export async function toggleUrgentAlertsPreference(): Promise<
+  ProfileActionResult & { urgentAlertsEnabled?: boolean }
+> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  try {
+    const profile = await prisma.workerProfile.findUnique({
+      where: { userId: user.id },
+      select: { urgentAlertsEnabled: true },
+    });
+    if (!profile) return { success: false, error: "Worker profile not found." };
+
+    const updated = await prisma.workerProfile.update({
+      where: { userId: user.id },
+      data: { urgentAlertsEnabled: !profile.urgentAlertsEnabled },
+      select: { urgentAlertsEnabled: true },
+    });
+
+    revalidatePath("/dashboard");
+    return { success: true, urgentAlertsEnabled: updated.urgentAlertsEnabled };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to update urgent alert preference.";
+    return { success: false, error: msg };
+  }
+}
+
 /* ── Submit KYC Verification (Citizenship / National ID / PAN) ── */
 export async function submitKycVerification(data: {
   documentType: "CITIZENSHIP" | "NATIONAL_ID" | "PAN_OR_LICENSE";
