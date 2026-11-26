@@ -39,6 +39,9 @@ import ExactDateTimePicker from "@/components/exact-date-time-picker";
 import { formatExactScheduledTiming } from "@/lib/nepali-date";
 import { getWorkerWhatsAppUrl } from "@/lib/whatsapp";
 import { getRemainingBoostInfo } from "@/lib/boost";
+import AvailabilityCalendar, {
+  parseAvailabilitySchedule,
+} from "@/components/availability-calendar";
 import dynamic from "next/dynamic";
 
 const MapPicker = dynamic(() => import("@/components/map-picker"), { ssr: false });
@@ -423,6 +426,21 @@ export default function WorkerProfileView({
                 </span>
               ))}
             </div>
+          </div>
+
+          {/* Weekly Availability Calendar */}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <AvailabilityCalendar
+              schedule={parseAvailabilitySchedule(profile.availabilitySchedule)}
+              onSelectDayForBooking={(dayLabel, timeRange) => {
+                if (!currentUserId) {
+                  router.push(`/login?next=/workers/${worker.id}`);
+                  return;
+                }
+                setHireTime(`${dayLabel} (${timeRange})`);
+                setShowDirectHireModal(true);
+              }}
+            />
           </div>
 
           {/* Bio */}

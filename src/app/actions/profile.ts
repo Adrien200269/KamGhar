@@ -730,6 +730,40 @@ export async function toggleWorkerAvailability(): Promise<ProfileActionResult & 
   }
 }
 
+/* ── Update Worker Weekly Availability Schedule ────────────────── */
+export async function updateWorkerAvailabilitySchedule(schedule: {
+  days: string[];
+  startTime: string;
+  endTime: string;
+  note?: string;
+}): Promise<ProfileActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  try {
+    await prisma.workerProfile.update({
+      where: { userId: user.id },
+      data: {
+        availabilitySchedule: {
+          days: schedule.days,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          note: schedule.note || "",
+        },
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/workers");
+    revalidatePath(`/workers/${user.id}`);
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to update availability schedule.";
+    return { success: false, error: msg };
+  }
+}
+
 /* ── Submit KYC Verification (Citizenship / National ID / PAN) ── */
 export async function submitKycVerification(data: {
   documentType: "CITIZENSHIP" | "NATIONAL_ID" | "PAN_OR_LICENSE";

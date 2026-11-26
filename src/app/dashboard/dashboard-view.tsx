@@ -84,8 +84,12 @@ import {
   sendPhoneOtp,
   verifyPhoneOtp,
   toggleWorkerAvailability,
+  updateWorkerAvailabilitySchedule,
   submitKycVerification,
 } from "@/app/actions/profile";
+import AvailabilityCalendar, {
+  parseAvailabilitySchedule,
+} from "@/components/availability-calendar";
 import ChatModal from "@/components/chat-modal";
 import { getOrCreateConversation, type MessageItem } from "@/app/actions/chat";
 import { getWorkerTier } from "@/lib/constants";
@@ -186,6 +190,7 @@ type UserWithProfile = {
     latitude?: number | null;
     longitude?: number | null;
     isAvailableNow?: boolean;
+    availabilitySchedule?: unknown;
     isFeatured?: boolean;
     featuredUntil?: Date | string | null;
     kycStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
@@ -1524,6 +1529,17 @@ export default function DashboardView({
                         <ArrowRight className="w-4 h-4" />
                       </Link>
                     </div>
+                  </motion.div>
+
+                  {/* Feature 1: Weekly Availability Calendar */}
+                  <motion.div variants={fadeUp}>
+                    <AvailabilityCalendar
+                      schedule={parseAvailabilitySchedule(user.workerProfile?.availabilitySchedule)}
+                      editable
+                      onSave={async (next) => {
+                        await updateWorkerAvailabilitySchedule(next);
+                      }}
+                    />
                   </motion.div>
 
                   {/* Public Profile Visibility Preview (Glassmorphism Card) */}
