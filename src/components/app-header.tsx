@@ -29,11 +29,13 @@ export default function AppHeader({
   badgeTextNe = "गिग खोजकर्ता",
   isAdmin = false,
   isLoggedIn: initialIsLoggedIn,
+  fixed = false,
 }: {
   badgeText?: string;
   badgeTextNe?: string;
   isAdmin?: boolean;
   isLoggedIn?: boolean;
+  fixed?: boolean;
 }) {
   const { tx } = useLanguage();
   const { openPostJobModal } = usePostJobModal();
@@ -79,7 +81,11 @@ export default function AppHeader({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200">
+    <header
+      className={`${
+        fixed ? "fixed top-0 left-0 right-0 z-50" : "sticky top-0 z-40"
+      } bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Left: Brand Logo & Badge */}
         <div className="flex items-center gap-2 sm:gap-4">

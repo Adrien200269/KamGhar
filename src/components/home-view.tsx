@@ -267,9 +267,9 @@ export default function HomeView({ ads = [] }: { ads?: PublicAdItem[] }) {
       </AnimatePresence>
 
       {/* Global App Header with Responsive Mobile Navigation */}
-      <AppHeader badgeText="काम घर" badgeTextNe="काम घर" isLoggedIn={isLoggedIn} />
+      <AppHeader fixed badgeText="काम घर" badgeTextNe="काम घर" isLoggedIn={isLoggedIn} />
 
-      <main className="flex-1">
+      <main className="flex-1 pt-16">
         {/* Hero Section */}
         <section className="relative overflow-hidden bg-[#f8fafc] dark:bg-slate-950 pt-4 pb-0 sm:pt-6">
 
