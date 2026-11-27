@@ -75,7 +75,7 @@ import { getJobWhatsAppUrl, getWorkerWhatsAppUrl } from "@/lib/whatsapp";
 import { getRemainingBoostInfo } from "@/lib/boost";
 import { getApproximateBsDate } from "@/lib/nepali-date";
 import { signOutUser } from "@/app/actions/auth";
-import { updateJobStatus, deleteJob, updateApplicationStatus } from "@/app/actions/job";
+import { updateJobStatus, deleteJob, updateApplicationStatus, workerSafetyCheckIn } from "@/app/actions/job";
 import {
   updateUserProfileSettings,
   changeAccountPassword,
@@ -144,6 +144,9 @@ type Application = {
   proposedRate?: number | null;
   coverNote?: string | null;
   audioUrl?: string | null;
+  workerCheckedInAt?: Date | string | null;
+  workerCheckedOutAt?: Date | string | null;
+  emergencyContactPhone?: string | null;
   job: {
     id: string;
     title: string;
@@ -531,6 +534,8 @@ export default function DashboardView({
   const [isAvailableNow, setIsAvailableNow] = useState(user.workerProfile?.isAvailableNow ?? false);
   const [urgentAlertsEnabled, setUrgentAlertsEnabled] = useState(user.workerProfile?.urgentAlertsEnabled ?? true);
   const [togglingUrgentAlerts, setTogglingUrgentAlerts] = useState(false);
+  const [safetyCheckingId, setSafetyCheckingId] = useState<string | null>(null);
+  const [safetyCheckInState, setSafetyCheckInState] = useState<Record<string, { inAt?: string; outAt?: string }>>({});
   const [togglingAvailability, setTogglingAvailability] = useState(false);
 
   // KYC state
@@ -2053,6 +2058,60 @@ export default function DashboardView({
 
                             {/* Communication Action Buttons */}
                             <div className="flex flex-wrap items-center gap-2">
+                              {/* Feature 10: 1-Tap Safety Check-In ("I've Arrived" / "Job Done") */}
+                              {!(safetyCheckInState[app.id]?.inAt || app.workerCheckedInAt) ? (
+                                <button
+                                  type="button"
+                                  disabled={safetyCheckingId === app.id}
+                                  onClick={async () => {
+                                    setSafetyCheckingId(app.id);
+                                    const res = await workerSafetyCheckIn({
+                                      applicationId: app.id,
+                                      action: "ARRIVED",
+                                    });
+                                    if (res.success && res.checkedInAt) {
+                                      setSafetyCheckInState((prev) => ({
+                                        ...prev,
+                                        [app.id]: { ...prev[app.id], inAt: res.checkedInAt },
+                                      }));
+                                    }
+                                    setSafetyCheckingId(null);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+                                >
+                                  <MapPin className="w-3.5 h-3.5" />
+                                  <span>{tx("I've Arrived", "म आइपुगें")}</span>
+                                </button>
+                              ) : !(safetyCheckInState[app.id]?.outAt || app.workerCheckedOutAt) ? (
+                                <button
+                                  type="button"
+                                  disabled={safetyCheckingId === app.id}
+                                  onClick={async () => {
+                                    setSafetyCheckingId(app.id);
+                                    const res = await workerSafetyCheckIn({
+                                      applicationId: app.id,
+                                      action: "DONE",
+                                    });
+                                    if (res.success && res.checkedOutAt) {
+                                      setSafetyCheckInState((prev) => ({
+                                        ...prev,
+                                        [app.id]: { ...prev[app.id], outAt: res.checkedOutAt },
+                                      }));
+                                    }
+                                    setSafetyCheckingId(null);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>{tx("Job Done / Safe", "काम सकियो / सुरक्षित")}</span>
+                                </button>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>{tx("Safety Checked Out", "सुरक्षित चेक-आउट")}</span>
+                                </span>
+                              )}
+
                               <button
                                 type="button"
                                 onClick={() =>

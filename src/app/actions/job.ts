@@ -929,3 +929,112 @@ export async function requestDirectHire(input: {
     return { success: false, error: "Failed to dispatch direct hire request." };
   }
 }
+
+/* ── Feature 10: Worker Safety Check-In ("I've Arrived" / "Job Done") ── */
+export async function workerSafetyCheckIn(input: {
+  applicationId: string;
+  action: "ARRIVED" | "DONE";
+  emergencyContactPhone?: string;
+}): Promise<{
+  success: boolean;
+  error?: string;
+  checkedInAt?: string;
+  checkedOutAt?: string;
+}> {
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  try {
+    const app = await prisma.application.findUnique({
+      where: { id: input.applicationId },
+      include: {
+        job: {
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            recruiterId: true,
+          },
+        },
+        worker: {
+          select: {
+            workerProfile: { select: { name: true } },
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!app || app.workerId !== user.id) {
+      return { success: false, error: "Application not found or unauthorized." };
+    }
+    if (app.status !== "ACCEPTED" && app.status !== "COMPLETED") {
+      return { success: false, error: "Safety check-in is only available for accepted gigs." };
+    }
+
+    const now = new Date();
+    const workerName = app.worker.workerProfile?.name || app.worker.email.split("@")[0];
+    const timeLabel = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+
+    const updated = await prisma.application.update({
+      where: { id: app.id },
+      data:
+        input.action === "ARRIVED"
+          ? {
+              workerCheckedInAt: now,
+              ...(input.emergencyContactPhone
+                ? { emergencyContactPhone: input.emergencyContactPhone.trim() }
+                : {}),
+            }
+          : {
+              workerCheckedOutAt: now,
+              ...(input.emergencyContactPhone
+                ? { emergencyContactPhone: input.emergencyContactPhone.trim() }
+                : {}),
+            },
+      select: {
+        workerCheckedInAt: true,
+        workerCheckedOutAt: true,
+      },
+    });
+
+    // Notify recruiter in-app
+    await prisma.notification.create({
+      data: {
+        userId: app.job.recruiterId,
+        type: "SYSTEM",
+        title:
+          input.action === "ARRIVED"
+            ? `📍 ${workerName} has arrived`
+            : `✅ ${workerName} checked out safely`,
+        titleNe:
+          input.action === "ARRIVED"
+            ? `📍 ${workerName} कार्यस्थलमा आइपुग्नुभयो`
+            : `✅ ${workerName} ले काम सुरक्षित सम्पन्न गर्नुभयो`,
+        message:
+          input.action === "ARRIVED"
+            ? `${workerName} checked in at ${app.job.address} (${timeLabel}) for "${app.job.title}".`
+            : `${workerName} marked safety check-out as Job Done (${timeLabel}) for "${app.job.title}".`,
+        messageNe:
+          input.action === "ARRIVED"
+            ? `${workerName} "${app.job.title}" को लागि ${timeLabel} मा आइपुग्नुभयो।`
+            : `${workerName} ले "${app.job.title}" को काम ${timeLabel} मा सम्पन्न चिन्ह लगाउनुभयो।`,
+        link: "/dashboard",
+        isRead: false,
+      },
+    });
+
+    revalidatePath("/dashboard");
+    return {
+      success: true,
+      checkedInAt: updated.workerCheckedInAt?.toISOString(),
+      checkedOutAt: updated.workerCheckedOutAt?.toISOString(),
+    };
+  } catch (err) {
+    console.error("Safety check-in error:", err);
+    return { success: false, error: "Failed to record safety check-in." };
+  }
+}

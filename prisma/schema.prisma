@@ -193,6 +193,9 @@ model Application {
   audioUrl     String?
   proposedRate Float?
   status       ApplicationStatus @default(APPLIED)
+  workerCheckedInAt     DateTime?
+  workerCheckedOutAt    DateTime?
+  emergencyContactPhone String?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
