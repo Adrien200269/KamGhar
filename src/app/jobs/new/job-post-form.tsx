@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { createJob } from "@/app/actions/job";
 import { NEPAL_DISTRICTS, getDistrictCoordinates } from "@/lib/constants";
+import { evaluateBudgetFairness } from "@/lib/rate-data";
 import { VoiceNoteRecorder } from "@/components/voice-note";
 import ExactDateTimePicker from "@/components/exact-date-time-picker";
 import BoostPaymentModal from "@/components/boost-payment-modal";
@@ -474,6 +475,81 @@ export default function JobPostForm({
                   className={`${glassInputClass} pl-12 font-semibold`}
                 />
               </div>
+
+              {/* Feature 13: Fair Price Meter */}
+              {(() => {
+                const parsedBudget = parseFloat(budget);
+                const hasAmount = !isNaN(parsedBudget) && parsedBudget > 0;
+                const evalResult = evaluateBudgetFairness({
+                  category,
+                  district,
+                  budgetNpr: hasAmount ? parsedBudget : 0,
+                  isUrgent: isUrgentBroadcast,
+                });
+
+                const statusStyles =
+                  evalResult.status === "BELOW"
+                    ? {
+                        badge: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300",
+                        bar: "bg-amber-500",
+                        label: "Below Market Rate",
+                      }
+                    : evalResult.status === "ABOVE"
+                    ? {
+                        badge: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-300",
+                        bar: "bg-blue-500",
+                        label: "Above Market (Fast Acceptance)",
+                      }
+                    : {
+                        badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300",
+                        bar: "bg-emerald-500",
+                        label: "Fair Market Rate",
+                      };
+
+                return (
+                  <div className="p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                      <span className="font-bold text-slate-700 dark:text-slate-200">
+                        Fair Price Meter ({category} • {district})
+                      </span>
+                      {hasAmount ? (
+                        <span className={`px-2 py-0.5 rounded-full font-bold border text-[10px] ${statusStyles.badge}`}>
+                          {statusStyles.label}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500 dark:text-slate-400">
+                          Market range: Rs. {evalResult.marketMin.toLocaleString()} – Rs. {evalResult.marketMax.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+
+                    {hasAmount && (
+                      <>
+                        <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${statusStyles.bar}`}
+                            style={{ width: `${evalResult.meterPercent}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                          <span>
+                            Typical range: Rs. {evalResult.marketMin.toLocaleString()} – Rs. {evalResult.marketMax.toLocaleString()}
+                          </span>
+                          {evalResult.status === "BELOW" && (
+                            <button
+                              type="button"
+                              onClick={() => setBudget(String(evalResult.recommended))}
+                              className="text-orange-600 dark:text-orange-400 font-bold hover:underline cursor-pointer"
+                            >
+                              Use Rs. {evalResult.recommended.toLocaleString()}
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-between text-[11px] pb-1 w-full">

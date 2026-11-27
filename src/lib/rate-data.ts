@@ -392,3 +392,54 @@ export function calculateEstimatedRate(params: {
     estimatedHours: task.estimatedHours,
   };
 }
+
+/**
+ * Feature 13: Fair Price Meter for Job Post Budget Comparison
+ */
+export function evaluateBudgetFairness(params: {
+  category: string;
+  district?: string;
+  budgetNpr: number;
+  isUrgent?: boolean;
+}): {
+  marketMin: number;
+  marketMax: number;
+  recommended: number;
+  status: "BELOW" | "FAIR" | "ABOVE";
+  meterPercent: number;
+} {
+  const { category, district = "Kathmandu", budgetNpr, isUrgent = false } = params;
+  const catData = NEPAL_RATE_CATEGORIES.find(
+    (c) => c.category.toLowerCase() === category.toLowerCase()
+  );
+
+  const tasks = catData?.tasks ?? NEPAL_RATE_CATEGORIES.flatMap((c) => c.tasks);
+  const rawMin = Math.min(...tasks.map((t) => t.baseMin));
+  const rawMax = Math.max(...tasks.map((t) => t.baseMax));
+
+  const valleyDistricts = ["Kathmandu", "Lalitpur", "Bhaktapur"];
+  const locationFactor = valleyDistricts.includes(district) ? 1.0 : 0.9;
+  const urgencyFactor = isUrgent ? 1.3 : 1.0;
+
+  const marketMin = Math.round((rawMin * locationFactor * urgencyFactor) / 50) * 50;
+  const marketMax = Math.round((rawMax * locationFactor * urgencyFactor) / 50) * 50;
+  const recommended = Math.round(((marketMin + marketMax) / 2) / 50) * 50;
+
+  let status: "BELOW" | "FAIR" | "ABOVE" = "FAIR";
+  if (budgetNpr < marketMin) status = "BELOW";
+  else if (budgetNpr > marketMax) status = "ABOVE";
+
+  const span = Math.max(marketMax - marketMin, 200);
+  const meterPercent = Math.max(
+    6,
+    Math.min(100, Math.round(((budgetNpr - marketMin * 0.5) / (span * 1.4)) * 100))
+  );
+
+  return {
+    marketMin,
+    marketMax,
+    recommended,
+    status,
+    meterPercent,
+  };
+}
