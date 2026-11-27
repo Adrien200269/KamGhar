@@ -95,10 +95,12 @@ export default function JobsFeed({
   initialJobs,
   appliedJobIds,
   isLoggedIn: initialIsLoggedIn = false,
+  userRole = null,
 }: {
   initialJobs: JobItem[];
   appliedJobIds: string[];
   isLoggedIn?: boolean;
+  userRole?: string | null;
 }) {
   const { lang, t, tx } = useLanguage();
   const searchParams = useSearchParams();
@@ -281,6 +283,9 @@ export default function JobsFeed({
     if (!isLoggedIn) {
       setTargetJobForLogin(job);
       setShowLoginPrompt(true);
+      return;
+    }
+    if (userRole === "RECRUITER") {
       return;
     }
     setSelectedJobForApply(job);
@@ -754,7 +759,11 @@ export default function JobsFeed({
                         <ExternalLink className="w-3.5 h-3.5" />
                       </Link>
 
-                      {isApplied ? (
+                      {userRole === "RECRUITER" ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 text-xs font-semibold border border-slate-200 dark:border-slate-700">
+                          <span>{tx("Recruiter View", "रोजगारदाता दृश्य")}</span>
+                        </span>
+                      ) : isApplied ? (
                         <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{tx("Applied", "आवेदन गरियो")}</span>

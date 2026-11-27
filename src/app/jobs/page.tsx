@@ -48,6 +48,7 @@ export default async function JobsPage() {
             initialJobs={initialJobs}
             appliedJobIds={appliedJobIds}
             isLoggedIn={!!dbUser}
+            userRole={dbUser?.role ?? null}
           />
         </Suspense>
       </div>

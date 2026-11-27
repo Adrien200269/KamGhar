@@ -1,10 +1,21 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import HomeView from "@/components/home-view";
 import { getActiveAds } from "@/app/actions/ads";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    redirect("/dashboard");
+  }
+
   const landingAds = await getActiveAds("LANDING", "ALL");
 
   return (

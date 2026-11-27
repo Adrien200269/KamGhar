@@ -47,9 +47,10 @@ export default function JobDetailsView({
     hasApplied: boolean;
     isOwner: boolean;
     currentUserId: string | null;
+    currentUserRole?: string | null;
   };
 }) {
-  const { job, hasApplied: initialHasApplied, isOwner, currentUserId } = data;
+  const { job, hasApplied: initialHasApplied, isOwner, currentUserId, currentUserRole } = data;
   const { lang, tx } = useLanguage();
   const router = useRouter();
 
@@ -410,6 +411,13 @@ export default function JobDetailsView({
                   <Link href="/dashboard" className="underline hover:text-emerald-900">
                     {tx("View Status", "स्थिति हेर्नुहोस्")}
                   </Link>
+                </div>
+              ) : currentUserRole === "RECRUITER" ? (
+                <div className="w-full p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold text-center">
+                  {tx(
+                    "Recruiter accounts cannot apply for gigs. Only workers can apply.",
+                    "रोजगारदाता खाताले कामको लागि आवेदन दिन मिल्दैन।"
+                  )}
                 </div>
               ) : (
                 <button

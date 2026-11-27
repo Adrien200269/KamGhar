@@ -89,7 +89,7 @@ export default function AppHeader({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Left: Brand Logo & Badge */}
         <div className="flex items-center gap-2 sm:gap-4">
-          <Link href="/" className="flex items-center">
+          <Link href={isLoggedIn ? "/dashboard" : "/"} className="flex items-center">
             <div className="dark:bg-white dark:rounded-xl dark:px-2.5 dark:py-1 transition-all duration-200">
               <Image src="/logo.png" alt="KamGhar" width={120} height={40} priority className="h-8 w-auto object-contain" />
             </div>

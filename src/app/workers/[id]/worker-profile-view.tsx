@@ -399,20 +399,22 @@ export default function WorkerProfileView({
                     </a>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!currentUserId) {
-                        router.push(`/login?next=/workers/${worker.id}`);
-                      } else {
-                        setShowDirectHireModal(true);
-                      }
-                    }}
-                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-extrabold shadow-md hover:shadow-orange-500/25 active:scale-95 transition"
-                  >
-                    <Briefcase className="w-4 h-4" />
-                    <span>{tx("Direct Hire / Book", "काम दिनुहोस्")}</span>
-                  </button>
+                  {(!currentUserId || isRecruiter) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!currentUserId) {
+                          router.push(`/login?next=/workers/${worker.id}`);
+                        } else {
+                          setShowDirectHireModal(true);
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-extrabold shadow-md hover:shadow-orange-500/25 active:scale-95 transition"
+                    >
+                      <Briefcase className="w-4 h-4" />
+                      <span>{tx("Direct Hire / Book", "काम दिनुहोस्")}</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -444,6 +446,7 @@ export default function WorkerProfileView({
                   router.push(`/login?next=/workers/${worker.id}`);
                   return;
                 }
+                if (!isRecruiter) return;
                 setHireTime(`${dayLabel} (${timeRange})`);
                 setShowDirectHireModal(true);
               }}

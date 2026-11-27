@@ -544,6 +544,13 @@ export async function applyToJob(input: {
       return { success: false, error: "Job not found." };
     }
 
+    if (dbUser?.role === "RECRUITER") {
+      return {
+        success: false,
+        error: "Recruiter accounts cannot apply for jobs. Only worker accounts can apply.",
+      };
+    }
+
     if (job.status !== "OPEN") {
       return { success: false, error: "This job is no longer accepting applications." };
     }
@@ -793,12 +800,19 @@ export async function getJobById(jobId: string) {
 
     const hasApplied = user ? job.applications.some((app) => app.workerId === user.id) : false;
     const isOwner = user ? job.recruiterId === user.id : false;
+    const currentDbUser = user
+      ? await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { role: true },
+        })
+      : null;
 
     return {
       job,
       hasApplied,
       isOwner,
       currentUserId: user?.id || null,
+      currentUserRole: currentDbUser?.role || null,
     };
   } catch (err) {
     console.error("Error fetching job by ID:", err);
@@ -829,6 +843,18 @@ export async function requestDirectHire(input: {
   }
 
   try {
+    const caller = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { role: true },
+    });
+
+    if (caller?.role === "WORKER") {
+      return {
+        success: false,
+        error: "Worker accounts cannot hire or post jobs. Only recruiter accounts can recruit.",
+      };
+    }
+
     // Verify worker exists
     const worker = await prisma.user.findUnique({
       where: { id: input.workerId },
