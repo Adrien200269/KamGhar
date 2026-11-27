@@ -86,6 +86,7 @@ import {
   toggleWorkerAvailability,
   updateWorkerAvailabilitySchedule,
   toggleUrgentAlertsPreference,
+  requestBackgroundCheck,
   submitKycVerification,
 } from "@/app/actions/profile";
 import AvailabilityCalendar, {
@@ -196,6 +197,8 @@ type UserWithProfile = {
     isAvailableNow?: boolean;
     availabilitySchedule?: unknown;
     urgentAlertsEnabled?: boolean;
+    backgroundCheckStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
+    backgroundCheckedAt?: Date | string | null;
     isFeatured?: boolean;
     featuredUntil?: Date | string | null;
     kycStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
@@ -536,6 +539,8 @@ export default function DashboardView({
   const [togglingUrgentAlerts, setTogglingUrgentAlerts] = useState(false);
   const [safetyCheckingId, setSafetyCheckingId] = useState<string | null>(null);
   const [safetyCheckInState, setSafetyCheckInState] = useState<Record<string, { inAt?: string; outAt?: string }>>({});
+  const [bgCheckStatus, setBgCheckStatus] = useState(user.workerProfile?.backgroundCheckStatus ?? "UNVERIFIED");
+  const [requestingBgCheck, setRequestingBgCheck] = useState(false);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
 
   // KYC state
@@ -3684,6 +3689,64 @@ export default function DashboardView({
                       )}
                       <span>{kycStatus === "VERIFIED" ? "Update KYC Details" : "Submit for Verification"}</span>
                     </button>
+
+                    {/* Background Check Verification (Workers) */}
+                    {isWorker && (
+                      <div className="mt-5 pt-5 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <ShieldCheck className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                              <span>{tx("Background Check Badge", "पृष्ठभूमि जाँच ब्याज")}</span>
+                            </h4>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              {tx(
+                                "Police & reference check for home-entry trust (electrical, plumbing, cleaning).",
+                                "घरभित्रको कामका लागि पुलिस र सन्दर्भ जाँच ब्याज।"
+                              )}
+                            </p>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                              bgCheckStatus === "VERIFIED"
+                                ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800"
+                                : bgCheckStatus === "PENDING"
+                                ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800"
+                                : "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+                            }`}
+                          >
+                            {bgCheckStatus}
+                          </span>
+                        </div>
+
+                        {bgCheckStatus !== "VERIFIED" && (
+                          <button
+                            type="button"
+                            disabled={requestingBgCheck || bgCheckStatus === "PENDING"}
+                            onClick={async () => {
+                              setRequestingBgCheck(true);
+                              const res = await requestBackgroundCheck();
+                              if (res.success) {
+                                setBgCheckStatus("PENDING");
+                              }
+                              setRequestingBgCheck(false);
+                            }}
+                            className="w-full py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            {requestingBgCheck ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                            )}
+                            <span>
+                              {bgCheckStatus === "PENDING"
+                                ? tx("Background Check Pending Review", "जाँच प्रक्रियामा छ")
+                                : tx("Request Background Check", "पृष्ठभूमि जाँच अनुरोध गर्नुहोस्")}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </form>
                 ) : (
                   /* ── Password Tab ── */

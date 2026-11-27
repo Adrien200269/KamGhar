@@ -72,6 +72,7 @@ export type WorkerItem = {
   featuredUntil?: string | Date | null;
   isAvailableNow?: boolean;
   kycStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
+  backgroundCheckStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
   user: {
     id?: string;
     role?: string;
@@ -547,6 +548,15 @@ export default function WorkersFeed({
                             >
                               <ShieldCheck className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                               <span className="hidden sm:inline">Verified</span>
+                            </span>
+                          )}
+                          {worker.backgroundCheckStatus === "VERIFIED" && (
+                            <span
+                              title="Background Checked - Police / Reference Cleared"
+                              className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60"
+                            >
+                              <ShieldCheck className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                              <span className="hidden sm:inline">Bg Checked</span>
                             </span>
                           )}
                         </div>

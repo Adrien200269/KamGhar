@@ -118,6 +118,9 @@ model WorkerProfile {
   kycDocumentUrl  String?
   kycDocumentNumber String?
   kycVerifiedAt   DateTime?
+  backgroundCheckStatus KycStatus @default(UNVERIFIED)
+  backgroundCheckedAt   DateTime?
+  backgroundCheckNote   String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 

@@ -793,6 +793,40 @@ export async function toggleUrgentAlertsPreference(): Promise<
   }
 }
 
+/* ── Request Background Check (Worker Trust & Safety) ──────────── */
+export async function requestBackgroundCheck(): Promise<ProfileActionResult> {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return { success: false, error: "Not authenticated" };
+
+  try {
+    const profile = await prisma.workerProfile.findUnique({
+      where: { userId: user.id },
+      select: { kycStatus: true, backgroundCheckStatus: true },
+    });
+    if (!profile) return { success: false, error: "Worker profile not found." };
+    if (profile.backgroundCheckStatus === "VERIFIED") {
+      return { success: true };
+    }
+
+    await prisma.workerProfile.update({
+      where: { userId: user.id },
+      data: {
+        backgroundCheckStatus: "PENDING",
+        backgroundCheckNote: "Submitted for police/reference verification.",
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/workers");
+    revalidatePath(`/workers/${user.id}`);
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to request background check.";
+    return { success: false, error: msg };
+  }
+}
+
 /* ── Submit KYC Verification (Citizenship / National ID / PAN) ── */
 export async function submitKycVerification(data: {
   documentType: "CITIZENSHIP" | "NATIONAL_ID" | "PAN_OR_LICENSE";

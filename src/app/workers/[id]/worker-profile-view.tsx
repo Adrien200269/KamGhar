@@ -246,6 +246,13 @@ export default function WorkerProfileView({
                     </span>
                   )}
 
+                  {profile.backgroundCheckStatus === "VERIFIED" && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-700">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>{tx("Background Checked", "पृष्ठभूमि प्रमाणित")}</span>
+                    </span>
+                  )}
+
                   <span className={`inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${tier.badgeClass}`}>
                     <Award className="w-3.5 h-3.5" />
                     <span>{lang === "ne" ? tier.labelNe : tier.label}</span>

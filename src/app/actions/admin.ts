@@ -1498,3 +1498,46 @@ export async function getMarketplaceFunnelAnalytics() {
   }
 }
 
+/* ── Admin: Approve / Reject Worker Background Check ────────────── */
+export async function updateWorkerBackgroundCheck(
+  workerUserId: string,
+  status: "VERIFIED" | "REJECTED",
+  note?: string
+): Promise<AdminActionResult> {
+  const admin = await getAdminCaller();
+  if (!admin || admin.role !== "ADMIN") {
+    return { success: false, error: "Unauthorized: Admin access required." };
+  }
+
+  try {
+    await prisma.workerProfile.update({
+      where: { userId: workerUserId },
+      data: {
+        backgroundCheckStatus: status,
+        backgroundCheckedAt: status === "VERIFIED" ? new Date() : null,
+        backgroundCheckNote: note || (status === "VERIFIED" ? "Background check cleared" : "Background check rejected"),
+      },
+    });
+
+    await createNotification({
+      userId: workerUserId,
+      type: "SYSTEM",
+      title: status === "VERIFIED" ? "🛡️ Background Check Verified" : "Background Check Update",
+      titleNe: status === "VERIFIED" ? "🛡️ पृष्ठभूमि जाँच प्रमाणित भयो" : "पृष्ठभूमि जाँच अपडेट",
+      message:
+        status === "VERIFIED"
+          ? "Your Background Checked badge is now live on your KamGhar profile!"
+          : note || "Your background check request needs additional verification.",
+      link: "/dashboard",
+    });
+
+    revalidatePath("/admin");
+    revalidatePath("/workers");
+    revalidatePath(`/workers/${workerUserId}`);
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to update background check";
+    return { success: false, error: msg };
+  }
+}
+
