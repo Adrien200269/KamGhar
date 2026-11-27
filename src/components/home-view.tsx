@@ -97,7 +97,7 @@ function HeroPhotoSlider() {
       initial={{ opacity: 0, x: 40 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.7, delay: 0.3 }}
-      className="relative hidden lg:block h-[590px]"
+      className="relative h-[340px] sm:h-[430px] lg:h-[590px] mt-2 lg:mt-0"
     >
       {/* Big photo frame */}
       <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-[0px_20px_50px_0px_rgba(0,0,0,0.18)] ring-[5px] ring-white dark:ring-slate-800 z-10">
@@ -182,7 +182,7 @@ function HeroPhotoSlider() {
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.9 }}
-        className="absolute -top-4 -left-4 bg-white dark:bg-slate-900 border border-[#e2e8f0] dark:border-slate-700 rounded-2xl px-4 py-2.5 shadow-xl z-30 flex items-center gap-2.5"
+        className="absolute -top-3 left-2 sm:-top-4 sm:-left-4 bg-white dark:bg-slate-900 border border-[#e2e8f0] dark:border-slate-700 rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 shadow-xl z-30 flex items-center gap-2.5"
       >
         <div className="flex -space-x-2">
           <div className="w-6 h-6 rounded-full bg-orange-400 ring-2 ring-white dark:ring-slate-900" />

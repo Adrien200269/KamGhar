@@ -58,7 +58,7 @@ export default function MobileBottomNav() {
       <div className="flex items-center justify-around max-w-md mx-auto">
         {/* 1. Home */}
         <Link
-          href="/"
+          href={isLoggedIn ? "/dashboard" : "/"}
           className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all active:scale-95 ${
             isHomeActive
               ? "text-orange-600 dark:text-orange-400 font-bold"

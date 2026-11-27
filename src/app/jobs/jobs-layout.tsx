@@ -94,7 +94,7 @@ export default function JobsLayout({ user, children, badgeText, badgeTextNe, bre
             <div className="absolute -top-24 right-[10%] w-80 h-80 rounded-full bg-orange-300/15 dark:bg-orange-500/5 blur-3xl" />
             <div className="absolute bottom-[10%] left-[20%] w-72 h-72 rounded-full bg-amber-300/15 dark:bg-amber-500/5 blur-3xl" />
           </div>
-          <div className="relative z-10">{children}</div>
+          <div className="relative z-10 pb-20 sm:pb-0">{children}</div>
         </main>
       </div>
     </div>
